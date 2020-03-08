@@ -20,11 +20,11 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{E8E19087-1527-41CA-AAD0-53680DDE5B11}</ProjectGuid>
+    <ProjectGuid>{C953C8D9-E80D-4B3D-86BB-C5B1C1B6875A}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>vgm2str</RootNamespace>
+    <RootNamespace>vgm_ay2psg</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
-    <ProjectName>vgm2psg</ProjectName>
+    <ProjectName>vgm_ay2psg</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -151,7 +151,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="vgm2psg.cpp" />
+    <ClCompile Include="vgm_ay2psg.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
