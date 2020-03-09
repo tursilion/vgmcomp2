@@ -65,23 +65,45 @@ int main(int argc, char *argv[])
 {
     char namebuf[128];
     char buf[1024];
+    char ext[16];
+    int delay = 16;
 
     if (argc < 2) {
         printf("Pass the prefix for the PSG tracks to load\n");
-        printf("Currently only 60hz is supported.\n");
+        printf("Will search for 60hz, 50hz, 30hz, and 25hz in that order\n");
         return 1;
     }
     strncpy_s(namebuf, argv[1], sizeof(namebuf));
     namebuf[sizeof(namebuf)-1]='\0';
 
-    printf("Working with prefix '%s'...\n", namebuf);
+    printf("Working with prefix '%s'... ", namebuf);
+
+    // work out which extension - channel 0 must exist
+    for (int idx=0; idx<5; ++idx) {
+        switch (idx) {
+            case 0: strcpy(ext,"60hz"); delay=1000/60; break;
+            case 1: strcpy(ext,"50hz"); delay=1000/50; break;
+            case 2: strcpy(ext,"30hz"); delay=1000/30; break;
+            case 3: strcpy(ext,"25hz"); delay=1000/25; break;
+            case 4: printf("\nCan't find the song. Channel 00 must exist as ton or noi!\n"); return 1;
+        }
+        sprintf_s(buf, "%s_ton00.%s", namebuf, ext);
+        FILE *fp = fopen(buf, "rb");
+        if (NULL != fp) {fclose(fp); break;}
+
+        sprintf_s(buf, "%s_noi00.%s", namebuf, ext);
+        fp = fopen(buf, "rb");
+        if (NULL != fp) {fclose(fp); break;}
+    }
+
+    printf("Found extension %s\n", ext);
 
     // dumbest loader ever...
     // first try all the tones
     int chan = 0;
     int cnt = 0;    // TODO: check that all files have the same cnt
     for (int idx=0; idx<99; idx++) {
-        sprintf_s(buf, "%s_ton%02d.60hz", namebuf, idx);
+        sprintf_s(buf, "%s_ton%02d.%s", namebuf, idx, ext);
         FILE *fp = fopen(buf, "rb");
         if (NULL != fp) {
             printf("Reading TONE channel %d... ", idx);
@@ -115,7 +137,7 @@ int main(int argc, char *argv[])
     }
     // then all the noises
     for (int idx=0; idx<99; idx++) {
-        sprintf_s(buf, "%s_noi%02d.60hz", namebuf, idx);
+        sprintf_s(buf, "%s_noi%02d.%s", namebuf, idx, ext);
         FILE *fp = fopen(buf, "rb");
         if (NULL != fp) {
             printf("Reading NOISE channel %d... ", idx);
@@ -153,11 +175,12 @@ int main(int argc, char *argv[])
 
     printf(".. and playing...\n");
 
-    // now play out the song, at 60hz
+    // now play out the song, at delay ms per frame
     // cnt better be the same on each channel ;)
     for (int row = 0 ; row < cnt; ++row) {
         // to heck with correct timing...
-        Sleep(16);
+        // works oddly well on Win10...
+        Sleep(delay);
 
         // process the command line from each channel
         for (int idx=0; idx<chan; ++idx) {
