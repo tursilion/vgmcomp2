@@ -38,7 +38,8 @@ int nCurrentTone[MAXCHANNELS];				// current value for each channel in case it's
 double freqClockScale = 1.0;                // doesn't affect noise channel, even though it would in reality
                                             // all chips assumed on same clock
 int nTicks;                                 // this MUST be a 32-bit int
-bool verbose = false;
+bool verbose = false;                       // emit more information
+bool debug = false;                         // dump parser data
 
 // codes for noise processing (if not periodic, it's white noise)
 #define NOISE_MASK     0x00FFF
@@ -49,6 +50,7 @@ bool verbose = false;
 // options
 bool noTuneNoise = false;               // don't retune channel three for noises
 bool scaleFreqClock = true;			    // apply scaling for unexpected clock rates
+bool ignoreWeird = false;               // ignore any other weirdness (like shift register)
 unsigned int nRate = 60;
 
 // lookup table to map PSG volume to linear 8-bit. AY is assumed close enough.
@@ -198,6 +200,8 @@ bool outputData() {
 
     // now write the result into the current line of data
     for (int rows = 0; rows < rowsOut; ++rows) {
+        if (debug) printf("tick\n");
+
         // reload the work regs
         for (int idx=0; idx<MAXCHANNELS; ++idx) {
             nWork[idx] = nCurrentTone[idx];
@@ -244,7 +248,9 @@ bool outputData() {
 
         // now that it's output, clear any noise triggers
         for (int idx=0; idx<MAXCHANNELS; ++idx) {
-            nCurrentTone[idx] &= ~NOISE_TRIGGER;
+            if (nCurrentTone[idx] != -1) {
+                nCurrentTone[idx] &= ~NOISE_TRIGGER;
+            }
         }
     }
 
@@ -256,10 +262,12 @@ int main(int argc, char* argv[])
 	printf("Import VGM PSG - v03082020\n");
 
 	if (argc < 2) {
-		printf("vgm_psg2psg [-q] [-scalefreq] <filename>\n");
+		printf("vgm_psg2psg [-q] [-d] [-notunenoise] [-noscalefreq] [-ignoreweird] <filename>\n");
 		printf(" -q - quieter verbose data\n");
+        printf(" -d - enable parser debug output\n");
 		printf(" -notunenoise - Do not retune for noise (normally autodetected)\n");
 		printf(" -noscalefreq - do not apply frequency scaling if non-NTSC (normally automatic)\n");
+        printf(" -ignoreweird - ignore anything else unexpected and treat as default\n");
 		printf(" <filename> - VGM file to read.\n");
 		return -1;
 	}
@@ -269,10 +277,14 @@ int main(int argc, char* argv[])
 	while ((arg < argc-1) && (argv[arg][0]=='-')) {
 		if (0 == strcmp(argv[arg], "-q")) {
 			verbose=false;
+        } else if (0 == strcmp(argv[arg], "-d")) {
+			debug = true;
 		} else if (0 == strcmp(argv[arg], "-notunenoise")) {
 			noTuneNoise=true;
 		} else if (0 == strcmp(argv[arg], "-noscalefreq")) {
 			scaleFreqClock=false;
+		} else if (0 == strcmp(argv[arg], "-ignoreweird")) {
+			ignoreWeird=true;
 		} else {
 			printf("\rUnknown command '%s'\n", argv[arg]);
 			return -1;
@@ -295,8 +307,7 @@ int main(int argc, char* argv[])
         //  We allow up to 2 chips.
 		//  For the first pass, emit for every frame (that should be easier to parse down later)
 
-		// The format starts with a 192 byte header:
-        // TODO: header is up to 256 bytes in the current version... (1.71?)
+		// The format starts with a 256 byte header (1.70):
 		//
 		//      00  01  02  03   04  05  06  07   08  09  0A  0B  0C  0D  0E  0F
 		// 0x00 ["Vgm " ident   ][EoF offset     ][Version        ][SN76489 clock  ]
@@ -310,9 +321,13 @@ int main(int argc, char* argv[])
 		// 0x80 [GB DMG clock   ][NES APU clock  ][MultiPCM clock ][uPD7759 clock  ]
 		// 0x90 [OKIM6258 clock ][OF][KF][CF] *** [OKIM6295 clock ][K051649 clock  ]
 		// 0xA0 [K054539 clock  ][HuC6280 clock  ][C140 clock     ][K053260 clock  ]
-		// 0xB0 [Pokey clock    ][QSound clock   ] *** *** *** ***  *** *** *** ***
-	
-		// 56 67 6D 20 0B 1F 00 00 01 01 00 00 94 9E 36 00 
+		// 0xB0 [Pokey clock    ][QSound clock   ] *** *** *** *** [Extra Hdr ofs  ]
+        // 0xC0  *** *** *** ***  *** *** *** ***  *** *** *** ***  *** *** *** ***
+        // 0xD0  *** *** *** ***  *** *** *** ***  *** *** *** ***  *** *** *** ***
+        // 0xE0  *** *** *** ***  *** *** *** ***  *** *** *** ***  *** *** *** ***
+        // 0xF0  *** *** *** ***  *** *** *** ***  *** *** *** ***  *** *** *** ***	
+
+        // 56 67 6D 20 0B 1F 00 00 01 01 00 00 94 9E 36 00 
 		// 00 00 00 00 C7 1D 00 00 91 D4 12 00 40 02 00 00 
 		// 00 3A 11 00 3C 00 00 00 00 00 00 00 00 00 00 00 
 		// 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
@@ -373,7 +388,12 @@ int main(int argc, char* argv[])
             }
 			if ((nRate!=50)&&(nRate!=60)) {
 				printf("\rweird refresh rate %d - only 50hz or 60hz supported\n", nRate);
-				return -1;
+                if (ignoreWeird) {
+                    printf("  .. ignoring as requested - treating as 60hz\n");
+                    nRate = 60;
+                } else {
+    				return -1;
+                }
 			}
 		}
 		myprintf("Refresh rate %d Hz\n", nRate);
@@ -382,7 +402,12 @@ int main(int argc, char* argv[])
 			nShiftRegister = buffer[0x2a];
 			if ((nShiftRegister != 0)&&(nShiftRegister!=16)&&(nShiftRegister!=15)) {
 				printf("\rweird shift register %d - only 15 or 16 bit supported\n", nShiftRegister);
-				return -1;
+                if (ignoreWeird) {
+                    printf("  .. ignoring as requested - treating as 16 bit\n");
+                    nShiftRegister = 16;
+                } else {
+    				return -1;
+                }
 			}
 		}
 		// TI/Coleco has a 15 bit shift register, so if it's 16 (default), scale it down
@@ -391,6 +416,14 @@ int main(int argc, char* argv[])
 			nNoiseRatio *= 15.0/16.0;   // shift it down to the TI version 15-bit shift register
 			myprintf("Selecting 16-bit shift register.\n");
 		}
+
+        // check the extra flags. The only one we might care about is bit 0 - frequency 0 is 0x400
+        // but, we just assume we can't rely on it anyway
+        if (nVersion >= 0x151) {
+            if (buffer[0x2b] != 0) {
+                printf("Warning: ignoring SN76489 flags\n");
+            }
+        }
 
         // find the start of data
 		unsigned int nOffset=0x40;
@@ -428,6 +461,8 @@ int main(int argc, char* argv[])
 
 					// here's the good stuff!
 					unsigned char c = buffer[nOffset+1];
+
+                    if (debug) printf("[%d]=%02x ", chipoff, c);
 
 					if (c&0x80) {
 						// it's a command byte - update the byte data

@@ -39,7 +39,8 @@ int nCurrentTone[MAXCHANNELS];				// current value for each channel in case it's
 double freqClockScale = 1.0;                // doesn't affect noise channel, even though it would in reality
                                             // all chips assumed on same clock
 int nTicks;                                 // this MUST be a 32-bit int
-bool verbose = false;
+bool verbose = false;                       // emit more information
+bool debug = false;                         // dump the parsing
 
 // codes for noise processing (if not periodic, it's white noise)
 // Retriggering appears to have no effect, and the other bits have no meaning here
@@ -94,6 +95,7 @@ int envDir[2] = {-1,-1};       // are we counting up or down? When we are at the
 // options
 bool noTuneNoise = false;               // don't retune for noises
 bool scaleFreqClock = true;			    // apply scaling for unexpected clock rates
+bool ignoreWeird = false;               // ignore any other weirdness (like shift register)
 unsigned int nRate = 60;
 
 // lookup table to map PSG volume to linear 8-bit. AY is assumed close enough.
@@ -241,6 +243,8 @@ bool outputData() {
 
     // process for each output row
     for (int rows = 0; rows < rowsOut; ++rows) {
+        if (debug) printf("tick\n");
+
         // get the base data - probably don't need to repeat this, but we'll be sure
         // speed is not an issue here.
         for (int idx=0; idx<MAXCHANNELS; ++idx) {
@@ -389,10 +393,12 @@ int main(int argc, char* argv[])
 	printf("Import AY PSG - v03082020\n");
 
 	if (argc < 2) {
-		printf("vgm_ay2psg [-q] [-scalefreq] <filename>\n");
+		printf("vgm_ay2psg [-q] [-d] [-notunenoise] [-noscalefreq] [-ignoreweird] <filename>\n");
 		printf(" -q - quieter verbose data\n");
+        printf(" -d - enable parser debug output\n");
 		printf(" -notunenoise - Do not retune noise (normally needed)\n");
 		printf(" -noscalefreq - do not apply frequency scaling if non-NTSC (normally automatic)\n");
+        printf(" -ignoreweird - ignore anything else unexpected and treat as default\n");
 		printf(" <filename> - VGM file to read.\n");
 		return -1;
 	}
@@ -402,10 +408,14 @@ int main(int argc, char* argv[])
 	while ((arg < argc-1) && (argv[arg][0]=='-')) {
 		if (0 == strcmp(argv[arg], "-q")) {
 			verbose=false;
+        } else if (0 == strcmp(argv[arg], "-d")) {
+			debug = true;
 		} else if (0 == strcmp(argv[arg], "-notunenoise")) {
 			noTuneNoise=true;
 		} else if (0 == strcmp(argv[arg], "-noscalefreq")) {
 			scaleFreqClock=false;
+		} else if (0 == strcmp(argv[arg], "-ignoreweird")) {
+			ignoreWeird=true;
 		} else {
 			printf("\rUnknown command '%s'\n", argv[arg]);
 			return -1;
@@ -529,7 +539,12 @@ int main(int argc, char* argv[])
             }
 			if ((nRate!=50)&&(nRate!=60)) {
 				printf("\rweird refresh rate %d - only 50hz or 60hz supported\n", nRate);
-				return -1;
+                if (ignoreWeird) {
+                    printf("  .. ignoring as requested - treating as 60hz\n");
+                    nRate = 60;
+                } else {
+    				return -1;
+                }
 			}
 		}
 		myprintf("Refresh rate %d Hz\n", nRate);
@@ -545,9 +560,11 @@ int main(int argc, char* argv[])
         // find the start of data
 		unsigned int nOffset=0x40;
 		if (nVersion >= 0x150) {
-			nOffset=*((unsigned int*)&buffer[0x34])+0x34;
+            printf("reading offset from file, got 0x%02X\n", *((unsigned int*)&buffer[0x34]));
+			nOffset=(*((unsigned int*)&buffer[0x34]))+0x34;
 			if (nOffset==0x34) nOffset=0x40;		// if it was 0
 		}
+        printf("file data offset: 0x%02X\n", nOffset);
 
         // prepare the decode
 		for (int idx=0; idx<MAXCHANNELS; idx+=2) {
@@ -845,6 +862,7 @@ int main(int argc, char* argv[])
 
                     // store the register data off
                     ayRegs[chipidx][r] = c;
+                    if (debug) printf("[%d:%02X]=%02x ", chipidx, r, c);
 
                     switch (r) {
                         case 0: 

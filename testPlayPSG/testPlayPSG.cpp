@@ -26,6 +26,7 @@ int VGMDAT[MAXCHANNELS][MAXTICKS];
 int VGMVOL[MAXCHANNELS][MAXTICKS];
 bool isNoise[MAXCHANNELS];
 
+bool clipbass = false;                      // whether to clip bass
 
 // lookup table to map PSG volume to linear 8-bit. AY is assumed close enough.
 // mapVolume assumes the order of this table for mute suppression
@@ -68,12 +69,26 @@ int main(int argc, char *argv[])
     char ext[16];
     int delay = 16;
 
-    if (argc < 2) {
-        printf("Pass the prefix for the PSG tracks to load\n");
+	if (argc < 2) {
+		printf("testPlayPSG [-clipbass] <file prefix>\n");
+		printf(" -clipbass - restrict bass notes to the range of the TI PSG\n");
+		printf(" <file prefix> - PSG file prefix (usually the name of the original VGM).\n");
         printf("Will search for 60hz, 50hz, 30hz, and 25hz in that order\n");
-        return 1;
-    }
-    strncpy_s(namebuf, argv[1], sizeof(namebuf));
+		return -1;
+	}
+
+	int arg=1;
+	while ((arg < argc-1) && (argv[arg][0]=='-')) {
+		if (0 == strcmp(argv[arg], "-clipbass")) {
+			clipbass=true;
+		} else {
+			printf("\rUnknown command '%s'\n", argv[arg]);
+			return -1;
+		}
+		arg++;
+	}
+
+    strncpy_s(namebuf, argv[arg], sizeof(namebuf));
     namebuf[sizeof(namebuf)-1]='\0';
 
     printf("Working with prefix '%s'... ", namebuf);
@@ -184,7 +199,7 @@ int main(int argc, char *argv[])
 
         // process the command line from each channel
         for (int idx=0; idx<chan; ++idx) {
-            setfreq(idx, VGMDAT[idx][row]);
+            setfreq(idx, VGMDAT[idx][row], clipbass);
             setvol(idx, mapVolume(VGMVOL[idx][row]));
         }
 
