@@ -184,9 +184,6 @@ int tryvgz() {
 bool outputData() {
     // get our working values
     int nWork[MAXCHANNELS];
-    for (int idx=0; idx<MAXCHANNELS; ++idx) {
-        nWork[idx] = nCurrentTone[idx];
-    }
 
     // number of rows out is 1 or 2
     int rowsOut = 1;
@@ -199,17 +196,22 @@ bool outputData() {
 
     // now we can manipulate these, if needed for special cases
 
-    for (int base = 0; base < MAXCHANNELS; base += 8) {
-        // if the noise channel needs to use channel 3 for frequency...
-        if (nWork[base+6]&NOISE_MAPCHAN3) {
-            // remember the flag - we do final tuning at the end if needed
-            nWork[base+6]=(nWork[base+6]&(~NOISE_MASK)) | (nWork[base+4]&NOISE_MASK) | NOISE_MAPCHAN3;   // gives a frequency for outputs that need it
-        }
-    }
-
     // now write the result into the current line of data
     for (int rows = 0; rows < rowsOut; ++rows) {
-	    for (int idx=0; idx<MAXCHANNELS; idx++) {
+        // reload the work regs
+        for (int idx=0; idx<MAXCHANNELS; ++idx) {
+            nWork[idx] = nCurrentTone[idx];
+        }
+
+        for (int base = 0; base < MAXCHANNELS; base += 8) {
+            // if the noise channel needs to use channel 3 for frequency...
+            if (nWork[base+6]&NOISE_MAPCHAN3) {
+                // remember the flag - we do final tuning at the end if needed
+                nWork[base+6]=(nWork[base+6]&(~NOISE_MASK)) | (nWork[base+4]&NOISE_MASK) | NOISE_MAPCHAN3;   // gives a frequency for outputs that need it
+            }
+        }
+
+        for (int idx=0; idx<MAXCHANNELS; idx++) {
 		    if (nWork[idx] == -1) {         // no entry yet
                 switch(idx%8) {
                     case 0:
@@ -239,6 +241,11 @@ bool outputData() {
 		    printf("\rtoo many ticks (%d), can not process. Need a shorter song.\n", MAXTICKS);
 		    return false;
 	    }
+
+        // now that it's output, clear any noise triggers
+        for (int idx=0; idx<MAXCHANNELS; ++idx) {
+            nCurrentTone[idx] &= ~NOISE_TRIGGER;
+        }
     }
 
     return true;
@@ -1134,8 +1141,7 @@ int main(int argc, char* argv[])
             } else {
                 strcat(strout, "_ton");     // tone (0-4095)
             }
-            sprintf(num, "%d", outChan++);
-            if (outChan < 10) strcat(strout, "0");
+            sprintf(num, "%02d", outChan++);
             strcat(strout, num);
             strcat(strout, ".60hz");
 

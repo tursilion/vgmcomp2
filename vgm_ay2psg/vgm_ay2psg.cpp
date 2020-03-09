@@ -1276,8 +1276,7 @@ int main(int argc, char* argv[])
             } else {
                 strcat(strout, "_ton");     // tone (0-4095)
             }
-            sprintf(num, "%d", outChan++);
-            if (outChan < 10) strcat(strout, "0");
+            sprintf(num, "%02d", outChan++);
             strcat(strout, num);
             strcat(strout, ".60hz");
 
