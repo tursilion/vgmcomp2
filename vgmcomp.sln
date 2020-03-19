@@ -15,6 +15,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vgm_ay2psg", "vgm_ay2psg\vg
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vgm_id", "vgmid\vgm_id.vcxproj", "{3EFFE07D-25B0-4CD6-9584-D726B08D2300}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prepare4PSG", "prepare4PSG\prepare4PSG.vcxproj", "{DD7CA84E-4602-4AC3-BEF5-74BCCD7451D2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -59,6 +61,14 @@ Global
 		{3EFFE07D-25B0-4CD6-9584-D726B08D2300}.Release|Win32.Build.0 = Release|Win32
 		{3EFFE07D-25B0-4CD6-9584-D726B08D2300}.Release|x64.ActiveCfg = Release|x64
 		{3EFFE07D-25B0-4CD6-9584-D726B08D2300}.Release|x64.Build.0 = Release|x64
+		{DD7CA84E-4602-4AC3-BEF5-74BCCD7451D2}.Debug|Win32.ActiveCfg = Debug|Win32
+		{DD7CA84E-4602-4AC3-BEF5-74BCCD7451D2}.Debug|Win32.Build.0 = Debug|Win32
+		{DD7CA84E-4602-4AC3-BEF5-74BCCD7451D2}.Debug|x64.ActiveCfg = Debug|x64
+		{DD7CA84E-4602-4AC3-BEF5-74BCCD7451D2}.Debug|x64.Build.0 = Debug|x64
+		{DD7CA84E-4602-4AC3-BEF5-74BCCD7451D2}.Release|Win32.ActiveCfg = Release|Win32
+		{DD7CA84E-4602-4AC3-BEF5-74BCCD7451D2}.Release|Win32.Build.0 = Release|Win32
+		{DD7CA84E-4602-4AC3-BEF5-74BCCD7451D2}.Release|x64.ActiveCfg = Release|x64
+		{DD7CA84E-4602-4AC3-BEF5-74BCCD7451D2}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
