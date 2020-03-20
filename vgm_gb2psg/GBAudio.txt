@@ -1,0 +1,190 @@
+More useful data may be here: http://www.devrs.com/gb/files/hosted/GBSOUND.txt
+
+https://gist.github.com/drhelius/3652407
+
+Gameboy audio:
+
+4 sound channels: 
+	- 2 square wave
+	- wave table
+	- noise
+	
+First square wave also has a frequency sweep generator.
+All but wave table also have a volume envelope generator.
+There is an automatic mute on each channel, and stereo pan with individual volume.
+
+	Name Addr 7654 3210 Function
+	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			Square 1
+	NR10 FF10 -PPP NSSS	Sweep period, negate, shift
+	
+		Sweep clocks at 128Hz
+		Active when EITHER sweep or shift are non-zero
+		On trigger: frequency is shifted right by the shift
+		value, negating if necessary, then added back to the frequency.
+		If the result is greater than 2047 then the channel is disabled.
+		
+		A period of 0 is treated as 8.
+		
+		Important! After the new value is written, the shift and test
+		is run a SECOND time (presumably to check for disable, as the
+		new calculated value is not used).
+		
+		Negate is invert when high? 
+		When falling edge in operation, disable the channel.
+		
+		Changes to the frequency in NR12 and NR13 do not affect the internal
+		sweep frequency, which is stored in a shadow register. 
+		(??? This conflicts in the same document section, reloaded on trigger?)
+		
+	
+	NR11 FF11 DDLL LLLL	Duty, Length load (64-L)
+		
+		4 duty cycles: 12.5%, 25%, 50% and 75%
+		Of course, we can only support 50% (10)
+		
+		Length counts down at 256Hz when enabled in NR14
+		If it is ever zero, the channel is muted. (Is this inverted??)
+		
+
+	NR12 FF12 VVVV APPP	Starting volume, Envelope add mode, period
+	
+		Volume is 0 to 15 (0 is muted, and disables the channel. Note that
+		a disabled channel is NOT enabled by setting the volume, the internal
+		enable flag needs to be triggered. This affects the counter emulation).
+		
+		Period is counted at 64Hz, while not zero the volume is updated
+		If volume exceeds 0 or 15, it is not changed. A count of 0 is treated as 8.
+		
+		Add mode is true to increment, false to decrement ????
+		
+		Writing this register while envelopes are running has complex results.
+		However, it may be too unreliable across models to be needed.
+	
+	
+	NR13 FF13 FFFF FFFF	Frequency LSB
+		
+		Clock is 4194304 Hz, as in the SMS doc.
+		Frequency MSB is in NR14
+		Period is not exact, it's (2048-frequency)*4
+		
+		Note that square waves do not clock until the first trigger!
+	
+	
+	NR14 FF14 TL-- -FFF	Trigger, Length enable, Frequency MSB
+	
+		Trigger enables the channel, starting the countdown on the length. If it's
+		zero, length is set to maximum. All internal registers (freq, envelope,
+		volume, sweep, noise, wave, etc) are reloaded.
+		
+		Length enable enables length to count down, otherwise it stays static.
+		If it is rising edge (low to high), then the length countdown happens
+		immediately and may disable the channel if it becomes zero, unless
+		trigger is also set. So process length before trigger.
+		
+		Frequency MSB is the rest of the frequency count. :)
+	
+	
+	
+			Square 2
+	     FF15 ---- ---- Not used
+	NR21 FF16 DDLL LLLL	Duty, Length load (64-L)
+	NR22 FF17 VVVV APPP	Starting volume, Envelope add mode, period
+	NR23 FF18 FFFF FFFF	Frequency LSB
+	NR24 FF19 TL-- -FFF	Trigger, Length enable, Frequency MSB
+	
+		See Square 1 for Square 2, which is the same with the omission
+		of the frequency sweep generator.
+		
+	
+			Wave
+	NR30 FF1A E--- ----	DAC power
+	
+	
+	NR31 FF1B LLLL LLLL	Length load (256-L)
+	
+		Same as above, except that more bits are available
+	
+	NR32 FF1C -VV- ----	Volume code (00=0%, 01=100%, 10=50%, 11=25%)
+	
+		Samples are 4 bit, volume code does a right-shift to make quieter.
+	
+	NR33 FF1D FFFF FFFF	Frequency LSB
+	
+		Frequency MSB is in NR34. Period is (2048-freq)*2.
+	
+	NR34 FF1E TL-- -FFF	Trigger, Length enable, Frequency MSB
+	
+		As above
+
+
+	
+			Noise
+	NR41 FF20 --LL LLLL	Length load (64-L)
+	
+		Same as above, except that more bits are available.
+	
+	NR42 FF21 VVVV APPP	Starting volume, Envelope add mode, period
+	
+		Same as above.
+		
+		
+	NR43 FF22 SSSS WDDD	Clock shift, Width mode of LFSR, Divisor code
+	
+		Clock Shift is base clock (??) divided by the divisor code
+		for a 15-bit noise generator (same size as TI, though
+		not necessarily same pattern). Resets on trigger.
+		Shifts of 14 and 15 don't clock.
+		
+		Width mode makes a shorter (7-bit) noise generator. So we would need to
+		adapt the noise frequency.
+		
+		Divisor code is a base divisor for the shift rate (16*code, except for 0)
+			0	8
+			1	16
+			2	32
+			3	48
+			4	64
+			5	80
+			6	96
+			7	112
+
+	
+	NR44 FF23 TL-- ----	Trigger, Length enable
+	
+		As above (except no extra frequency)
+	
+	
+			Control/Status
+	NR50 FF24 ALLL BRRR	Vin L enable, Left vol, Vin R enable, Right vol
+	
+		Vin is external analog input, not relevant
+		
+		The master volumes multiply the signal by (volume+1). Scale isn't clear.
+	
+	
+	NR51 FF25 NW21 NW21	Left enables, Right enables
+	
+		Channel outputs to left and right. As long as either is set, we're good for this purpose.
+		
+	
+	NR52 FF26 P--- NW21	Power control/status, Channel length statuses
+	
+		When P is off, all registers are forced to zero, except on the DMG
+		where length counters can still be written.
+		
+		
+	
+	
+			Wave Table
+	     FF30 0000 1111	Samples 0 and 1
+	     ....
+	     FF3F 0000 1111	Samples 30 and 31
+	     
+	     
+Clock is 4194304 Hz, as in the SMS doc. 
+length counts down at 256Hz
+Sweep clocks at 128Hz
+envelope clocks at 64Hz
+
+
