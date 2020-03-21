@@ -15,6 +15,7 @@
 #include <windows.h>
 #include <dsound.h>
 #include <stdio.h>
+#include <cmath>
 #include "sound.h"
 
 extern LPDIRECTSOUNDBUFFER soundbuf;		// sound chip audio buffer
@@ -27,6 +28,8 @@ int VGMVOL[MAXCHANNELS][MAXTICKS];
 bool isNoise[MAXCHANNELS];
 
 bool clipbass = false;                      // whether to clip bass
+bool shownotes = false;                     // whether to scroll the notes
+char NoteTable[4096][4];                    // we'll just lookup the whole range
 
 // lookup table to map PSG volume to linear 8-bit. AY is assumed close enough.
 // mapVolume assumes the order of this table for mute suppression
@@ -35,8 +38,6 @@ unsigned char volumeTable[16] = {
 	50,
 	40,32,24,20,16,12,10,0
 };
-
-
 
 // input: 8 bit unsigned audio (centers on 128)
 // output: 15 (silent) to 0 (max)
@@ -60,7 +61,46 @@ int mapVolume(int nTmp) {
 	return nBest;
 }
 
+void buildNoteTable() {
+    // note scales are confusing. ;) But anyway, we'll start at
+    // A0 in the tempered scale which is 27.5 hz, or 4068 counts.
+    // That's the lowest this protocol supports (and is far lower
+    // than the TI can manage.)
+    static const char *names[12] = { "C-","C#","D-","D#","E-","F-","F#","G-","G#","A-","A#","B-" };
+    int scale = 0;  // scale increments at C
+    int namepos = 9;    // A
+    double currentNote = 27.5;  // A
 
+    // so first init the table blank
+    for (int idx=0; idx<sizeof(NoteTable)/sizeof(NoteTable[0]); ++idx) {
+        strcpy(NoteTable[idx],"---");
+    }
+
+    // okay! Now we build, increasing frequency until it is under 20
+    int lastPer = 4095;
+    for (;;) {
+        int period = int(111860.8/currentNote+0.5);
+        if (period < 20) break;     // no longer tuned around here
+        int split = (lastPer-period) / 2;
+        for (int run = period-split; run<period+split; ++run) {
+            sprintf(NoteTable[run], "%s%d", names[namepos], scale);
+        }
+        ++namepos;
+        if (namepos > 11) {
+            namepos = 0;
+            ++scale;
+        }
+        currentNote = currentNote * pow(2, 1.0/12.0);
+        lastPer = period;
+    }
+    // close enough...
+}
+
+// MUST return a 3-character string
+const char *getNoteStr(int note, int vol) {
+    if (vol == 0) return "---";
+    return NoteTable[note&0xfff];
+}
 
 int main(int argc, char *argv[])
 {
@@ -70,8 +110,9 @@ int main(int argc, char *argv[])
     int delay = 16;
 
 	if (argc < 2) {
-		printf("testPlayPSG [-clipbass] <file prefix>\n");
+		printf("testPlayPSG [-clipbass] [-shownotes] <file prefix>\n");
 		printf(" -clipbass - restrict bass notes to the range of the TI PSG\n");
+		printf(" -shownotes - display notes as the frames are played\n");
 		printf(" <file prefix> - PSG file prefix (usually the name of the original VGM).\n");
         printf("Will search for 60hz, 50hz, 30hz, and 25hz in that order\n");
 		return -1;
@@ -81,6 +122,9 @@ int main(int argc, char *argv[])
 	while ((arg < argc-1) && (argv[arg][0]=='-')) {
 		if (0 == strcmp(argv[arg], "-clipbass")) {
 			clipbass=true;
+        } else if (0 == strcmp(argv[arg], "-shownotes")) {
+			shownotes=true;
+            buildNoteTable();
 		} else {
 			printf("\rUnknown command '%s'\n", argv[arg]);
 			return -1;
@@ -197,10 +241,20 @@ int main(int argc, char *argv[])
         // works oddly well on Win10...
         Sleep(delay);
 
+        if (shownotes) {
+            printf("%04d | ", row);
+        }
+
         // process the command line from each channel
         for (int idx=0; idx<chan; ++idx) {
             setfreq(idx, VGMDAT[idx][row], clipbass);
             setvol(idx, mapVolume(VGMVOL[idx][row]));
+            if (shownotes) {
+                printf("%s %02X | ", getNoteStr(VGMDAT[idx][row],VGMVOL[idx][row]), VGMVOL[idx][row]);
+            }
+        }
+        if (shownotes) {
+            printf("\n");
         }
 
         if (NULL != soundbuf) {

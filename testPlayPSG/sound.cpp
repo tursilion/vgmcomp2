@@ -266,7 +266,7 @@ void setfreq(int chan, int freq, bool clip) {
     if (!warn) {
         if (freq > 0x3ff) {
             warn=true;
-            printf("Warning: out of range bass for PSG\n");
+            printf("\nWarning: out of range bass for PSG\n");
         }
     }
 }

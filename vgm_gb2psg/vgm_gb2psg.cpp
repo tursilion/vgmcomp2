@@ -49,6 +49,7 @@ bool debug = false;                         // dump parser data
 #define NOISE_TRIGGER  0x10000
 
 // options
+bool enable7bitnoise = false;           // scale noise frequencies higher when the 7 bit LFSR is active
 int waveMode = 0;                       // 0 - treat as tone, 1 - treat as noise, 2 - ignore
 bool scaleFreqClock = true;			    // apply scaling from GB clock rates (not an option here)
 bool ignoreWeird = false;               // ignore any other weirdness (like shift register)
@@ -60,11 +61,19 @@ unsigned int nRate = 60;
 // But, we'll try to be good. Even though the ratio is irrational.
 // So, we'll count in microseconds, cause we're awesome that way
 // These defines give us number of microseconds each
-#define US50 20000
+#if 1
 #define US60 16667
 #define US64 15625
 #define US128 7812
 #define US256 3906
+#else
+// as an experiment, make everything fixed multiples rather than the 60/64 mismatch...
+// it doesn't seem like this makes much difference
+#define US60 1
+#define US64 1
+#define US128 2
+#define US256 4
+#endif
 
 // max number of chip channels (4 each)
 #define MAXCHIP (4*2)
@@ -75,6 +84,7 @@ public:
     Channel() { reset(); }
 
     void reset() {
+        // set values as per GBSOUND
         enabled = false;
         sweepPer = 0;
         sweepPerWork = 0;
@@ -83,16 +93,16 @@ public:
         sweepShift = 0;
         sweepClock = 0;
         sweeping = false;
-        length = 0;
+        length = 63;
         lengthClock = 0;
-        volume = 0;
+        volume = 0xf;
         volumeAdd = false;
-        volumePer = 0;
+        volumePer = 3;
         volumePerWork = 0;
         volumeClock = 0;
-        frequency = 0;
+        volumeDone = false;
+        frequency = 0xfff;
         lengthEnable = false;
-        dacPower = false;
         volumeCode = 1;
     }
 
@@ -115,10 +125,12 @@ public:
 
     // NRx2 - volume envelope generator
     int volume;
+    int volumeReg;      // user volume register, needed for 'zombie'
     bool volumeAdd;
     int volumePer, volumePerWork;
     int volumeClock;    // runs at 64Hz
     int volumeCode;     // for the DAC only
+    bool volumeDone;    // true after a sweep or if sweep was interrupted, causes odd behaviour
 
     // NRx3 - Frequency (also some in NRx4 in tones)
     // we don't emulate the frequency playback, so that's all we need
@@ -129,9 +141,6 @@ public:
     // NRx4 - trigger, length enable
     // We don't need to store trigger, so just the length enable
     bool lengthEnable;
-
-    // NR30 - DAC power control
-    bool dacPower;
 };
 
 // control registers
@@ -141,11 +150,14 @@ int NR52;   // P--- NW21	Power control/status, Channel length statuses
 Channel chan[MAXCHIP];    // tone, tone, wave, noise, two chips
 int sampleRam[2][32];     // sample RAM for 2 chips
 
-// lookup table to map PSG volume to linear 8-bit. GB is assumed close enough.
+// Gameboy is confirmed to meant to be linear (it's not quite on early models,
+// but is not fully logarithmic either). We'll use linear.
+// To account for the master volume multipliers, we run this from 0-31 instead
+// of 0-255.
 unsigned char volumeTable[16] = {
-	254,202,160,128,100,80,64,
-	50,
-	40,32,24,20,16,12,10,0
+	30,28,26,24,22,20,18,
+	16,
+	14,12,10,8,6,4,2,0
 };
 
 #define ABS(x) ((x)<0?-(x):x)
@@ -278,7 +290,6 @@ int getVolume(int ch) {
     if ((NR52&0x80) == 0) return 0;                 // power off
     if ((NR51&(0x11<<ch))==0) return 0;             // not routed to either side
     if ((isWave) && (waveMode == 2)) return 0;     // user asked to ignore wave
-    if ((isWave) && (!chan[ch].dacPower)) return 0; // DAC is turned off
 
     // check for mute cases
     if (!chan[ch].enabled) return 0;                // not enabled, no output
@@ -301,96 +312,149 @@ int getVolume(int ch) {
         if (chan[ch].volume == 0) return 0;             // muted, no output
         ret = volumeTable[15-(chan[ch].volume&0xf)];
     }
+
+    // now apply the master volume:
+    // NR50     ALLL BRRR	Vin L enable, Left vol, Vin R enable, Right
+    // NR51     NW21 NW21	Left enables, Right enables
+    // "These multiply the signal by (volume+1). The volume step
+    // relative to the channel DAC is such that a single channel enabled via
+    // NR51 playing at volume of 2 with a master volume of 7 is about as loud
+    // as that channel playing at volume 15 with a master volume of 0."
+    // I think it's trying to say that 2*7=14 which is about 15*1. Oi.
+    // this multiplier is 0-7, for a multiple of 1-8. volumeTable is scaled
+    // so that the end result will be 0-255.
+
+    // we need to figure out whether to use the left or right volume -
+    // we see which side the channel is on. If both, we will take the
+    // louder. It's not efficient code, but just to be simple I'll precalculate
+    // all the pieces of data I need to evaluable.
+    int leftVol = ((NR50&0x70)>>4)+1;
+    int rightVol = (NR50&0x07)+1;
+    bool isLeft = (NR51&(0x10<<(ch&3))) ? true : false;
+    bool isRight = (NR51&(0x1<<(ch&3))) ? true : false;
+    int outVol = 0;
+    if (isLeft) outVol = leftVol;
+    if ((isRight) && (rightVol > outVol)) outVol = rightVol;
+    ret *= outVol;
+
     return ret;
 }
 
 // run the emulation - at this point we always assume 60hz
 // This needs to get the nCurrentTone array up to date
 void runEmulation() {
-    // run frequency generator - channel 0 only - 128Hz
-    for (int ch = 0; ch < MAXCHIP; ++ch) {
-        if ((ch != 0) && (ch != 4)) continue;   // voice 1 only
-        if (!chan[ch].enabled) continue;        // nothing runs when disabled
-        if ((chan[ch].sweepPer == 0) && (chan[ch].sweepShift == 0)) continue;
-        if (chan[ch].sweepPer == 0) chan[ch].sweepPer = 8;
+    // check power is on
+    if (NR52&0x80) {
+        // run frequency generator - channel 0 only - 128Hz
+        // TODO: untested - SMB doesn't use the sweep
+        for (int ch = 0; ch < MAXCHIP; ++ch) {
+            if ((ch != 0) && (ch != 4)) continue;   // voice 1 only
+            if (!chan[ch].enabled) continue;        // nothing runs when disabled
+            if ((chan[ch].sweepPer == 0) && (chan[ch].sweepShift == 0)) continue;
+            if (chan[ch].sweepPer == 0) chan[ch].sweepPer = 8;
 
-        chan[ch].sweepClock += US60;
-        while (chan[ch].sweepClock >= US128) {
-            chan[ch].sweepClock -= US128;
+            chan[ch].sweepClock += US60;
+            while (chan[ch].sweepClock >= US128) {
+                chan[ch].sweepClock -= US128;
 
-            if (--chan[ch].sweepPerWork < 0) {
-                chan[ch].sweepPerWork = chan[ch].sweepPer;
-
-                int work = chan[ch].sweepFreq >> chan[ch].sweepShift;
-                if (chan[ch].sweepNeg) work = -work;
-                chan[ch].sweepFreq += work;
-                if (chan[ch].sweepFreq & ~0x7ff) {
-                    chan[ch].enabled = false;
-                    chan[ch].sweepFreq &= 0x7ff;
-                } else {
-                    chan[ch].frequency = chan[ch].sweepFreq;
-                    chan[ch].sweeping = true;    // only has to indicate that we started
-                    // second test, not stored
-                    work = chan[ch].sweepFreq >> chan[ch].sweepShift;
-                    work += chan[ch].sweepFreq;
-                    if (work & ~0x7ff) {
+                if (--chan[ch].sweepPerWork < 0) {
+                    chan[ch].sweepPerWork = chan[ch].sweepPer;
+                    if (chan[ch].sweepShift == 0) {
+                        // stop now
                         chan[ch].enabled = false;
+                    } else {
+                        int work = chan[ch].sweepFreq >> chan[ch].sweepShift;
+                        if (chan[ch].sweepNeg) work = -work;
+                        chan[ch].sweepFreq += work;
+                        if (chan[ch].sweepFreq & ~0x7ff) {
+                            chan[ch].enabled = false;
+                            chan[ch].sweepFreq &= 0x7ff;
+                        } else {
+                            chan[ch].frequency = chan[ch].sweepFreq;
+                            chan[ch].sweeping = true;    // only has to indicate that we started
+                            // second test, not stored
+                            work = chan[ch].sweepFreq >> chan[ch].sweepShift;
+                            work += chan[ch].sweepFreq;
+                            if (work & ~0x7ff) {
+                                chan[ch].enabled = false;
+                            }
+                        }
                     }
                 }
             }
         }
-    }
 
-    // run length generator - all channels - 256Hz
-    for (int ch = 0; ch < MAXCHIP; ++ch) {
-        if (!chan[ch].enabled) continue;        // nothing runs when disabled
-        if (!chan[ch].lengthEnable) continue;   // length is not counting
-        if (chan[ch].length == 0) continue;     // we've got nowhere else to count
+        // run length generator - all channels - 256Hz
+        // so far no reason to doubt this...
+        for (int ch = 0; ch < MAXCHIP; ++ch) {
+//          if (!chan[ch].enabled) continue;        // length generator runs even if channel is disabled
+            if (!chan[ch].lengthEnable) continue;   // length is not counting
+            if (chan[ch].length == 0) continue;     // we've got nowhere else to count
 
-        chan[ch].lengthClock += US60;
-        while (chan[ch].lengthClock >= US256) {
-            chan[ch].lengthClock -= US256;
+            chan[ch].lengthClock += US60;
+            while (chan[ch].lengthClock >= US256) {
+                chan[ch].lengthClock -= US256;
 
-            if (--chan[ch].length == 0) {
-                chan[ch].volume = 0;
-                chan[ch].enabled = false;
-            }
-        }
-    }
-
-    // run envelope generator - all channels - 64Hz
-    for (int ch = 0; ch < MAXCHIP; ++ch) {
-        if (!chan[ch].enabled) continue;        // nothing runs when disabled
-        if ((ch==2)||(ch==6)) continue;         // not on wave channel
-        if (chan[ch].volumePer == 0) chan[ch].volumePer = 8;
-
-        chan[ch].volumeClock += US60;
-        while (chan[ch].volumeClock >= US64) {
-            chan[ch].volumeClock -= US64;
-
-            // did the doc say while the period is NOT zero? that seems odd...
-            if (--chan[ch].volumePerWork < 0) {
-                chan[ch].volumePerWork = chan[ch].volumePer;
-
-                if (chan[ch].volumeAdd) {
-                    chan[ch].volume++;
-                    if (chan[ch].volume > 15) chan[ch].volume = 15;
-                } else {
-                    chan[ch].volume--;
-                    if (chan[ch].volume < 0) chan[ch].volume = 0;
+                if (--chan[ch].length == 0) {
+                    chan[ch].volume = 0;
+                    chan[ch].enabled = false;
                 }
             }
         }
+
+        // run envelope generator - all channels - 64Hz
+        // I think this is right, or at least close...
+        for (int ch = 0; ch < MAXCHIP; ++ch) {
+            if (!chan[ch].enabled) continue;        // nothing runs when disabled
+            if ((ch==2)||(ch==6)) continue;         // not on wave channel
+            if (chan[ch].volumePer == 0) chan[ch].volumePer = 8;
+
+            if (!chan[ch].volumeDone) {
+                chan[ch].volumeClock += US60;
+                while (chan[ch].volumeClock >= US64) {
+                    chan[ch].volumeClock -= US64;
+
+                    // did the doc say while the period is NOT zero? that seems odd...
+                    if (--chan[ch].volumePerWork < 0) {
+                        chan[ch].volumePerWork = chan[ch].volumePer;
+
+                        if (chan[ch].volumeAdd) {
+                            chan[ch].volume++;
+                            if (chan[ch].volume > 15) {
+                                chan[ch].volume = 15;
+                                chan[ch].volumeDone = true;
+                            }
+                        } else {
+                            chan[ch].volume--;
+                            if (chan[ch].volume < 0) {
+                                chan[ch].volume = 0;
+                                chan[ch].volumeDone = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        // no power
+        for (int ch = 0; ch < MAXCHIP; ++ch) {
+            chan[ch].reset();
+        }
+        NR50 = 0x77;
+        NR51 = 0xf3;
+        NR52 = 0x01;
     }
 
     // update nCurrentTone[]'s
+    // the subtraction from 2048 is due to bitwise negation
     for (int ch = 0; ch < MAXCHIP; ++ch) {
         int outch = ch*2;
         if ((ch&3) < 2) {
-            // tone frequencies are twice what they should be and inverted
+            // tone frequencies are inverted
             nCurrentTone[outch] = (2048-chan[ch].frequency);
         } else if ((ch&3) < 3) {
-            // wave channel
+            // wave channel seems to be about the same for SMB at least.
+            // for more complex instruments, external tuning can be used
             nCurrentTone[outch] = (2048-chan[ch].frequency);
         } else {
             // we already did the math for noise...
@@ -398,6 +462,24 @@ void runEmulation() {
         }
         nCurrentTone[outch+1] = getVolume(ch);
     }
+}
+
+// trigger a channel
+void triggerchan(int ch) {
+    chan[ch].enabled = true;
+    chan[ch].sweepPerWork = chan[ch].sweepPer;
+    chan[ch].sweepFreq = chan[ch].frequency&0xfff;
+    chan[ch].sweepClock = 0;
+    chan[ch].sweeping = false;
+    if (chan[ch].length == 0) {
+        chan[ch].length = 64;
+        if ((ch==2)||(ch==5)) chan[ch].length = 256;
+    }
+    chan[ch].lengthClock = 0;
+    chan[ch].volumePerWork = chan[ch].volumePer;
+    chan[ch].volumeClock = 0;
+    chan[ch].volume = chan[ch].volumeReg;
+    chan[ch].volumeDone = false;
 }
 
 // output one current row of audio data
@@ -474,11 +556,12 @@ int main(int argc, char* argv[])
 	printf("Import VGM DMG (Gameboy) - v03202020\n");
 
 	if (argc < 2) {
-		printf("vgm_gb2psg [-q] [-d] [-wavenoise|-wavenone] [-ignoreweird] <filename>\n");
+		printf("vgm_gb2psg [-q] [-d] [-wavenoise|-wavenone] [-enable7bitnoise] [-ignoreweird] <filename>\n");
 		printf(" -q - quieter verbose data\n");
         printf(" -d - enable parser debug output\n");
         printf(" -wavenoise - treat the wave channel as noise\n");
         printf(" -wavenone - ignore the wave channel (if neither, treat as tone)\n");
+        printf(" -enable7bitnoise - normally we don't try to retune 7-bit noise - enable this to try\n");
         printf(" -ignoreweird - ignore anything else unexpected and treat as default\n");
 		printf(" <filename> - VGM file to read.\n");
 		return -1;
@@ -495,6 +578,8 @@ int main(int argc, char* argv[])
 			waveMode = 1;
 		} else if (0 == strcmp(argv[arg], "-wavenone")) {
 			waveMode = 2;
+		} else if (0 == strcmp(argv[arg], "-enable7bitnoise")) {
+			enable7bitnoise = true;
 		} else if (0 == strcmp(argv[arg], "-ignoreweird")) {
 			ignoreWeird=true;
 		} else {
@@ -503,6 +588,11 @@ int main(int argc, char* argv[])
 		}
 		arg++;
 	}
+
+    // global variable init - see also the runEmulation code
+    NR50 = 0x77;
+    NR51 = 0xf3;
+    NR52 = 0xf1;
 
 	{
 		FILE *fp=fopen(argv[arg], "rb");
@@ -589,6 +679,8 @@ int main(int argc, char* argv[])
 		    }
             // now adapt for the ratio between GB and PSG, which is slower at 3579545.0 Hz
             // fewer ticks for the same tone
+            // Confirmed - both of these clock the audio through a divide-by-32, giving the
+            // PSG counter at 111860.8Hz and the GB counter at 131072.0Hz. So this should be right.
             freqClockScale *= 3579545.0 / 4194304.0;
             if (debug) {
                 myprintf("\rPSG clock scale factor %f\n", freqClockScale);
@@ -998,7 +1090,10 @@ int main(int argc, char* argv[])
                                 }
 
                                 int ch = (ad == 0x11) ? chipoff : chipoff+1;
-                                chan[ch].length = da&0x3f;
+                                // length is also inverted
+                                // TODO: I might be 1 clock off, but I think it balances out
+                                // with the late processing...
+                                chan[ch].length = 63 - (da&0x3f);
                             }
                             break;
 
@@ -1007,9 +1102,51 @@ int main(int argc, char* argv[])
                         case 0x21:  // NR42
                             {
                                 int ch = (ad-0x12)/5 + chipoff;
-                                chan[ch].volume = (da&0xf0)>>4;
-                                if (chan[ch].volume == 0) {
+                                if ((chan[ch].volumeDone) && (chan[ch].enabled)) {
+                                    // "zombie" mode reacts oddly to changes, incrementing the volume
+                                    int diff = 0;
+                                    // increment if any bits change
+                                    if (chan[ch].volumePer != (da&0x07)) {
+                                        ++diff;
+                                    }
+                                    if (chan[ch].volumeReg != ((da&0xf0)>>4)) {
+                                        ++diff;
+                                    }
+                                    // if working register was zero, double it
+                                    // clear that if a non-zero is written, but
+                                    // zeros written later do NOT unclear it
+                                    if (chan[ch].volumePerWork == 0) {
+                                        diff *= 2;
+                                        if (da&0x07) {
+                                            chan[ch].volumePerWork = da&0x07;
+                                        }
+                                    }
+                                    // and if the direction changed, double it again
+                                    if (chan[ch].volumeAdd != ((da&0x08) ? true : false)) {
+                                        diff *= 2;
+                                    }
+                                    // add to the volume, wrapping around
+                                    chan[ch].volume = (chan[ch].volume+diff) & 0x0f;
+                                } else {
+                                    // stop everything if we were sweeping
+                                    // increment if any bits change
+                                    if (chan[ch].volumePer != (da&0x07)) {
+                                        chan[ch].volumeDone=true;
+                                    }
+                                    if (chan[ch].volumeReg != ((da&0xf0)>>4)) {
+                                        chan[ch].volumeDone=true;
+                                    }
+                                    if (chan[ch].volumeAdd != ((da&0x08) ? true : false)) {
+                                        chan[ch].volumeDone=true;
+                                    }
+                                }
+                                // do the set anyway
+                                chan[ch].volumeReg = (da&0xf0)>>4;
+                                if (chan[ch].volumeReg == 0) {
                                     chan[ch].enabled = false;
+                                } else {
+                                    // is this right? Seems so! Helps Guile's theme a lot.
+                                    chan[ch].enabled = true;
                                 }
                                 chan[ch].volumeAdd = (da&0x08) ? true : false;
                                 chan[ch].volumePer = da&0x07;
@@ -1059,34 +1196,27 @@ int main(int argc, char* argv[])
                                 if ((waveMode==1)&&((ch==2)||(ch==6))) chan[ch].frequency |= NOISE_TRIGGER;
 
                                 // set up all the various flags
-                                chan[ch].enabled = true;
-                                chan[ch].sweepPerWork = chan[ch].sweepPer;
-                                chan[ch].sweepFreq = chan[ch].frequency&0xfff;
-                                chan[ch].sweepClock = 0;
-                                chan[ch].sweeping = false;
-                                if (chan[ch].length == 0) {
-                                    chan[ch].length = 64;
-                                    if ((ch==2)||(ch==5)) chan[ch].length = 256;
-                                }
-                                chan[ch].lengthClock = 0;
-                                chan[ch].volumePerWork = chan[ch].volumePer;
-                                chan[ch].volumeClock = 0;
+                                triggerchan(ch);
                             }
                         }
                         break;
 
                         case 0x1a:  // NR30     E--- ----	DAC power
+                            // this is just the enable made explicit
                             if (da & 0x80) {
-                                chan[2+chipoff].dacPower = true;
+                                chan[2+chipoff].enabled = true;
                             } else {
-                                chan[2+chipoff].dacPower = false;
+                                chan[2+chipoff].enabled = false;
                             }
                             break;
 
                         case 0x1b:  // NR31     LLLL LLLL	Length load (256-L)
                             {
                                 int ch = chipoff+2;
-                                chan[ch].length = da&0xff;
+                                // length is also inverted
+                                // TODO: I might be 1 clock off, but I think it balances out
+                                // with the late processing...
+                                chan[ch].length = 255 - (da&0xff);
                             }
                             break;
 
@@ -1121,7 +1251,7 @@ int main(int argc, char* argv[])
                                     } else {
                                         shiftrate *= (16*shiftdiv);
                                     }
-#else
+#elif 0
                                     // per http://www.devrs.com/gb/files/hosted/GBSOUND.txt, the
                                     // final frequency(?) is 524288 / shiftdiv / (2^(shiftrate+1))
                                     // with shiftdiv being 0.5 if it's zero.
@@ -1136,14 +1266,41 @@ int main(int argc, char* argv[])
 
                                     // that gives us a rate in HZ, make it a rate in clocks...
                                     shiftrate = nClock / shiftrate;
+#else
+                                    // back to my own interpretation - the initial clock divider is only
+                                    // divide-by-two, then we get the configurable divider in shiftdiv,
+                                    // literally at shiftdiv+1. The period is twice the shift rate, so
+                                    // the maximum is (8*2*2 = 32) same as the tones.
+                                    // The shiftdiv clock outputs to the 16-bit shiftrate
+                                    // So, the ultimate countdown is (shiftdiv+1)*shiftrate, but this
+                                    // is based on a clock 16 times faster than the main clock, so /16.
+                                    // This will result in a large range of unreproducable frequencies,
+                                    // especially once we add in the the 7-bit rate... perhaps we should
+                                    // ignore that. It's not periodic noise, after all.
+                                    shiftrate = ((shiftdiv+1)*shiftrate) / 16;
+                                    if ((shiftrate == 0)&&(shiftrate != 0)) {
+                                        static bool warn = false;
+                                        if (!warn) {
+                                            warn = true;
+                                            printf("Warning: noise frequency exceeds PSG ability.\n");
+                                        }
+                                    }
 #endif
 
                                     // check for the shorter shift rate
-                                    if (shift7bit) {
+                                    if ((enable7bitnoise) && (shift7bit)) {
                                         // the existing shift rate is for 15 bit.
                                         // we need to make it higher pitched for 7 bit...
                                         // try this...
+                                        int oldrate = shiftrate;
                                         shiftrate = (int)((double)shiftrate * (7/15) + 0.5);
+                                        if ((shiftrate == 0)&&(oldrate != 0)) {
+                                            static bool warn = false;
+                                            if (!warn) {
+                                                warn = true;
+                                                printf("Warning: 7-bit shift caused noise frequency to exceed PSG ability.\n");
+                                            }
+                                        }
                                     }
 
                                     chan[chipoff+3].frequency = shiftrate;
@@ -1174,18 +1331,7 @@ int main(int argc, char* argv[])
                                 if ((ch==3)||(ch==7)) chan[ch].frequency |= NOISE_TRIGGER;
 
                                 // set up all the various flags
-                                chan[ch].enabled = true;
-                                chan[ch].sweepPerWork = chan[ch].sweepPer;
-                                chan[ch].sweepFreq = chan[ch].frequency&0xfff;
-                                chan[ch].sweepClock = 0;
-                                chan[ch].sweeping = false;
-                                if (chan[ch].length == 0) {
-                                    chan[ch].length = 64;
-                                    if ((ch==2)||(ch==5)) chan[ch].length = 256;
-                                }
-                                chan[ch].lengthClock = 0;
-                                chan[ch].volumePerWork = chan[ch].volumePer;
-                                chan[ch].volumeClock = 0;
+                                triggerchan(ch);
                             }
                         }
                         break;
