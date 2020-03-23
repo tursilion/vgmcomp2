@@ -1,7 +1,3 @@
-// TODO: closer. Recognizable. 
-// - Noise pitch may still be wrong
-// - pretty sure envelopes are wrong, at least edge cases
-
 // vgm_gb2psg.cpp : Defines the entry point for the console application.
 // This reads in a VGM file, and outputs raw 60hz streams for the
 // TI PSG sound chip. It will input GB DMG input streams, and more
@@ -152,6 +148,15 @@ int sampleRam[2][32];     // sample RAM for 2 chips
 
 // Gameboy is confirmed to meant to be linear (it's not quite on early models,
 // but is not fully logarithmic either). We'll use linear.
+// TRUE Logarithmic (no gameboy, inverted from TI)
+// 0---------------1--------------2-------------3------------4-----------5----------6---------7--------8-------9------A-----B----C---D--E-F
+//
+// TRUE Linear (later gameboys)
+// 0--------1--------2--------3--------4--------5--------6--------7--------8--------9--------A--------B--------C--------D--------E--------F
+//
+// Semi-Logarithmic (early gameboys)
+//
+//0-----------1-----------2-----------3----------4---------5---------6---------7--------8-------9-------A-------B------C-----D-----E-----F
 // To account for the master volume multipliers, we run this from 0-31 instead
 // of 0-255.
 unsigned char volumeTable[16] = {
@@ -544,7 +549,9 @@ bool outputData() {
 
         // now that it's output, clear any noise triggers
         for (int idx=0; idx<MAXCHIP; ++idx) {
-            chan[idx].frequency &= ~NOISE_TRIGGER;
+            if (chan[idx].frequency != -1) {
+                chan[idx].frequency &= ~NOISE_TRIGGER;
+            }
         }
     }
 
@@ -660,6 +667,10 @@ int main(int argc, char* argv[])
 
 		unsigned int nVersion = *((unsigned int*)&buffer[8]);
 		myprintf("Reading version 0x%X\n", nVersion);
+        if (nVersion < 0x161) {
+            printf("Failure - Gameboy not supported earlier than version 1.61\n");
+            return 1;
+        }
 
 		unsigned int nClock = *((unsigned int*)&buffer[0x80]);
         if (nClock&0x40000000) {
@@ -720,8 +731,6 @@ int main(int argc, char* argv[])
 			nCurrentTone[idx+1]=-1;		// never set
 		}
 		nTicks= 0;
-		int nCmd=0;
-        int lastCmd[2] = { 0, 0 };
 		bool delaywarn = false;			// warn about imprecise delay conversion
 
         // start up the chip emulation
@@ -1607,29 +1616,37 @@ int main(int argc, char* argv[])
 				// scale every tone - clip if needed (note further clipping for PSG may happen at output)
                 for (int chip = 0; chip < MAXCHANNELS; chip += 8) {
 				    for (int idx=0; idx<nTicks; idx++) {
-					    VGMStream[0+chip][idx] = (int)(VGMStream[0+chip][idx] * freqClockScale + 0.5);
-                        if (VGMStream[0+chip][idx] == 0)    { VGMStream[0+chip][idx]=1;     clip++; }
-					    if (VGMStream[0+chip][idx] > 0xfff) { VGMStream[0+chip][idx]=0xfff; clip++; }
+                        if (VGMStream[0+chip][idx] > 1) {
+					        VGMStream[0+chip][idx] = (int)(VGMStream[0+chip][idx] * freqClockScale + 0.5);
+                            if (VGMStream[0+chip][idx] == 0)    { VGMStream[0+chip][idx]=1;     clip++; }
+					        if (VGMStream[0+chip][idx] > 0xfff) { VGMStream[0+chip][idx]=0xfff; clip++; }
+                        }
 
-					    VGMStream[2+chip][idx] = (int)(VGMStream[2+chip][idx] * freqClockScale + 0.5);
-                        if (VGMStream[2+chip][idx] == 0)    { VGMStream[2+chip][idx]=1;     clip++; }
-					    if (VGMStream[2+chip][idx] > 0xfff) { VGMStream[2+chip][idx]=0xfff; clip++; }
+                        if (VGMStream[2+chip][idx] > 1) {
+					        VGMStream[2+chip][idx] = (int)(VGMStream[2+chip][idx] * freqClockScale + 0.5);
+                            if (VGMStream[2+chip][idx] == 0)    { VGMStream[2+chip][idx]=1;     clip++; }
+					        if (VGMStream[2+chip][idx] > 0xfff) { VGMStream[2+chip][idx]=0xfff; clip++; }
+                        }
 
-                        // this might have triggers in it, as it might be noise
-                        bool trig = (VGMStream[4+chip][idx]&NOISE_TRIGGER) ? true : false;
-                        VGMStream[4+chip][idx] &= NOISE_MASK;
-					    VGMStream[4+chip][idx] = (int)(VGMStream[4+chip][idx] * freqClockScale + 0.5);
-                        if (VGMStream[4+chip][idx] == 0)    { VGMStream[4+chip][idx]=1;     clip++; }
-					    if (VGMStream[4+chip][idx] > 0xfff) { VGMStream[4+chip][idx]=0xfff; clip++; }
-                        if (trig) VGMStream[4+chip][idx] |= NOISE_TRIGGER;
+                        if (VGMStream[4+chip][idx] > 1) {
+                            // this might have triggers in it, as it might be noise
+                            bool trig = (VGMStream[4+chip][idx]&NOISE_TRIGGER) ? true : false;
+                            VGMStream[4+chip][idx] &= NOISE_MASK;
+					        VGMStream[4+chip][idx] = (int)(VGMStream[4+chip][idx] * freqClockScale + 0.5);
+                            if (VGMStream[4+chip][idx] == 0)    { VGMStream[4+chip][idx]=1;     clip++; }
+					        if (VGMStream[4+chip][idx] > 0xfff) { VGMStream[4+chip][idx]=0xfff; clip++; }
+                            if (trig) VGMStream[4+chip][idx] |= NOISE_TRIGGER;
+                        }
 
-                        // noise too on this one!
-                        trig = (VGMStream[6+chip][idx]&NOISE_TRIGGER) ? true : false;
-                        VGMStream[6+chip][idx] &= NOISE_MASK;
-					    VGMStream[6+chip][idx] = (int)(VGMStream[6+chip][idx] * freqClockScale + 0.5);
-                        if (VGMStream[6+chip][idx] == 0)    { VGMStream[6+chip][idx]=1;     clip++; }
-					    if (VGMStream[6+chip][idx] > 0xfff) { VGMStream[6+chip][idx]=0xfff; clip++; }
-                        if (trig) VGMStream[6+chip][idx] |= NOISE_TRIGGER;
+                        if (VGMStream[6+chip][idx] > 1) {
+                            // noise too on this one!
+                            bool trig = (VGMStream[6+chip][idx]&NOISE_TRIGGER) ? true : false;
+                            VGMStream[6+chip][idx] &= NOISE_MASK;
+					        VGMStream[6+chip][idx] = (int)(VGMStream[6+chip][idx] * freqClockScale + 0.5);
+                            if (VGMStream[6+chip][idx] == 0)    { VGMStream[6+chip][idx]=1;     clip++; }
+					        if (VGMStream[6+chip][idx] > 0xfff) { VGMStream[6+chip][idx]=0xfff; clip++; }
+                            if (trig) VGMStream[6+chip][idx] |= NOISE_TRIGGER;
+                        }
                     }
                 }
 				if (clip > 0) myprintf("%d tones clipped", clip);

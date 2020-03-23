@@ -1229,17 +1229,23 @@ int main(int argc, char* argv[])
                 // TODO: technically this should affect noise and envelope timing too
                 for (int chipoff = 0; chipoff < MAXCHANNELS; chipoff += 8) {
 				    for (int idx=0; idx<nTicks; idx++) {
-					    VGMStream[0+chipoff][idx] = (int)(VGMStream[0+chipoff][idx] * freqClockScale + 0.5);
-                        if (VGMStream[0+chipoff][idx] == 0)    { VGMStream[0+chipoff][idx]=1;     clip++; }
-					    if (VGMStream[0+chipoff][idx] > 0xfff) { VGMStream[0+chipoff][idx]=0xfff; clip++; }
+                        if (VGMStream[0+chipoff][idx] > 1) {
+					        VGMStream[0+chipoff][idx] = (int)(VGMStream[0+chipoff][idx] * freqClockScale + 0.5);
+                            if (VGMStream[0+chipoff][idx] == 0)    { VGMStream[0+chipoff][idx]=1;     clip++; }
+					        if (VGMStream[0+chipoff][idx] > 0xfff) { VGMStream[0+chipoff][idx]=0xfff; clip++; }
+                        }
 
-					    VGMStream[2+chipoff][idx] = (int)(VGMStream[2+chipoff][idx] * freqClockScale + 0.5);
-                        if (VGMStream[2+chipoff][idx] == 0)    { VGMStream[2+chipoff][idx]=1;     clip++; }
-					    if (VGMStream[2+chipoff][idx] > 0xfff) { VGMStream[2+chipoff][idx]=0xfff; clip++; }
+                        if (VGMStream[2+chipoff][idx] > 1) {
+					        VGMStream[2+chipoff][idx] = (int)(VGMStream[2+chipoff][idx] * freqClockScale + 0.5);
+                            if (VGMStream[2+chipoff][idx] == 0)    { VGMStream[2+chipoff][idx]=1;     clip++; }
+					        if (VGMStream[2+chipoff][idx] > 0xfff) { VGMStream[2+chipoff][idx]=0xfff; clip++; }
+                        }
 
-					    VGMStream[4+chipoff][idx] = (int)(VGMStream[4+chipoff][idx] * freqClockScale + 0.5);
-                        if (VGMStream[4+chipoff][idx] == 0)    { VGMStream[4+chipoff][idx]=1;     clip++; }
-					    if (VGMStream[4+chipoff][idx] > 0xfff) { VGMStream[4+chipoff][idx]=0xfff; clip++; }
+                        if (VGMStream[4+chipoff][idx] > 1) {
+					        VGMStream[4+chipoff][idx] = (int)(VGMStream[4+chipoff][idx] * freqClockScale + 0.5);
+                            if (VGMStream[4+chipoff][idx] == 0)    { VGMStream[4+chipoff][idx]=1;     clip++; }
+					        if (VGMStream[4+chipoff][idx] > 0xfff) { VGMStream[4+chipoff][idx]=0xfff; clip++; }
+                        }
 				    }
                 }
 				if (clip > 0) myprintf("%d tones clipped");

@@ -1,0 +1,64 @@
+Pokey has 4 channels - addresses for atari 800
+
+Because noise is flexibly on and off on the Pokey, we should do the double channel trick to split tones and noises into separate channels. Noises won't sound anything like the Pokey, particularly if there is a lot of them...
+
+Each has:
+
+AUDF - frequency counter (8 bits, but can be joined!) ($d200,$d202,$d204,$d206)
+
+AUDC - control ($d201,$d203,$d205,$d207)
+	111xxxxx -- noise type multiplexer
+				0 - 5 bit + 17 bit noise	PSG white noise
+				1 - 5 bit noise				PSG periodic noise
+				2 - 5 bit then 4 bit noise	PSG periodic noise
+				3 - 5 bit noise again		PSG periodic noise
+				4 - 17 bit noise			PSG white noise
+				5 - tone					tone
+				6 - 4 bit noise				PSG periodic noise
+				7 - tone (again)			tone
+				
+	xxx1xxxx -- DAC mode - simply outputs whatever volume is
+	
+	xxxx1111 -- Volume (mute is 0? Linear?)
+	
+
+AUDCTL - global control - $d208
+	1xxxxxxx --	17-bit noise becomes only 8-bit noise (PSG ignore)
+	x1xxxxxx -- channel one clock is 1.79MHz (override main clock)
+	xx1xxxxx -- channel three clock is 1.79MHz (override main clock)
+	xxx1xxxx --	joins 2 to 1 for 16-bit resolution (little endian)
+	xxxx1xxx -- joins channel 4 to 3 for 16-bit resolution (little endian)
+	xxxxx1xx -- channel 1 high pass filter (only freqs higher than 3 play?)
+	xxxxxx1x -- channel 2 high pass filter (only freqs higher than 4 play?)
+	xxxxxxx1 -- main clock changes from 64Khz (default clock) to 15Khz
+	
+	The 16 bit modes are usually used with the faster clock, that's why only channel
+	1 and 3 have the faster clock option. The second channel of the pair is the output
+	channel and its volume and control register is used (basically, the first channel
+	clocks the second).
+	
+	64Khz clock divides the input by 28. (63.9211 Khz)
+	15Khz clock divides the input by 114. (15.6999 khz)
+	So neither are exact. ;)
+	
+Audio register map (for writes only):
+
+0	AUDF1	Audio frequency 1
+1	AUDC1	Audio control 1
+2	AUDF2	Audio frequency 2
+3	AUDC2	Audio control 2
+4	AUDF3	Audio frequency 3
+5	AUDC3	Audio control 3
+6	AUDF4	Audio frequency 4
+7	AUDC4	Audio control 4
+8	AUDCTL	Global audio control
+
+--- the rest are not relevant to audio ---
+
+9	STIMER	Timer start command
+10	SKREST	Reset serial status
+11	POTGO	Start potentiometer scan sequence
+12	n/a
+13	SEROUT	Serial data output
+14	IRQEN	Interrupt Request enable
+15	SKCTL	Serial port control
