@@ -390,7 +390,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import AY PSG - v03082020\n");
+	printf("Import AY PSG - v20200308\n");
 
 	if (argc < 2) {
 		printf("vgm_ay2psg [-q] [-d] [-notunenoise] [-noscalefreq] [-ignoreweird] <filename>\n");

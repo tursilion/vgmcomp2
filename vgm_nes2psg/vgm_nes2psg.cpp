@@ -1,7 +1,7 @@
-// vgm_gb2psg.cpp : Defines the entry point for the console application.
+// vgm_nes2psg.cpp : Defines the entry point for the console application.
 // This reads in a VGM file, and outputs raw 60hz streams for the
-// TI PSG sound chip. It will input GB DMG input streams, and more
-// or less emulate the GB hardware to get PSG data.
+// TI PSG sound chip. It will input NES APU input streams, and more
+// or less emulate the NES hardware to get PSG data.
 
 // Currently, we set all channels (even noise) to countdown values
 // compatible with the SN clock
@@ -27,9 +27,19 @@
 
 // in general even channels are tone (or noise) and odd are volume
 // They are mapped to PSG frequency counts and 8-bit volume (0=mute, 0xff=max)
-// each chip uses up 8 channels
-#define MAXCHANNELS 16
+// the NES has 5 channels, so that's 10 channels per chip here
+#define MAXCHANNELS 20
 int VGMStream[MAXCHANNELS][MAXTICKS];		// every frame the data is output
+
+// 0-1 are square, 2 is triangle, 3 is noise, 4 is DMC, then repeat for chip 2
+// Need defines, the GB stuff was a pain to code...
+// these are offsets into VGMStream from Chipoffset - volume is plus 1
+// nCurrentTone uses the same indexes.
+#define CH_SQUARE1 0
+#define CH_SQUARE2 2
+#define CH_TRIANGLE 4
+#define CH_NOISE 6
+#define CH_DMC 8
 
 unsigned char buffer[1024*1024];			// 1MB read buffer
 unsigned int buffersize;					// number of bytes in the buffer
@@ -40,129 +50,149 @@ int nTicks;                                 // this MUST be a 32-bit int
 bool verbose = false;                       // emit more information
 bool debug = false;                         // dump parser data
 
-// codes for noise processing (if not periodic, it's white noise)
+// codes for noise processing (NES periodic noise is a little random... PSG's is not)
 #define NOISE_MASK     0x00FFF
 #define NOISE_TRIGGER  0x10000
+#define NOISE_PERIODIC 0x20000
 
 // options
-bool enable7bitnoise = false;           // scale noise frequencies higher when the 7 bit LFSR is active
-int waveMode = 0;                       // 0 - treat as tone, 1 - treat as noise, 2 - ignore
-bool scaleFreqClock = true;			    // apply scaling from GB clock rates (not an option here)
+bool enableperiodic = false;            // enable the periodic noise mode - probably won't work well without freq scaling
+bool disabledmcvolhack = false;         // the DMC reduces the volume of noise and triangle - this will disable that adjust
+int waveMode = 2;                       // 0 - treat as tone, 1 - treat as noise, 2 - ignore
+bool scaleFreqClock = true;			    // apply scaling from APU clock rates (not an option here)
 bool ignoreWeird = false;               // ignore any other weirdness (like shift register)
 unsigned int nRate = 60;
 
-// the DMG feature clocks use a 512Hz source clock and trigger at 256, 128, and 64 hz
-// But, we run at 60hz or 50hz, so we need to convert that to get as close as possible.
-// (Or, we can just fake it to 60, 120, and 240, and it'll probably be close enough.)
-// But, we'll try to be good. Even though the ratio is irrational.
-// So, we'll count in microseconds, cause we're awesome that way
-// These defines give us number of microseconds each
-#if 1
-#define US60 16667
-#define US64 15625
-#define US128 7812
-#define US256 3906
-#else
-// as an experiment, make everything fixed multiples rather than the 60/64 mismatch...
-// it doesn't seem like this makes much difference
-#define US60 1
-#define US64 1
-#define US128 2
-#define US256 4
-#endif
-
-// max number of chip channels (4 each)
-#define MAXCHIP (4*2)
-
 // DMG emulation
+
+// the APU divides the input clock by 12 to get the VGM clock of 1789772
+// there is then a 240hz feature clock (roughly), which divides that again
+// by 7457.5 (but why that number? Probably a reverse engineering bug). We'll
+// use the integer value which should be correct
+#define SEQUENCECLK 7457
+
+// max number of chip channels (5 each)
+#define MAXCHIP (5*2)
+
+// length table
+unsigned char lengthData[2][16] = {
+ // table from apt_ref.txt - pre-multiplied by 2 for the inbuilt shifter
+ 0x0A, 0xFE,
+ 0x14, 0x02,
+ 0x28, 0x04,
+ 0x50, 0x06,
+ 0xA0, 0x08,
+ 0x3C, 0x0A,
+ 0x0E, 0x0C,
+ 0x1A, 0x0E,
+
+ 0x0C, 0x10,
+ 0x18, 0x12,
+ 0x30, 0x14,
+ 0x60, 0x16,
+ 0xC0, 0x18,
+ 0x48, 0x1A,
+ 0x10, 0x1C,
+ 0x20, 0x1E
+};
+
+// noise frequency table
+unsigned int noiseData[16] = {
+    0x002, 0x004, 0x008, 0x010, 0x020, 0x030, 0x040, 0x050,
+    0x065, 0x07f, 0x0be, 0x0fe, 0x17d, 0x1fc, 0x3f9, 0x7f2
+};
+
+// dmc frequency table
+unsigned int dmcData[16] = {
+    0xd60, 0xbe0, 0xaa0, 0xa00, 0x8f0, 0x7f0, 0x710, 0x6b0,
+    0x5f0, 0x500, 0x470, 0x400, 0x350, 0x2a8, 0x240, 0x1b0
+};
+
 class Channel {
 public:
     Channel() { reset(); }
 
     void reset() {
-        // set values as per GBSOUND
+        // set values to default?
         enabled = false;
+        sweepEn = false;
         sweepPer = 0;
         sweepPerWork = 0;
-        sweepFreq = 0;
         sweepNeg = false;
         sweepShift = 0;
-        sweepClock = 0;
-        sweeping = false;
-        length = 63;
-        lengthClock = 0;
-        volume = 0xf;
-        volumeAdd = false;
-        volumePer = 3;
-        volumePerWork = 0;
-        volumeClock = 0;
-        volumeDone = false;
-        frequency = 0xfff;
+
         lengthEnable = false;
-        volumeCode = 1;
+        length = 0;
+
+        volumeEn = false;
+        volumeLoop = false;
+        volume = 0;
+        volumeDecay = 0xf;
+        volumePer = 0;
+        volumePerWork = 0;
+
+        sampleLoop = false;
+        sampleBase = 0;
+        sampleAdr = 0;
+        sampleCnt = 0;
+        sampleCntRaw = 0;
+        dmcPer = 0;
+        dmcPerWork = 0;
+        dmcOutput = 0;
+
+        frequency = 0xfff;
     }
 
     // internal enable flag
     bool enabled;
 
-    // NRx0 - sweep frequency generator
+    // sweep frequency generator
+    bool sweepEn;
     int sweepPer, sweepPerWork;
-    int sweepFreq;
     bool sweepNeg;
     int sweepShift;
-    int sweepClock;     // runs at 128Hz 
-    bool sweeping;
 
-    // NRx1 - duty and length
-    // we don't care about duty, though, and length
-    // doesn't need a work register
+    // length doesn't need a work register
+    bool lengthEnable;
     int length;
-    int lengthClock;    // runs at 256Hz
 
-    // NRx2 - volume envelope generator
-    int volume;
-    int volumeReg;      // user volume register, needed for 'zombie'
-    bool volumeAdd;
+    // volume envelope generator
+    bool volumeEn;
+    bool volumeLoop;
+    int volume, volumeDecay;
     int volumePer, volumePerWork;
-    int volumeClock;    // runs at 64Hz
-    int volumeCode;     // for the DAC only
-    bool volumeDone;    // true after a sweep or if sweep was interrupted, causes odd behaviour
 
-    // NRx3 - Frequency (also some in NRx4 in tones)
+    // DMC
+    bool sampleLoop;
+    int sampleAdr, sampleBase;
+    int sampleCnt, sampleCntRaw;
+    int dmcOutput;
+    double dmcPer, dmcPerWork;
+
+    // Frequency
     // we don't emulate the frequency playback, so that's all we need
-    // getting the shift count for noises is complex, but still this
-    // is the only result we need.
     int frequency;
 
-    // NRx4 - trigger, length enable
-    // We don't need to store trigger, so just the length enable
-    bool lengthEnable;
 };
 
 // control registers
-int NR50;   // ALLL BRRR	Vin L enable, Left vol, Vin R enable, Right vol
-int NR51;   // NW21 NW21	Left enables, Right enables
-int NR52;   // P--- NW21	Power control/status, Channel length statuses
-Channel chan[MAXCHIP];    // tone, tone, wave, noise, two chips
-int sampleRam[2][32];     // sample RAM for 2 chips
+unsigned char sampleRam[2][32*1024];  // 32k of DMA sample RAM for 2 chips
+Channel chan[MAXCHIP];    // tone, tone, triangle, noise, dmc, two chips
+int sequence[2];          // sequence step for each chip
+bool seqlong[2];          // whether it's the long (5step) sequence
+double seqClock;          // one seqclock for all chips ;)
+unsigned int nClock;      // chip main clock, so we can run the sequence properly
 
-// Gameboy is confirmed to meant to be linear (it's not quite on early models,
-// but is not fully logarithmic either). We'll use linear.
-// TRUE Logarithmic (no gameboy, inverted from TI)
-// 0---------------1--------------2-------------3------------4-----------5----------6---------7--------8-------9------A-----B----C---D--E-F
-//
-// TRUE Linear (later gameboys)
-// 0--------1--------2--------3--------4--------5--------6--------7--------8--------9--------A--------B--------C--------D--------E--------F
-//
-// Semi-Logarithmic (early gameboys)
-//
-//0-----------1-----------2-----------3----------4---------5---------6---------7--------8-------9-------A-------B------C-----D-----E-----F
-// To account for the master volume multipliers, we run this from 0-31 instead
-// of 0-255.
+// function generator
+// 0x01 = run length and sweep, 0x02 = run envelope and linear counter (not emulated)
+const unsigned char Seq4Step[4] = { 2,3,2,3 };
+const unsigned char Seq5Step[5] = { 3,2,3,2,0 };
+
+// I think the NES is meant to be linear
 unsigned char volumeTable[16] = {
-	30,28,26,24,22,20,18,
-	16,
-	14,12,10,8,6,4,2,0
+	240,224,208,192,176,160,144,
+	128,
+	112,96,80,64,48,32,16,0
 };
 
 #define ABS(x) ((x)<0?-(x):x)
@@ -288,12 +318,10 @@ int tryvgz() {
 
 // return the 8-bit volume for channel 'ch'
 int getVolume(int ch) {
-    bool isWave = ((ch == 2) || (ch == 6));
-    int chip = ch/4;
+    int chip = ch/5;
+    int chanidx = ch%5;
+    bool isWave = (chanidx == 4);
 
-    // check master controls
-    if ((NR52&0x80) == 0) return 0;                 // power off
-    if ((NR51&(0x11<<ch))==0) return 0;             // not routed to either side
     if ((isWave) && (waveMode == 2)) return 0;     // user asked to ignore wave
 
     // check for mute cases
@@ -301,46 +329,30 @@ int getVolume(int ch) {
 
     // I think we're good
     int ret = 0;
-    if (isWave) {
-        // get the average of the wavetable sample
-        for (int idx=0; idx<32; ++idx) {
-            ret += volumeTable[15-sampleRam[chip][idx]];
-        }
-        ret /= 32;
-        switch (chan[ch].volumeCode) {
-            case 0: ret=0; break;       // 0%
-            case 1: break;              // 100%
-            case 2: ret >>= 1; break;   // 50%
-            case 3: ret >>= 2; break;   // 25%
-        }
+    if (chan[ch].volume == 0) return 0;             // muted, no output
+    if (chanidx == 4) {
+        // DMC is from 0 to 127 - I don't want quite to 254... this gives to about 240
+        ret = int(chan[ch].volume * 1.89 + .5);
     } else {
-        if (chan[ch].volume == 0) return 0;             // muted, no output
         ret = volumeTable[15-(chan[ch].volume&0xf)];
     }
 
-    // now apply the master volume:
-    // NR50     ALLL BRRR	Vin L enable, Left vol, Vin R enable, Right
-    // NR51     NW21 NW21	Left enables, Right enables
-    // "These multiply the signal by (volume+1). The volume step
-    // relative to the channel DAC is such that a single channel enabled via
-    // NR51 playing at volume of 2 with a master volume of 7 is about as loud
-    // as that channel playing at volume 15 with a master volume of 0."
-    // I think it's trying to say that 2*7=14 which is about 15*1. Oi.
-    // this multiplier is 0-7, for a multiple of 1-8. volumeTable is scaled
-    // so that the end result will be 0-255.
-
-    // we need to figure out whether to use the left or right volume -
-    // we see which side the channel is on. If both, we will take the
-    // louder. It's not efficient code, but just to be simple I'll precalculate
-    // all the pieces of data I need to evaluable.
-    int leftVol = ((NR50&0x70)>>4)+1;
-    int rightVol = (NR50&0x07)+1;
-    bool isLeft = (NR51&(0x10<<(ch&3))) ? true : false;
-    bool isRight = (NR51&(0x1<<(ch&3))) ? true : false;
-    int outVol = 0;
-    if (isLeft) outVol = leftVol;
-    if ((isRight) && (rightVol > outVol)) outVol = rightVol;
-    ret *= outVol;
+    // if noise or triangle, adjust with the DMC level
+    if (!disabledmcvolhack) {
+        if ((chanidx==2)||(chanidx==3)) {
+            // Some math from the apu_ref.txt (there's another divide not shown here):
+            // 1 / (15/8227 + 127/22638) = 134 -> 0.68
+            // 1 / (15/8227 + 0/22638) = 548   -> 0.24  <---- triangle is worth 24
+            // 1 / (0/8227 + 127/22638) = 178  -> 0.57  <---- triangle is worth 11
+            // 1 / (15/12241 + 0/22638) = 816  -> 0.17  <---- noise is worth 17
+            // 1 / (15/12241 + 127/22638) = 146-> 0.65  <---- noise is worth 8
+            // So... the fake volume control on noise and triangle is worth about 50%
+            // We'll just do a sloppy linear scale on that.
+            // Apparently SMB3 actually USES this.
+            double ratio = 1.0 - (chan[chip*5+4].volume / 240);   // division selected for 57% volume as per docs
+            ret = int(ret * ratio + 0.5);
+        }
+    }
 
     return ret;
 }
@@ -348,143 +360,161 @@ int getVolume(int ch) {
 // run the emulation - at this point we always assume 60hz
 // This needs to get the nCurrentTone array up to date
 void runEmulation() {
-    // check power is on
-    if (NR52&0x80) {
-        // run frequency generator - channel 0 only - 128Hz
-        // TODO: untested - SMB doesn't use the sweep
-        for (int ch = 0; ch < MAXCHIP; ++ch) {
-            if ((ch != 0) && (ch != 4)) continue;   // voice 1 only
-            if (!chan[ch].enabled) continue;        // nothing runs when disabled
-            if ((chan[ch].sweepPer == 0) && (chan[ch].sweepShift == 0)) continue;
-            if (chan[ch].sweepPer == 0) chan[ch].sweepPer = 8;
+    // run frame sequencer for 1/60th of a second
+    double time = (nClock/60.0) / SEQUENCECLK;
+    seqClock += time;
+    while (seqClock >= 1.0) {
+        for (int channel = 0; channel < MAXCHIP; ++channel) {
+            int chip = channel/5;
 
-            chan[ch].sweepClock += US60;
-            while (chan[ch].sweepClock >= US128) {
-                chan[ch].sweepClock -= US128;
+            bool runL;  // run length and sweep
+            bool runE;  // run envelope and linear counter (not implemented, we don't need it)
 
-                if (--chan[ch].sweepPerWork < 0) {
-                    chan[ch].sweepPerWork = chan[ch].sweepPer;
-                    if (chan[ch].sweepShift == 0) {
-                        // stop now
-                        chan[ch].enabled = false;
-                    } else {
-                        int work = chan[ch].sweepFreq >> chan[ch].sweepShift;
-                        if (chan[ch].sweepNeg) work = -work;
-                        chan[ch].sweepFreq += work;
-                        if (chan[ch].sweepFreq & ~0x7ff) {
-                            chan[ch].enabled = false;
-                            chan[ch].sweepFreq &= 0x7ff;
-                        } else {
-                            chan[ch].frequency = chan[ch].sweepFreq;
-                            chan[ch].sweeping = true;    // only has to indicate that we started
-                            // second test, not stored
-                            work = chan[ch].sweepFreq >> chan[ch].sweepShift;
-                            work += chan[ch].sweepFreq;
-                            if (work & ~0x7ff) {
-                                chan[ch].enabled = false;
-                            }
+            ++sequence[chip];
+            if (seqlong[chip]) {
+                // 5 step
+                if (sequence[chip] > 4) sequence[chip]=0;
+                runL = (Seq5Step[sequence[chip]] & 1) ? true : false;
+                runE = (Seq5Step[sequence[chip]] & 2) ? true : false;
+            } else {
+                // 4 step
+                if (sequence[chip] > 3) sequence[chip]=0;
+                runL = (Seq4Step[sequence[chip]] & 1) ? true : false;
+                runE = (Seq4Step[sequence[chip]] & 2) ? true : false;
+            }
+
+            // Frequency sweep (square wave only)
+            if (runL) {
+                if (chan[channel].sweepEn) {
+                    if (chan[channel].sweepPerWork) --chan[channel].sweepPerWork;
+                    if (chan[channel].sweepPerWork <= 0) {
+                        chan[channel].sweepPerWork = chan[channel].sweepPer;
+
+                        // No shadow reg like the GB
+                        int cnt = chan[channel].frequency >> chan[channel].sweepShift;
+                        if (chan[channel].sweepNeg) cnt = -cnt;
+
+                        int newFreq = chan[channel].frequency + cnt;
+                        // special case for the second square wave only
+                        if ((channel-chip == 1)&&(chan[channel].sweepNeg)) {
+                            --newFreq;
+                        }
+
+                        // no update if we zero out or no length
+                        if ((newFreq > 0) && (chan[channel].length > 0)) {
+                            chan[channel].frequency = newFreq & 0x7ff;
+                        }
+
+                        // stop cases
+                        if ((newFreq < 8) || (newFreq > 0x7ff)) {
+                            chan[channel].sweepEn = false;
+                            chan[channel].enabled = false;
                         }
                     }
                 }
             }
-        }
 
-        // run length generator - all channels - 256Hz
-        // so far no reason to doubt this...
-        for (int ch = 0; ch < MAXCHIP; ++ch) {
-//          if (!chan[ch].enabled) continue;        // length generator runs even if channel is disabled
-            if (!chan[ch].lengthEnable) continue;   // length is not counting
-            if (chan[ch].length == 0) continue;     // we've got nowhere else to count
+            // Envelope generator (square and noise)
+            if (runE) {
+                // decay counts even when not enabled
+                if (chan[channel].volumePerWork > 0) --chan[channel].volumePerWork;
+                if (chan[channel].volumePerWork <= 0) {
+                    chan[channel].volumePerWork = chan[channel].volumePer;
 
-            chan[ch].lengthClock += US60;
-            while (chan[ch].lengthClock >= US256) {
-                chan[ch].lengthClock -= US256;
+                    if (chan[channel].volumeDecay > 0) {
+                        --chan[channel].volumeDecay;
+                        if (chan[channel].volumeDecay < 0) {
+                            if (chan[channel].volumeLoop) {
+                                chan[channel].volumeDecay = 0xf;
+                            } else {
+                                chan[channel].volumeDecay = 0;
+                            }
+                        }
+                    }
 
-                if (--chan[ch].length == 0) {
-                    chan[ch].volume = 0;
-                    chan[ch].enabled = false;
+                    // apply it to the volume if enabled
+                    if (chan[channel].volumeEn) {
+                        chan[channel].volume = chan[channel].volumeDecay;
+                    }
                 }
             }
-        }
 
-        // run envelope generator - all channels - 64Hz
-        // I think this is right, or at least close...
-        for (int ch = 0; ch < MAXCHIP; ++ch) {
-            if (!chan[ch].enabled) continue;        // nothing runs when disabled
-            if ((ch==2)||(ch==6)) continue;         // not on wave channel
-            if (chan[ch].volumePer == 0) chan[ch].volumePer = 8;
-
-            if (!chan[ch].volumeDone) {
-                chan[ch].volumeClock += US60;
-                while (chan[ch].volumeClock >= US64) {
-                    chan[ch].volumeClock -= US64;
-
-                    // did the doc say while the period is NOT zero? that seems odd...
-                    if (--chan[ch].volumePerWork < 0) {
-                        chan[ch].volumePerWork = chan[ch].volumePer;
-
-                        if (chan[ch].volumeAdd) {
-                            chan[ch].volume++;
-                            if (chan[ch].volume > 15) {
-                                chan[ch].volume = 15;
-                                chan[ch].volumeDone = true;
-                            }
-                        } else {
-                            chan[ch].volume--;
-                            if (chan[ch].volume < 0) {
-                                chan[ch].volume = 0;
-                                chan[ch].volumeDone = true;
-                            }
+            // Length counter (all channels but dmc)
+            if (runL) {
+                if (chan[channel].lengthEnable) {
+                    if (chan[channel].length > 0) {
+                        chan[channel].length--;
+                        // TODO: so.. what, do we mute at zero?
+                        if (0 == chan[channel].length) {
+                            chan[channel].volume = 0;
+                            chan[channel].enabled = false;
                         }
                     }
                 }
             }
-        }
-    } else {
-        // no power
-        for (int ch = 0; ch < MAXCHIP; ++ch) {
-            chan[ch].reset();
-        }
-        NR50 = 0x77;
-        NR51 = 0xf3;
-        NR52 = 0x01;
-    }
+
+            // DMC channel
+            if (channel-chip == 4) {
+                // we actually need some shift rate calculation this time
+                // to get an average for the played sample
+                if (chan[channel].enabled) {
+                    int vol = 0;
+                    int cnt = 0;
+                    chan[channel].dmcPerWork += (nClock/60.0);    // 60hz of clocks
+                    while (chan[channel].dmcPerWork > chan[channel].dmcPer) {
+                        // we'll always process a full byte at a time
+                        chan[channel].dmcPerWork -= chan[channel].dmcPer;
+
+                        int byte = sampleRam[chip][chan[channel].sampleAdr&0x7fff];
+                        ++chan[channel].sampleAdr;
+                        --chan[channel].sampleCnt;
+
+                        if (chan[channel].sampleCnt < 0) {
+                            if (chan[channel].sampleLoop) {
+                                chan[channel].sampleAdr = chan[channel].sampleBase;
+                                chan[channel].sampleCnt = chan[channel].sampleCntRaw;
+                            } else {
+                                chan[channel].enabled = false;
+                                break;
+                            }
+                        }
+
+                        int bit = 0x01;
+                        for (int idx=0; idx<8; ++idx) {
+                            // real NES is LSB first, but we don't care here
+                            if (byte&bit) {
+                                chan[channel].dmcOutput++;
+                                if (chan[channel].dmcOutput > 0x3f) chan[channel].dmcOutput = 0x3f;
+                            } else {
+                                chan[channel].dmcOutput--;
+                                if (chan[channel].dmcOutput < 0) chan[channel].dmcOutput = 0;
+                            }
+                            ++cnt;
+                            vol += chan[channel].dmcOutput;
+                        }
+                    }
+                    chan[channel].volume = (int(vol/cnt) << 1);
+                    if (chan[channel].volume > 0x7f) chan[channel].volume = 0x7f;
+                    if (chan[channel].volume < 0) chan[channel].volume = 0;
+                }
+            }
+        }   // channel
+    }   // seqClock
 
     // update nCurrentTone[]'s
-    // the subtraction from 2048 is due to bitwise negation
     for (int ch = 0; ch < MAXCHIP; ++ch) {
         int outch = ch*2;
-        if ((ch&3) < 2) {
-            // tone frequencies are inverted
-            nCurrentTone[outch] = (2048-chan[ch].frequency);
-        } else if ((ch&3) < 3) {
-            // wave channel seems to be about the same for SMB at least.
-            // for more complex instruments, external tuning can be used
-            nCurrentTone[outch] = (2048-chan[ch].frequency);
-        } else {
-            // we already did the math for noise...
-            nCurrentTone[outch] = chan[ch].frequency;
+        switch (ch%5) {
+            case 0:
+            case 1:     // square waves
+            case 2:     // triangle wave
+            case 3:     // noise
+            case 4:     // DMC
+                nCurrentTone[outch] = chan[ch].frequency;
+                break;
         }
         nCurrentTone[outch+1] = getVolume(ch);
     }
-}
-
-// trigger a channel
-void triggerchan(int ch) {
-    chan[ch].enabled = true;
-    chan[ch].sweepPerWork = chan[ch].sweepPer;
-    chan[ch].sweepFreq = chan[ch].frequency&0xfff;
-    chan[ch].sweepClock = 0;
-    chan[ch].sweeping = false;
-    if (chan[ch].length == 0) {
-        chan[ch].length = 64;
-        if ((ch==2)||(ch==5)) chan[ch].length = 256;
-    }
-    chan[ch].lengthClock = 0;
-    chan[ch].volumePerWork = chan[ch].volumePer;
-    chan[ch].volumeClock = 0;
-    chan[ch].volume = chan[ch].volumeReg;
-    chan[ch].volumeDone = false;
 }
 
 // output one current row of audio data
@@ -515,11 +545,12 @@ bool outputData() {
 
         for (int idx=0; idx<MAXCHANNELS; idx++) {
 		    if (nWork[idx] == -1) {         // no entry yet
-                switch(idx%8) {
+                switch(idx%10) {
                     case 0:
                     case 2:
                     case 4: // tones
                     case 6: // noise
+                    case 8: // dmc
                         nWork[idx] = 1;     // very high pitched
                         break;
 
@@ -527,6 +558,7 @@ bool outputData() {
                     case 3:
                     case 5:
                     case 7: // volumes
+                    case 9:
                         nWork[idx] = 0;     // mute
                         break;
                 }
@@ -560,15 +592,16 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM DMG (Gameboy) - v20200320\n");
+	printf("Import VGM NES - v20200324\n");
 
 	if (argc < 2) {
-		printf("vgm_gb2psg [-q] [-d] [-wavenoise|-wavenone] [-enable7bitnoise] [-ignoreweird] <filename>\n");
+		printf("vgm_nes2psg [-q] [-d] [enableperiodic] [disabledmcvolhack] [-dmcnoise|-dmcnone] [-ignoreweird] <filename>\n");
 		printf(" -q - quieter verbose data\n");
         printf(" -d - enable parser debug output\n");
-        printf(" -wavenoise - treat the wave channel as noise\n");
-        printf(" -wavenone - ignore the wave channel (if neither, treat as tone)\n");
-        printf(" -enable7bitnoise - normally we don't try to retune 7-bit noise - enable this to try\n");
+        printf(" -enableperiodic - enable periodic noise when short mode set (usually not helpful)\n");
+        printf(" -disabledmcvolhack - don't reduce volume of triangle and noise as DMC volume increases\n");
+        printf(" -dmcnoise - treat the DMC channel as noise\n");
+        printf(" -dmcnone - ignore the DMC channel (if neither, treat as tone)\n");
         printf(" -ignoreweird - ignore anything else unexpected and treat as default\n");
 		printf(" <filename> - VGM file to read.\n");
 		return -1;
@@ -581,12 +614,14 @@ int main(int argc, char* argv[])
 			verbose=false;
         } else if (0 == strcmp(argv[arg], "-d")) {
 			debug = true;
-		} else if (0 == strcmp(argv[arg], "-wavenoise")) {
-			waveMode = 1;
-		} else if (0 == strcmp(argv[arg], "-wavenone")) {
-			waveMode = 2;
-		} else if (0 == strcmp(argv[arg], "-enable7bitnoise")) {
-			enable7bitnoise = true;
+		} else if (0 == strcmp(argv[arg], "-enableperiodic")) {
+			enableperiodic=true;
+		} else if (0 == strcmp(argv[arg], "-disabledmcvolhack")) {
+			disabledmcvolhack=true;
+		} else if (0 == strcmp(argv[arg], "-dmcnoise")) {
+			waveMode=1;
+		} else if (0 == strcmp(argv[arg], "-dmcnone")) {
+			waveMode=2;
 		} else if (0 == strcmp(argv[arg], "-ignoreweird")) {
 			ignoreWeird=true;
 		} else {
@@ -596,10 +631,13 @@ int main(int argc, char* argv[])
 		arg++;
 	}
 
-    // global variable init - see also the runEmulation code
-    NR50 = 0x77;
-    NR51 = 0xf3;
-    NR52 = 0xf1;
+    // global variable init
+    memset(sampleRam, 0, sizeof(sampleRam));
+    sequence[0] = 0;
+    sequence[1] = 0;
+    seqlong[0] = false;
+    seqlong[1] = false;
+    seqClock = 0;
 
 	{
 		FILE *fp=fopen(argv[arg], "rb");
@@ -672,7 +710,7 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-		unsigned int nClock = *((unsigned int*)&buffer[0x80]);
+		nClock = *((unsigned int*)&buffer[0x80]);
         if (nClock&0x40000000) {
             // bit indicates dual GB chips - though I don't need to do anything here
             // the format assumes that all GBs are identical

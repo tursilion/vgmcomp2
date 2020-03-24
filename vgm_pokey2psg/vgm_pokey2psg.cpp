@@ -62,8 +62,6 @@ int nReg[MAXCHANNELS];                  // pokey registers, 2 chips
 #define CLKDIV_15K 114
 
 // Pokey is apparently linear
-// To account for the master volume multipliers, we run this from 0-31 instead
-// of 0-255.
 unsigned char volumeTable[16] = {
 	240,224,208,192,176,160,144,
 	128,
@@ -422,7 +420,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM Pokey - v03222020\n");
+	printf("Import VGM Pokey - v20200322\n");
 
 	if (argc < 2) {
 		printf("vgm_pokey2psg [-q] [-d] [-disableperiodic] [-ignorehighpass] [-ignoreweird] <filename>\n");
@@ -1323,6 +1321,6 @@ int main(int argc, char* argv[])
         }
     }
 
-    myprintf("done vgm_psg2psg.\n");
+    myprintf("done vgm_pokey2psg.\n");
     return 0;
 }
