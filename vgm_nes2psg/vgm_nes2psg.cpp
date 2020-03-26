@@ -1,3 +1,8 @@
+// TODO: well... audio pitches are more or less right,
+// and timing is more or less right, but noise isn't working at all
+// and there's something wrong with the squares. Triangle doesn't
+// even show up and neither does DMC. Lots of clipping. Long way to go. ;)
+
 // vgm_nes2psg.cpp : Defines the entry point for the console application.
 // This reads in a VGM file, and outputs raw 60hz streams for the
 // TI PSG sound chip. It will input NES APU input streams, and more
@@ -74,7 +79,7 @@ unsigned int nRate = 60;
 // max number of chip channels (5 each)
 #define MAXCHIP (5*2)
 
-// length table
+// length table (bit 3, bits 4-7)
 unsigned char lengthData[2][16] = {
  // table from apt_ref.txt - pre-multiplied by 2 for the inbuilt shifter
  0x0A, 0xFE,
@@ -124,6 +129,9 @@ public:
         lengthEnable = false;
         length = 0;
 
+        linear = 0;
+        linearraw = 0;
+
         volumeEn = false;
         volumeLoop = false;
         volume = 0;
@@ -131,14 +139,15 @@ public:
         volumePer = 0;
         volumePerWork = 0;
 
-        sampleLoop = false;
-        sampleBase = 0;
-        sampleAdr = 0;
-        sampleCnt = 0;
-        sampleCntRaw = 0;
+        dmcLoop = false;
+        dmcBase = 0;
+        dmcAdr = 0;
+        dmcCnt = 0;
+        dmcCntRaw = 0;
         dmcPer = 0;
         dmcPerWork = 0;
         dmcOutput = 0;
+        dmcDelta = 0;
 
         frequency = 0xfff;
     }
@@ -156,6 +165,9 @@ public:
     bool lengthEnable;
     int length;
 
+    // triangle linear counter
+    int linear, linearraw;
+
     // volume envelope generator
     bool volumeEn;
     bool volumeLoop;
@@ -163,10 +175,11 @@ public:
     int volumePer, volumePerWork;
 
     // DMC
-    bool sampleLoop;
-    int sampleAdr, sampleBase;
-    int sampleCnt, sampleCntRaw;
+    bool dmcLoop;
+    int dmcAdr, dmcBase;
+    int dmcCnt, dmcCntRaw;
     int dmcOutput;
+    int dmcDelta;
     double dmcPer, dmcPerWork;
 
     // Frequency
@@ -349,8 +362,11 @@ int getVolume(int ch) {
             // So... the fake volume control on noise and triangle is worth about 50%
             // We'll just do a sloppy linear scale on that.
             // Apparently SMB3 actually USES this.
-            double ratio = 1.0 - (chan[chip*5+4].volume / 240);   // division selected for 57% volume as per docs
-            ret = int(ret * ratio + 0.5);
+            // TODO: I think the channel needs to be disabled for this to matter
+            if (!chan[ch].enabled) {
+                double ratio = 1.0 - (chan[chip*5+4].dmcDelta / 240);   // division selected for 57% volume as per docs
+                ret = int(ret * ratio + 0.5);
+            }
         }
     }
 
@@ -364,6 +380,7 @@ void runEmulation() {
     double time = (nClock/60.0) / SEQUENCECLK;
     seqClock += time;
     while (seqClock >= 1.0) {
+        seqClock -= 1.0;
         for (int channel = 0; channel < MAXCHIP; ++channel) {
             int chip = channel/5;
 
@@ -453,6 +470,21 @@ void runEmulation() {
                 }
             }
 
+            // Linear counter (triangle channel)
+            if (runE) {
+                if ((channel-chip == 2) && (!chan[channel].lengthEnable)) {
+                    // triangle with length disabled, use the linear counter
+                    if (chan[channel].linear > 0) {
+                        chan[channel].linear--;
+                        if (0 == chan[channel].linear) {
+                            chan[channel].volume = 0;
+                            chan[channel].enabled = false;
+                            chan[channel].linear = chan[channel].linearraw;
+                        }
+                    }
+                }
+            }
+
             // DMC channel
             if (channel-chip == 4) {
                 // we actually need some shift rate calculation this time
@@ -465,14 +497,18 @@ void runEmulation() {
                         // we'll always process a full byte at a time
                         chan[channel].dmcPerWork -= chan[channel].dmcPer;
 
-                        int byte = sampleRam[chip][chan[channel].sampleAdr&0x7fff];
-                        ++chan[channel].sampleAdr;
-                        --chan[channel].sampleCnt;
+                        // the address base is 0xC000, sampleRam is at 0x8000
+                        int offset = chan[channel].dmcAdr + 0x4000; // base offset
+                        if (offset >= 0x8000) offset -= 0x8000;     // handle wraparound
 
-                        if (chan[channel].sampleCnt < 0) {
-                            if (chan[channel].sampleLoop) {
-                                chan[channel].sampleAdr = chan[channel].sampleBase;
-                                chan[channel].sampleCnt = chan[channel].sampleCntRaw;
+                        int byte = sampleRam[chip][offset&0x7fff];
+                        ++chan[channel].dmcAdr;
+                        --chan[channel].dmcCnt;
+
+                        if (chan[channel].dmcCnt < 0) {
+                            if (chan[channel].dmcLoop) {
+                                chan[channel].dmcAdr = chan[channel].dmcBase;
+                                chan[channel].dmcCnt = chan[channel].dmcCntRaw;
                             } else {
                                 chan[channel].enabled = false;
                                 break;
@@ -493,9 +529,12 @@ void runEmulation() {
                             vol += chan[channel].dmcOutput;
                         }
                     }
-                    chan[channel].volume = (int(vol/cnt) << 1);
-                    if (chan[channel].volume > 0x7f) chan[channel].volume = 0x7f;
-                    if (chan[channel].volume < 0) chan[channel].volume = 0;
+                    if (cnt > 0) {
+                        // no change if we didn't process anything
+                        chan[channel].volume = (int(vol/cnt) << 1);
+                        if (chan[channel].volume > 0x7f) chan[channel].volume = 0x7f;
+                        if (chan[channel].volume < 0) chan[channel].volume = 0;
+                    }
                 }
             }
         }   // channel
@@ -706,31 +745,29 @@ int main(int argc, char* argv[])
 		unsigned int nVersion = *((unsigned int*)&buffer[8]);
 		myprintf("Reading version 0x%X\n", nVersion);
         if (nVersion < 0x161) {
-            printf("Failure - Gameboy not supported earlier than version 1.61\n");
+            printf("Failure - NES not supported earlier than version 1.61\n");
             return 1;
         }
 
-		nClock = *((unsigned int*)&buffer[0x80]);
+		nClock = *((unsigned int*)&buffer[0x84]);
         if (nClock&0x40000000) {
-            // bit indicates dual GB chips - though I don't need to do anything here
-            // the format assumes that all GBs are identical
-            myprintf("Dual GB output specified (we shall see!)\n");
+            // bit indicates dual NES chips - though I don't need to do anything here
+            // the format assumes that all NESes are identical
+            myprintf("Dual NES output specified (we shall see!)\n");
         }
 		nClock&=0x0FFFFFFF;
         if (nClock == 0) {
-            printf("\rThis VGM does not appear to contain a DMG (Gameboy). This tool extracts only DMG (Gameboy) data.\n");
+            printf("\rThis VGM does not appear to contain a NES APU. This tool extracts only NES data.\n");
             return -1;
         }
         if (nClock != 0) {
-		    if ((nClock < 4194304-50) || (nClock > 4194304+50)) {
-			    freqClockScale = 4194304/nClock;
-			    printf("\rUnusual GB clock rate %dHz. Scale factor %f.\n", nClock, freqClockScale);
+		    if ((nClock < 1789772-50) || (nClock > 1789772+50)) {
+			    freqClockScale = 1789772/nClock;
+			    printf("\rUnusual NES clock rate %dHz. Scale factor %f.\n", nClock, freqClockScale);
 		    }
-            // now adapt for the ratio between GB and PSG, which is slower at 3579545.0 Hz
-            // fewer ticks for the same tone
-            // Confirmed - both of these clock the audio through a divide-by-32, giving the
-            // PSG counter at 111860.8Hz and the GB counter at 131072.0Hz. So this should be right.
-            freqClockScale *= 3579545.0 / 4194304.0;
+            // now adapt for the ratio between NES and PSG, which is faster at 3579545.0 Hz
+            // Not sure if the NES has a divide-by-32, so we'll try the full range
+            freqClockScale *= 3579545.0 / 1789772.0;
             if (debug) {
                 myprintf("\rPSG clock scale factor %f\n", freqClockScale);
             }
@@ -753,8 +790,7 @@ int main(int argc, char* argv[])
 		}
 		myprintf("Refresh rate %d Hz\n", nRate);
 
-        // shift register is 15 bits wide, but can be set in software to 7,
-        // we accomodate by tweaking the frequency instead
+        // shift register width is irrelevant
 
         // find the start of data
 		unsigned int nOffset=0x40;
@@ -992,12 +1028,31 @@ int main(int argc, char* argv[])
 
             case 0x67:
                 {
-					static bool warn = false;
-					if (!warn) {
-						printf("\rUnsupported data block skipped\n");
-						warn = true;
-					}
-					nOffset+=(*((unsigned int*)&buffer[nOffset+3]))+7;
+                    // data block: 0x67 0x66 tt ss ss ss ss /data/
+                    int type = buffer[nOffset+2];
+                    unsigned int sz = *((unsigned int *)&buffer[nOffset+3]);
+                    if (type != 0xc2) {
+                        static bool warn = false;
+                        if (!warn) {
+                            printf("\rIgnoring unsupported data block type 0x%02X\n", type);
+                            warn=true;
+                        }
+                    } else {
+                        // populate NES DMA memory
+                        // first type bytes are the start offset
+                        int start = *((unsigned short*)&buffer[nOffset+7]);
+                        // Is it an offset (from 0?) or an address (from 0x8000?)
+                        sz-=2;
+                        if ((start+sz >= 0x8000) || (sz < 1)) {
+                            printf("\rNES DMA offset out of range: Start 0x%04X, length 0x%04X\n", start, sz);
+                        } else {
+                            memcpy(&dmcData[sz], &buffer[nOffset+9], sz);
+                            // todo: probably temporary debug...
+                            printf("Copy DMS data to 0x%04X, length 0x%04X\n", start, sz);
+                        }
+                    }
+                
+                    nOffset+=(*((unsigned int*)&buffer[nOffset+3]))+7;
 				}
 				break;
 
@@ -1102,344 +1157,188 @@ int main(int argc, char* argv[])
 
             case 0xb3:
 				{
-                    // gameboy DMG: 0xB3 AA DD
-                    // AA is the register, +0x80 for chip 2
-                    // DD is the byte to write
-
-                    // so.. is AA the 0xFFaa address or an index? Will assume address
-                    int chipoff = 0;
-                    if (buffer[nOffset+1]>0x7f) chipoff = 4;
-
-                    // the VGM puts NR10 at 0, I've mapped to the register address, so add 0x10
-                    unsigned char ad = (buffer[nOffset+1]&0x7f) + 0x10;
-                    unsigned char da = buffer[nOffset+2];
-
-                    switch (ad) {
-                        case 0x10:  // NR10     -PPP NSSS	Sweep period, negate, shift
-                            {
-                                chan[0+chipoff].sweepPer = (da&0x70)>>4;
-                                chan[0+chipoff].sweepShift = (da&0x7);
-                                bool neg = (da&0x08) ? true : false;
-                                if ((!neg)&&(chan[0+chipoff].sweepNeg)&&(chan[0+chipoff].sweeping)) {
-                                    chan[0+chipoff].enabled = false;
-                                }
-                                chan[0+chipoff].sweepNeg = neg;
-                            }
-                            break;
-                            
-                        case 0x11:  // NR11     DDLL LLLL	Duty, Length load (64-L)
-                        case 0x16:  // NR21
-                            {
-                                static bool warn = false;
-                                if ((!warn) && ((da&0xc0) != 80)) {
-                                    warn = true;
-                                    myprintf("Warning: ignoring unsupported duty cycle\n");
-                                }
-
-                                int ch = (ad == 0x11) ? chipoff : chipoff+1;
-                                // length is also inverted
-                                // TODO: I might be 1 clock off, but I think it balances out
-                                // with the late processing...
-                                chan[ch].length = 63 - (da&0x3f);
-                            }
-                            break;
-
-                        case 0x12:  // NR12     VVVV APPP	Starting volume, Envelope add mode, period
-                        case 0x17:  // NR22
-                        case 0x21:  // NR42
-                            {
-                                int ch = (ad-0x12)/5 + chipoff;
-                                if ((chan[ch].volumeDone) && (chan[ch].enabled)) {
-                                    // "zombie" mode reacts oddly to changes, incrementing the volume
-                                    int diff = 0;
-                                    // increment if any bits change
-                                    if (chan[ch].volumePer != (da&0x07)) {
-                                        ++diff;
-                                    }
-                                    if (chan[ch].volumeReg != ((da&0xf0)>>4)) {
-                                        ++diff;
-                                    }
-                                    // if working register was zero, double it
-                                    // clear that if a non-zero is written, but
-                                    // zeros written later do NOT unclear it
-                                    if (chan[ch].volumePerWork == 0) {
-                                        diff *= 2;
-                                        if (da&0x07) {
-                                            chan[ch].volumePerWork = da&0x07;
-                                        }
-                                    }
-                                    // and if the direction changed, double it again
-                                    if (chan[ch].volumeAdd != ((da&0x08) ? true : false)) {
-                                        diff *= 2;
-                                    }
-                                    // add to the volume, wrapping around
-                                    chan[ch].volume = (chan[ch].volume+diff) & 0x0f;
-                                } else {
-                                    // stop everything if we were sweeping
-                                    // increment if any bits change
-                                    if (chan[ch].volumePer != (da&0x07)) {
-                                        chan[ch].volumeDone=true;
-                                    }
-                                    if (chan[ch].volumeReg != ((da&0xf0)>>4)) {
-                                        chan[ch].volumeDone=true;
-                                    }
-                                    if (chan[ch].volumeAdd != ((da&0x08) ? true : false)) {
-                                        chan[ch].volumeDone=true;
-                                    }
-                                }
-                                // do the set anyway
-                                chan[ch].volumeReg = (da&0xf0)>>4;
-                                if (chan[ch].volumeReg == 0) {
-                                    chan[ch].enabled = false;
-                                } else {
-                                    // is this right? Seems so! Helps Guile's theme a lot.
-                                    chan[ch].enabled = true;
-                                }
-                                chan[ch].volumeAdd = (da&0x08) ? true : false;
-                                chan[ch].volumePer = da&0x07;
-                            }
-                            break;
-
-                        case 0x13:  // NR13     FFFF FFFF	Frequency LSB
-                        case 0x18:  // NR23
-                        case 0x1d:  // NR33
-                            {
-                                // the doc says it's (2048-freq)*4 -- probably for the
-                                // 4 phase duty cycle. This might mean the we should translate
-                                // to half the count (and I don't know if we need to invert it).
-                                // For now, though, try it raw.
-                                int ch = (ad-0x13)/5 + chipoff;
-                                chan[ch].frequency &= 0xFFff00;
-                                chan[ch].frequency |= da;
-                            }
-                            break;
-
-                        case 0x14:  // NR14     TL-- -FFF	Trigger, Length enable, Frequency MSB
-                        case 0x19:  // NR24
-                        case 0x1e:  // NR34
-                        {
-                            int ch = (ad-0x14)/5 + chipoff;
-
-                            // get the frequency byte
-                            chan[ch].frequency &= 0xFF00ff;
-                            chan[ch].frequency |= ((da&0x07)<<8);
-
-                            // we should process length first, and we need to count it down immediately
-                            if ((chan[ch].enabled) && (!chan[ch].lengthEnable) && (da&0x40)) {
-                                // rising edge on the length counter
-                                if (chan[ch].length != 0) {
-                                    if (--chan[ch].length == 0) {
-                                        chan[ch].volume = 0;
-                                        chan[ch].enabled = false;
-                                    }
-                                }
-                            }
-                            chan[ch].lengthEnable = (da&0x40) ? true : false;
-
-                            // then the trigger - any positive write retriggers the channel
-                            if (da & 0x80) {
-                                // set the trigger flag on noise channels
-                                // can't be the noise channel here, but check wave
-                                if ((waveMode==1)&&((ch==2)||(ch==6))) chan[ch].frequency |= NOISE_TRIGGER;
-
-                                // set up all the various flags
-                                triggerchan(ch);
-                            }
-                        }
-                        break;
-
-                        case 0x1a:  // NR30     E--- ----	DAC power
-                            // this is just the enable made explicit
-                            if (da & 0x80) {
-                                chan[2+chipoff].enabled = true;
-                            } else {
-                                chan[2+chipoff].enabled = false;
-                            }
-                            break;
-
-                        case 0x1b:  // NR31     LLLL LLLL	Length load (256-L)
-                            {
-                                int ch = chipoff+2;
-                                // length is also inverted
-                                // TODO: I might be 1 clock off, but I think it balances out
-                                // with the late processing...
-                                chan[ch].length = 255 - (da&0xff);
-                            }
-                            break;
-
-                        case 0x1c:  // NR32     -VV- ----	Volume code (00=0%, 01=100%, 10=50%, 11=25%)
-                            {
-                                int ch = chipoff+2;
-                                chan[ch].volumeCode = (da&0x60)>>5;
-                            }
-                            break;
-
-                        case 0x20:  // NR41     --LL LLLL	Length load (64-L)
-                            {
-                                int ch = chipoff+3;
-                                chan[ch].length = da&0x3f;
-                            }
-                            break;
-
-                        case 0x22:  // NR43     SSSS WDDD	Clock shift, Width mode of LFSR, Divisor code
-                            {
-                                int shiftrate = (da&0xf0)>>4;
-                                bool shift7bit = (da&0x08) ? true : false;
-                                int shiftdiv = (da&0x07);
-
-                                if (shiftrate > 13) {
-                                    chan[chipoff+3].frequency = 0;
-                                } else {
-
-#if 0
-                                    // I'm not entirely sure how these apply. Just try just multiplying it out...
-                                    if (shiftdiv == 0) {
-                                        shiftrate *= 8;
-                                    } else {
-                                        shiftrate *= (16*shiftdiv);
-                                    }
-#elif 0
-                                    // per http://www.devrs.com/gb/files/hosted/GBSOUND.txt, the
-                                    // final frequency(?) is 524288 / shiftdiv / (2^(shiftrate+1))
-                                    // with shiftdiv being 0.5 if it's zero.
-                                    // 524288 is the clock divided by 8 for the default
-                                    // what the heck, we have the CPU...
-                                    // but I'd like the understand this...
-                                    if (shiftdiv == 0) {
-                                        shiftrate = (nClock/8) * 2 / (1 << (shiftrate+1));
-                                    } else {
-                                        shiftrate = (nClock/8) / shiftdiv / (1 << (shiftrate+1));
-                                    }
-
-                                    // that gives us a rate in HZ, make it a rate in clocks...
-                                    shiftrate = nClock / shiftrate;
-#else
-                                    // back to my own interpretation - the initial clock divider is only
-                                    // divide-by-two, then we get the configurable divider in shiftdiv,
-                                    // literally at shiftdiv+1. The period is twice the shift rate, so
-                                    // the maximum is (8*2*2 = 32) same as the tones.
-                                    // The shiftdiv clock outputs to the 16-bit shiftrate
-                                    // So, the ultimate countdown is (shiftdiv+1)*shiftrate, but this
-                                    // is based on a clock 16 times faster than the main clock, so /16.
-                                    // This will result in a large range of unreproducable frequencies,
-                                    // especially once we add in the the 7-bit rate... perhaps we should
-                                    // ignore that. It's not periodic noise, after all.
-                                    shiftrate = ((shiftdiv+1)*shiftrate) / 16;
-                                    if ((shiftrate == 0)&&(shiftrate != 0)) {
-                                        static bool warn = false;
-                                        if (!warn) {
-                                            warn = true;
-                                            printf("Warning: noise frequency exceeds PSG ability.\n");
-                                        }
-                                    }
-#endif
-
-                                    // check for the shorter shift rate
-                                    if ((enable7bitnoise) && (shift7bit)) {
-                                        // the existing shift rate is for 15 bit.
-                                        // we need to make it higher pitched for 7 bit...
-                                        // try this...
-                                        int oldrate = shiftrate;
-                                        shiftrate = (int)((double)shiftrate * (7/15) + 0.5);
-                                        if ((shiftrate == 0)&&(oldrate != 0)) {
-                                            static bool warn = false;
-                                            if (!warn) {
-                                                warn = true;
-                                                printf("Warning: 7-bit shift caused noise frequency to exceed PSG ability.\n");
-                                            }
-                                        }
-                                    }
-
-                                    chan[chipoff+3].frequency = shiftrate;
-                                }
-                            }
-                            break;
-
-                        case 0x23:  // NR44     TL-- ----	Trigger, Length enable
-                        {
-                            int ch = chipoff + 3;
-
-                            // we should process length first, and we need to count it down immediately
-                            if ((chan[ch].enabled) && (!chan[ch].lengthEnable) && (da&0x40)) {
-                                // rising edge on the length counter
-                                if (chan[ch].length != 0) {
-                                    if (--chan[ch].length == 0) {
-                                        chan[ch].volume = 0;
-                                        chan[ch].enabled = false;
-                                    }
-                                }
-                            }
-                            chan[ch].lengthEnable = (da&0x40) ? true : false;
-
-                            // then the trigger - any positive write retriggers the channel
-                            if (da & 0x80) {
-                                // set the trigger flag on noise channels
-                                // can't be wave channel here, so check noise
-                                if ((ch==3)||(ch==7)) chan[ch].frequency |= NOISE_TRIGGER;
-
-                                // set up all the various flags
-                                triggerchan(ch);
-                            }
-                        }
-                        break;
-
-                        case 0x24:  // NR50     ALLL BRRR	Vin L enable, Left vol, Vin R enable, Right vol
-                            NR50 = da;
-                            break;
-
-                        case 0x25:  // NR51     NW21 NW21	Left enables, Right enables
-                            NR51 = da;
-                            break;
-
-                        case 0x26:  // NR52     P--- NW21	Power control/status, Channel length statuses
-                            NR52 = da;
-                            break;
-
-                            // wave table
-                        case 0x30:  sampleRam[chipoff/4][0]=(da&0xf0)>>4; sampleRam[chipoff/4][1]=(da&0x0f); break;
-                        case 0x31:  sampleRam[chipoff/4][2]=(da&0xf0)>>4; sampleRam[chipoff/4][3]=(da&0x0f); break;
-                        case 0x32:  sampleRam[chipoff/4][4]=(da&0xf0)>>4; sampleRam[chipoff/4][5]=(da&0x0f); break;
-                        case 0x33:  sampleRam[chipoff/4][6]=(da&0xf0)>>4; sampleRam[chipoff/4][7]=(da&0x0f); break;
-                        case 0x34:  sampleRam[chipoff/4][8]=(da&0xf0)>>4; sampleRam[chipoff/4][9]=(da&0x0f); break;
-                        case 0x35:  sampleRam[chipoff/4][10]=(da&0xf0)>>4; sampleRam[chipoff/4][11]=(da&0x0f); break;
-                        case 0x36:  sampleRam[chipoff/4][12]=(da&0xf0)>>4; sampleRam[chipoff/4][13]=(da&0x0f); break;
-                        case 0x37:  sampleRam[chipoff/4][14]=(da&0xf0)>>4; sampleRam[chipoff/4][15]=(da&0x0f); break;
-                        case 0x38:  sampleRam[chipoff/4][16]=(da&0xf0)>>4; sampleRam[chipoff/4][17]=(da&0x0f); break;
-                        case 0x39:  sampleRam[chipoff/4][18]=(da&0xf0)>>4; sampleRam[chipoff/4][19]=(da&0x0f); break;
-                        case 0x3a:  sampleRam[chipoff/4][20]=(da&0xf0)>>4; sampleRam[chipoff/4][21]=(da&0x0f); break;
-                        case 0x3b:  sampleRam[chipoff/4][22]=(da&0xf0)>>4; sampleRam[chipoff/4][23]=(da&0x0f); break;
-                        case 0x3c:  sampleRam[chipoff/4][24]=(da&0xf0)>>4; sampleRam[chipoff/4][25]=(da&0x0f); break;
-                        case 0x3d:  sampleRam[chipoff/4][26]=(da&0xf0)>>4; sampleRam[chipoff/4][27]=(da&0x0f); break;
-                        case 0x3e:  sampleRam[chipoff/4][28]=(da&0xf0)>>4; sampleRam[chipoff/4][29]=(da&0x0f); break;
-                        case 0x3f:  sampleRam[chipoff/4][30]=(da&0xf0)>>4; sampleRam[chipoff/4][31]=(da&0x0f); break;
-
-                        default:
-                        {
-                            static bool warn = false;
-                            if (!debug) {
-                                if (!warn) {
-                                    warn = true;
-                                    myprintf("Warning: ignoring writes to unsupported registers.\n");
-                                }
-                            } else {
-                                printf("Warning: ignoring write to unsupported register: 0x%2X = 0x%02X\n", ad, da);
-                            }
-                        }
-                        break;
-                    }
-                
-                    nOffset+=3;
+					static bool warn = false;
+					if (!warn) {
+						printf("\rUnsupported chip GB skipped\n");
+						warn = true;
+					}
+					nOffset+=3;
 				}
 				break;
 
             case 0xb4:
 				{
-					static bool warn = false;
-					if (!warn) {
-						printf("\rUnsupported chip NES APU skipped\n");
-						warn = true;
-					}
-					nOffset+=3;
+                    // NES APU: 0xb4 AA DD
+                    // AA is the register, +0x80 for chip 2
+                    // DD is the byte to write
+                    int chipoff = 0;
+                    if (buffer[nOffset+1]>0x7f) chipoff = 5;
+                    unsigned char ad = (buffer[nOffset+1]&0x7f);
+                    unsigned char da = buffer[nOffset+2];
+
+                    switch (ad) {
+                        case 0x00:  // square duty/volume/envelope decay (0)
+                        case 0x04:  // square duty/volume/envelope decay (1)
+                        case 0x0c:  // noise volume/envelope decay  (3)
+                        {
+                            // ddle nnnn   duty, loop env/disable length, env disable, vol/env period
+                            // 0-3	volume / envelope decay rate
+                            // 4	envelope decay disable
+                            // 5	envelope decay looping enable
+                            // 6-7  duty on the square waves (which we ignore)
+                            int ch = ad/4+chipoff;
+                            chan[ch].volumeEn = (da&0x10) ? true : false;
+                            chan[ch].volumeLoop = (da&0x20) ? true : false;
+                            if (chan[ch].volumeEn) {
+                                chan[ch].volume = 0;
+                                chan[ch].volumePer = chan[ch].volumePerWork = (da&0x0f);
+                            } else {
+                                chan[ch].volume = (da&0x0f);
+                                chan[ch].volumePer = chan[ch].volumePerWork = 0;
+                            }
+                            if ((da&0xc0) != 0x80) {
+                                static bool warn = false;
+                                if (!warn) {
+                                    warn = true;
+                                    printf("\rUnsupported duty cycle ignored.\n");
+                                }
+                            }
+                        }
+                        break;
+
+                        case 0x01:  // square sweep/period/negative/shift
+                        case 0x05:  // square sweep/period/negative/shift
+                        {
+                            // eppp nsss   enable sweep, period, negative, shift
+                            int ch = (ad-1)/4+chipoff;
+
+                            bool en = (da&0x80) ? true : false;
+                            int per = (da&0x70)>>4;
+                            bool neg = (da&0x08) ? true : false;
+                            int shift = (da&0x07);
+
+                            chan[ch].sweepEn = en;
+                            chan[ch].sweepPer = chan[ch].sweepPerWork = per;
+                            chan[ch].sweepNeg = neg;
+                            chan[ch].sweepShift = shift;
+                        }
+                        break;
+
+                        case 0x02:  // square period low
+                        case 0x06:  // square period low
+                        case 0x0a:  // triangle period low
+                        {
+                            // pppp pppp   period low
+                            int ch = (ad-2)/4+chipoff;
+                            chan[ch].frequency &= 0xf00;
+                            chan[ch].frequency |= da;
+                        }
+                        break;
+
+                        case 0x03:  // square length/period high
+                        case 0x07:  // square length/period high
+                        case 0x0b:  // triangle length/period high
+                        case 0x0f:  // noise length
+                        {
+                            // llll lppp   length index, period high (not used on noise)
+                            int ch = (ad-3)/4+chipoff;
+                            chan[ch].volumeDecay = 0xf;
+                            if (ad != 0x0f) {
+                                // noise doesn't have frequency bits here
+                                chan[ch].frequency &= 0xff;
+                                chan[ch].frequency |= (da&0x07)<<8;
+                            }
+                            if (ad == 0x0b) {
+                                // triangle disables when written
+                                chan[ch].enabled = false;
+                            }
+                            chan[ch].length = lengthData[(da&0x80)>>3][(da&0xf0)>>4];
+                        }
+                        break;
+
+                        case 0x08:  // triangle length control/counter
+                        {
+                            // clll llll   control, linear counter load
+                            int ch = chipoff+2;
+                            chan[ch].lengthEnable = (da&0x80) ? true : false;
+                            chan[ch].linear = chan[ch].linearraw = da&0x7f;
+                        }
+                        break;
+
+                        case 0x0e:  // noise short mode/period index
+                        {
+                            // s--- pppp   short mode, period index
+                            // TODO: the shift is clocked every other clock, do we need to divide by 2?
+                            int ch = chipoff+3;
+                            chan[ch].frequency = noiseData[da&0x0f];
+                            if ((enableperiodic)&&(da&0x80)) {
+                                // short mode switches between 32768 bits long and 93 bits long noise
+                                chan[ch].frequency |= NOISE_PERIODIC;
+                            }
+                            // TODO: do we have to trigger? docs only say on reset
+                            //chan[ch].frequency |= NOISE_TRIGGER;
+                        }
+                        break;
+
+                        case 0x10:  // DMC play mode and frequency
+                        {
+                            // il-- ffff   IRQ enable (ignored), loop, frequency index
+                            int ch = chipoff+4;
+                            chan[ch].dmcLoop = (da&0x40) ? true : false;
+                            chan[ch].dmcPer = chan[ch].dmcPerWork = dmcData[da&0x0f];
+                        }
+                        break;
+
+                        case 0x11:  // dmc delta channel
+                        {
+                            // the only side effect we bother with here is the fakey volume
+                            // control when the channel is disabled
+                            int ch = chipoff+4;
+                            chan[ch].dmcDelta = da&0x7f;
+                        }
+                        break;
+
+                        case 0x12:  // dmc address load
+                        {
+                            int ch = chipoff+4;
+                            chan[ch].dmcAdr = chan[ch].dmcBase = da<<12;
+                        }
+                        break;
+
+                        case 0x13:  // dmc length
+                        {
+                            int ch = chipoff+4;
+                            chan[ch].dmcCnt = chan[ch].dmcCntRaw = da << 4;
+                        }
+                        break;
+
+                        case 0x15:  // DMC/IRQ/Length counter/channel enable
+                        {
+                            // ---d nt21   length ctr enable: DMC, noise, triangle, pulse 2, 1
+                            chan[4+chipoff].enabled = (da&0x10) ? true : false;
+                            chan[3+chipoff].enabled = (da&0x08) ? true : false;
+                            chan[2+chipoff].enabled = (da&0x04) ? true : false;
+                            chan[1+chipoff].enabled = (da&0x02) ? true : false;
+                            chan[0+chipoff].enabled = (da&0x01) ? true : false;
+                        }
+                        break;
+
+                        case 0x17:  // timer control
+                        {
+                            // fd-- ----   5-frame cycle, disable frame interrupt (ignored)
+                            sequence[chipoff/5] = 0;          // sequence step for each chip
+                            seqlong[chipoff/5] = (da&0x80) ? true : false;
+                        }
+                        break;
+
+                        default:
+                            // note: 0D and 09 are unused in every doc I've seen, but some
+                            // songs write to them...?
+                            printf("Unknown NES register write: $40%02X = 0x%02X\n", ad, da);
+                            break;
+                    }
+                
+                    nOffset+=3;
 				}
 				break;
 
@@ -1652,7 +1551,7 @@ int main(int argc, char* argv[])
 			if (freqClockScale != 1.0) {
 				myprintf("Adapting tones for PSG clock rate... ");
 				// scale every tone - clip if needed (note further clipping for PSG may happen at output)
-                for (int chip = 0; chip < MAXCHANNELS; chip += 8) {
+                for (int chip = 0; chip < MAXCHANNELS; chip += 10) {
 				    for (int idx=0; idx<nTicks; idx++) {
                         if (VGMStream[0+chip][idx] > 1) {
 					        VGMStream[0+chip][idx] = (int)(VGMStream[0+chip][idx] * freqClockScale + 0.5);
@@ -1684,6 +1583,12 @@ int main(int argc, char* argv[])
                             if (VGMStream[6+chip][idx] == 0)    { VGMStream[6+chip][idx]=1;     clip++; }
 					        if (VGMStream[6+chip][idx] > 0xfff) { VGMStream[6+chip][idx]=0xfff; clip++; }
                             if (trig) VGMStream[6+chip][idx] |= NOISE_TRIGGER;
+                        }
+
+                        if (VGMStream[8+chip][idx] > 1) {
+					        VGMStream[8+chip][idx] = (int)(VGMStream[8+chip][idx] * freqClockScale + 0.5);
+                            if (VGMStream[8+chip][idx] == 0)    { VGMStream[8+chip][idx]=1;     clip++; }
+					        if (VGMStream[8+chip][idx] > 0xfff) { VGMStream[8+chip][idx]=0xfff; clip++; }
                         }
                     }
                 }
@@ -1762,6 +1667,6 @@ int main(int argc, char* argv[])
         }
     }
 
-    myprintf("done vgm_gb2psg.\n");
+    myprintf("done vgm_nes2psg.\n");
     return 0;
 }
