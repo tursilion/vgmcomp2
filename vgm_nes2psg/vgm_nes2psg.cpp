@@ -1,7 +1,11 @@
-// TODO: well... audio pitches are more or less right,
-// and timing is more or less right, but noise isn't working at all
-// and there's something wrong with the squares. Triangle doesn't
-// even show up and neither does DMC. Lots of clipping. Long way to go. ;)
+// STATUS:
+// Square: Okay
+// Triangle: Okay
+// Noise: Partial... SM3 still not working quite right
+// DMC: Nothing
+// Length: Okay
+// Freq Shift: Maybe?
+// Envelope: Okay
 
 // vgm_nes2psg.cpp : Defines the entry point for the console application.
 // This reads in a VGM file, and outputs raw 60hz streams for the
@@ -36,16 +40,6 @@
 #define MAXCHANNELS 20
 int VGMStream[MAXCHANNELS][MAXTICKS];		// every frame the data is output
 
-// 0-1 are square, 2 is triangle, 3 is noise, 4 is DMC, then repeat for chip 2
-// Need defines, the GB stuff was a pain to code...
-// these are offsets into VGMStream from Chipoffset - volume is plus 1
-// nCurrentTone uses the same indexes.
-#define CH_SQUARE1 0
-#define CH_SQUARE2 2
-#define CH_TRIANGLE 4
-#define CH_NOISE 6
-#define CH_DMC 8
-
 unsigned char buffer[1024*1024];			// 1MB read buffer
 unsigned int buffersize;					// number of bytes in the buffer
 int nCurrentTone[MAXCHANNELS];				// current value for each channel in case it's not updated
@@ -67,6 +61,7 @@ int waveMode = 2;                       // 0 - treat as tone, 1 - treat as noise
 bool scaleFreqClock = true;			    // apply scaling from APU clock rates (not an option here)
 bool ignoreWeird = false;               // ignore any other weirdness (like shift register)
 unsigned int nRate = 60;
+int triangleVolume = 8;                 // average volume output of the triangle channel
 
 // DMG emulation
 
@@ -80,8 +75,9 @@ unsigned int nRate = 60;
 #define MAXCHIP (5*2)
 
 // length table (bit 3, bits 4-7)
-unsigned char lengthData[2][16] = {
+unsigned char lengthData[32] = {
  // table from apt_ref.txt - pre-multiplied by 2 for the inbuilt shifter
+//3=0  3=1     state of bit 3, rows are bits 4-7
  0x0A, 0xFE,
  0x14, 0x02,
  0x28, 0x04,
@@ -130,7 +126,9 @@ public:
         length = 0;
 
         linear = 0;
-        linearraw = 0;
+        linearreload = 0;
+        linearreloadflag=true;
+        clearreloadflag = false;
 
         volumeEn = false;
         volumeLoop = false;
@@ -166,7 +164,8 @@ public:
     int length;
 
     // triangle linear counter
-    int linear, linearraw;
+    int linear, linearreload;
+    bool linearreloadflag, clearreloadflag; // only need clear cause I don't save the registers
 
     // volume envelope generator
     bool volumeEn;
@@ -340,6 +339,21 @@ int getVolume(int ch) {
     // check for mute cases
     if (!chan[ch].enabled) return 0;                // not enabled, no output
 
+    // special case for triangle channel
+    if (chanidx == 2) {
+        // triangle has no volume - it is either on or off
+        if ((chan[ch].length > 0) && (chan[ch].linear > 0)) {
+            return volumeTable[triangleVolume];
+        } else {
+            return 0;
+        }
+    } else {
+        // for anyone else, check if the length generator has us muted
+        if ((chan[ch].lengthEnable) && (chan[ch].length <= 0)) {
+            return 0;
+        }
+    }
+
     // I think we're good
     int ret = 0;
     if (chan[ch].volume == 0) return 0;             // muted, no output
@@ -381,23 +395,27 @@ void runEmulation() {
     seqClock += time;
     while (seqClock >= 1.0) {
         seqClock -= 1.0;
+
+        bool runL;  // run length and sweep
+        bool runE;  // run envelope and linear counter (not implemented, we don't need it)
+
         for (int channel = 0; channel < MAXCHIP; ++channel) {
             int chip = channel/5;
 
-            bool runL;  // run length and sweep
-            bool runE;  // run envelope and linear counter (not implemented, we don't need it)
-
-            ++sequence[chip];
-            if (seqlong[chip]) {
-                // 5 step
-                if (sequence[chip] > 4) sequence[chip]=0;
-                runL = (Seq5Step[sequence[chip]] & 1) ? true : false;
-                runE = (Seq5Step[sequence[chip]] & 2) ? true : false;
-            } else {
-                // 4 step
-                if (sequence[chip] > 3) sequence[chip]=0;
-                runL = (Seq4Step[sequence[chip]] & 1) ? true : false;
-                runE = (Seq4Step[sequence[chip]] & 2) ? true : false;
+            if (chip-channel == 0) {
+                // only update the sequencer once per chip...
+                ++sequence[chip];
+                if (seqlong[chip]) {
+                    // 5 step
+                    if (sequence[chip] > 4) sequence[chip]=0;
+                    runL = (Seq5Step[sequence[chip]] & 1) ? true : false;
+                    runE = (Seq5Step[sequence[chip]] & 2) ? true : false;
+                } else {
+                    // 4 step
+                    if (sequence[chip] > 3) sequence[chip]=0;
+                    runL = (Seq4Step[sequence[chip]] & 1) ? true : false;
+                    runE = (Seq4Step[sequence[chip]] & 2) ? true : false;
+                }
             }
 
             // Frequency sweep (square wave only)
@@ -418,7 +436,7 @@ void runEmulation() {
                         }
 
                         // no update if we zero out or no length
-                        if ((newFreq > 0) && (chan[channel].length > 0)) {
+                        if ((newFreq > 0) && (newFreq < 0x800) && (chan[channel].length > 0)) {
                             chan[channel].frequency = newFreq & 0x7ff;
                         }
 
@@ -438,7 +456,7 @@ void runEmulation() {
                 if (chan[channel].volumePerWork <= 0) {
                     chan[channel].volumePerWork = chan[channel].volumePer;
 
-                    if (chan[channel].volumeDecay > 0) {
+                    if (chan[channel].volumeDecay >= 0) {
                         --chan[channel].volumeDecay;
                         if (chan[channel].volumeDecay < 0) {
                             if (chan[channel].volumeLoop) {
@@ -456,30 +474,42 @@ void runEmulation() {
                 }
             }
 
+            if (channel == 3) {
+                if (debug) printf("  DEBUG: TICK: Noise: Freq: 0x%03X, length: %d(%d), linear: %d(%d):%d(%d), vol: %d(%d)\n",
+                       chan[channel].frequency,
+                       chan[channel].length, chan[channel].lengthEnable,
+                       chan[channel].linear, !chan[channel].lengthEnable, chan[channel].linearreload, chan[channel].linearreloadflag,
+                       getVolume(channel), chan[channel].enabled);
+            }
+
             // Length counter (all channels but dmc)
             if (runL) {
                 if (chan[channel].lengthEnable) {
                     if (chan[channel].length > 0) {
                         chan[channel].length--;
-                        // TODO: so.. what, do we mute at zero?
-                        if (0 == chan[channel].length) {
-                            chan[channel].volume = 0;
-                            chan[channel].enabled = false;
-                        }
+                        // we shouldn't do anything here - getVolume will
+                        // check if we're supposed to be muted
                     }
                 }
             }
 
             // Linear counter (triangle channel)
             if (runE) {
-                if ((channel-chip == 2) && (!chan[channel].lengthEnable)) {
-                    // triangle with length disabled, use the linear counter
-                    if (chan[channel].linear > 0) {
-                        chan[channel].linear--;
-                        if (0 == chan[channel].linear) {
-                            chan[channel].volume = 0;
-                            chan[channel].enabled = false;
-                            chan[channel].linear = chan[channel].linearraw;
+                if (channel-chip == 2) {
+                    // triangle, check linear counter reload
+                    if (chan[channel].linearreloadflag) {
+                        chan[channel].linear = chan[channel].linearreload;
+                        if (chan[channel].clearreloadflag) {
+                            chan[channel].clearreloadflag = false;
+                            chan[channel].linearreloadflag = false;
+                        }
+                    } else {
+                        // so I'm not sure, do I check the lengthenable or not?
+                        if (chan[channel].linear > 0) {
+                            chan[channel].linear--;
+                            // we don't have to do anything here because
+                            // getVolume will check linear and length to see
+                            // if output is allowed
                         }
                     }
                 }
@@ -546,10 +576,13 @@ void runEmulation() {
         switch (ch%5) {
             case 0:
             case 1:     // square waves
-            case 2:     // triangle wave
             case 3:     // noise
             case 4:     // DMC
                 nCurrentTone[outch] = chan[ch].frequency;
+                break;
+
+            case 2:     // triangle wave runs roughly 50% lower frequency
+                nCurrentTone[outch] = chan[ch].frequency*2;
                 break;
         }
         nCurrentTone[outch+1] = getVolume(ch);
@@ -575,8 +608,6 @@ bool outputData() {
 
     // now write the result into the current line of data
     for (int rows = 0; rows < rowsOut; ++rows) {
-        if (debug) printf("tick\n");
-
         // reload the work regs
         for (int idx=0; idx<MAXCHANNELS; ++idx) {
             nWork[idx] = nCurrentTone[idx];
@@ -631,12 +662,13 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM NES - v20200324\n");
+	printf("Import VGM NES - v20200327\n");
 
 	if (argc < 2) {
-		printf("vgm_nes2psg [-q] [-d] [enableperiodic] [disabledmcvolhack] [-dmcnoise|-dmcnone] [-ignoreweird] <filename>\n");
+		printf("vgm_nes2psg [-q] [-d] [-triangle <n>] [-enableperiodic] [-disabledmcvolhack] [-dmcnoise|-dmcnone] [-ignoreweird] <filename>\n");
 		printf(" -q - quieter verbose data\n");
         printf(" -d - enable parser debug output\n");
+        printf(" -triangle <n> - set triangle volume to <n> (0-15, default is 8)\n");
         printf(" -enableperiodic - enable periodic noise when short mode set (usually not helpful)\n");
         printf(" -disabledmcvolhack - don't reduce volume of triangle and noise as DMC volume increases\n");
         printf(" -dmcnoise - treat the DMC channel as noise\n");
@@ -653,6 +685,20 @@ int main(int argc, char* argv[])
 			verbose=false;
         } else if (0 == strcmp(argv[arg], "-d")) {
 			debug = true;
+		} else if (0 == strcmp(argv[arg], "-triangle")) {
+            if (arg+1 >= argc) {
+                printf("Not enough arguments for -triangle parameter.\n");
+                return -1;
+            }
+            ++arg;
+            triangleVolume = atoi(argv[arg]);
+            if ((triangleVolume > 15) || (triangleVolume < 0)) {
+                printf("Triangle volume must be from 0 (mute) to 15 (loudest). Default is 8.\n");
+                return -1;
+            }
+            if (triangleVolume == 0) {
+                printf("Warning: Triangle channel muted at command line.\n");
+            }
 		} else if (0 == strcmp(argv[arg], "-enableperiodic")) {
 			enableperiodic=true;
 		} else if (0 == strcmp(argv[arg], "-disabledmcvolhack")) {
@@ -766,8 +812,9 @@ int main(int argc, char* argv[])
 			    printf("\rUnusual NES clock rate %dHz. Scale factor %f.\n", nClock, freqClockScale);
 		    }
             // now adapt for the ratio between NES and PSG, which is faster at 3579545.0 Hz
-            // Not sure if the NES has a divide-by-32, so we'll try the full range
-            freqClockScale *= 3579545.0 / 1789772.0;
+            // The NES clock is pre-divided by two, so we'll do the same. This seems to be
+            // pretty close to correct.
+            freqClockScale *= (3579545.0/2) / 1789772.0;
             if (debug) {
                 myprintf("\rPSG clock scale factor %f\n", freqClockScale);
             }
@@ -834,6 +881,9 @@ int main(int argc, char* argv[])
 			case 0x61:		// 16-bit wait value
 				{
 					unsigned int nTmp=buffer[nOffset+1] | (buffer[nOffset+2]<<8);
+
+                    if (debug) printf("  DEBUG: delay %f frames\n", (float)nTmp/735.0);
+
 					// divide down from samples to ticks (either 735 for 60hz or 882 for 50hz)
 					if (nTmp % ((nRate==60)?735:882)) {
 						if ((nRunningOffset == 0) && (!delaywarn)) {
@@ -859,6 +909,8 @@ int main(int argc, char* argv[])
 			case 0x63:		// wait 882 samples (50th second)
 				// going to treat both of these the same. My output intends to run at 60Hz
 				// and so this counts as a tick
+                if (debug) printf("  DEBUG: delay 1 frame\n");
+
                 if (!outputData()) return -1;
 				nOffset++;
 				break;
@@ -885,9 +937,9 @@ int main(int argc, char* argv[])
 			case 0x7f:		// wait 16 samples
 				// try the same hack as above
 				if (nRunningOffset == 0) {
-					printf("\rWarning: fine timing lost.\n");
+					printf("\rWarning: fine timing (%d ticks) lost.\n", buffer[nOffset]-0x70+1);
 				}
-				nRunningOffset+=buffer[nOffset]-0x70;
+				nRunningOffset+=buffer[nOffset]-0x70+1;
 				if (nRunningOffset > ((nRate==60)?735:882)) {
 					nRunningOffset -= ((nRate==60)?735:882);
                     if (!outputData()) return -1;				
@@ -1041,14 +1093,15 @@ int main(int argc, char* argv[])
                         // populate NES DMA memory
                         // first type bytes are the start offset
                         int start = *((unsigned short*)&buffer[nOffset+7]);
-                        // Is it an offset (from 0?) or an address (from 0x8000?)
+                        // this is an address from 0x8000
+                        start -= 0x8000;
                         sz-=2;
-                        if ((start+sz >= 0x8000) || (sz < 1)) {
+                        if ((start+sz > 0x8000) || (sz < 1)) {
                             printf("\rNES DMA offset out of range: Start 0x%04X, length 0x%04X\n", start, sz);
                         } else {
                             memcpy(&dmcData[sz], &buffer[nOffset+9], sz);
                             // todo: probably temporary debug...
-                            printf("Copy DMS data to 0x%04X, length 0x%04X\n", start, sz);
+                            printf("Copy DMA data to 0x%04X, length 0x%04X\n", start, sz);
                         }
                     }
                 
@@ -1187,8 +1240,9 @@ int main(int argc, char* argv[])
                             // 5	envelope decay looping enable
                             // 6-7  duty on the square waves (which we ignore)
                             int ch = ad/4+chipoff;
-                            chan[ch].volumeEn = (da&0x10) ? true : false;
+                            chan[ch].volumeEn = (da&0x10) ? false : true;   // bit is volume decay DISABLE
                             chan[ch].volumeLoop = (da&0x20) ? true : false;
+                            chan[ch].lengthEnable = !chan[ch].volumeLoop;   // you get looping, or length
                             if (chan[ch].volumeEn) {
                                 chan[ch].volume = 0;
                                 chan[ch].volumePer = chan[ch].volumePerWork = (da&0x0f);
@@ -1202,6 +1256,11 @@ int main(int argc, char* argv[])
                                     warn = true;
                                     printf("\rUnsupported duty cycle ignored.\n");
                                 }
+                            }
+
+                            if (ad == 0xc) {
+                                if (debug) printf("  DEBUG:  Volume:%d(%d), LengthEn: (%d)\n", chan[ch].volume, chan[ch].volumeEn,
+                                       chan[ch].lengthEnable);
                             }
                         }
                         break;
@@ -1248,11 +1307,18 @@ int main(int argc, char* argv[])
                                 chan[ch].frequency &= 0xff;
                                 chan[ch].frequency |= (da&0x07)<<8;
                             }
+                            int bit3=(da&0x08) ? 1 : 0;
+                            int idx = ((da&0xf0)>>4)*2 + bit3;
+                            chan[ch].length = lengthData[idx];
+
                             if (ad == 0x0b) {
-                                // triangle disables when written
-                                chan[ch].enabled = false;
+                                // triangle sets the reload flag
+                                chan[ch].linearreloadflag = true;
                             }
-                            chan[ch].length = lengthData[(da&0x80)>>3][(da&0xf0)>>4];
+
+                            if (ad == 0x0f) {
+                                if (debug) printf("  DEBUG: Frequency: 0x%03X  Length: %d\n", chan[ch].frequency, chan[ch].length);
+                            }
                         }
                         break;
 
@@ -1260,23 +1326,27 @@ int main(int argc, char* argv[])
                         {
                             // clll llll   control, linear counter load
                             int ch = chipoff+2;
-                            chan[ch].lengthEnable = (da&0x80) ? true : false;
-                            chan[ch].linear = chan[ch].linearraw = da&0x7f;
+                            chan[ch].lengthEnable = (da&0x80) ? false : true;   // bit is a disable, uses linear counter then
+                            chan[ch].linearreload = da&0x7f;
+                            if (chan[ch].lengthEnable) {
+                                chan[ch].clearreloadflag = true;
+                            }
                         }
                         break;
 
                         case 0x0e:  // noise short mode/period index
                         {
                             // s--- pppp   short mode, period index
-                            // TODO: the shift is clocked every other clock, do we need to divide by 2?
                             int ch = chipoff+3;
-                            chan[ch].frequency = noiseData[da&0x0f];
+                            chan[ch].frequency = noiseData[da&0x0f]/2;  // do we need to divide by 2 for 'every other clock'?
                             if ((enableperiodic)&&(da&0x80)) {
                                 // short mode switches between 32768 bits long and 93 bits long noise
                                 chan[ch].frequency |= NOISE_PERIODIC;
                             }
                             // TODO: do we have to trigger? docs only say on reset
                             //chan[ch].frequency |= NOISE_TRIGGER;
+                            
+                            if (debug) printf("  DEBUG: Frequency: 0x%03X\n", chan[ch].frequency);
                         }
                         break;
 
@@ -1320,6 +1390,10 @@ int main(int argc, char* argv[])
                             chan[2+chipoff].enabled = (da&0x04) ? true : false;
                             chan[1+chipoff].enabled = (da&0x02) ? true : false;
                             chan[0+chipoff].enabled = (da&0x01) ? true : false;
+
+                            if (!chan[2+chipoff].enabled) {
+                                chan[2+chipoff].length = 0;
+                            }
                         }
                         break;
 

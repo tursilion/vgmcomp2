@@ -261,14 +261,6 @@ void setfreq(int chan, int freq, bool clip) {
     
     voice[chan].nRegister=freq;
 	// don't update the counters, let them run out on their own
-
-    static bool warn = false;
-    if (!warn) {
-        if (freq > 0x3ff) {
-            warn=true;
-            printf("\nWarning: out of range bass for PSG\n");
-        }
-    }
 }
 
 // change the volume on a channel

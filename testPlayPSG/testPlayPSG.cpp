@@ -249,8 +249,17 @@ int main(int argc, char *argv[])
         for (int idx=0; idx<chan; ++idx) {
             setfreq(idx, VGMDAT[idx][row], clipbass);
             setvol(idx, mapVolume(VGMVOL[idx][row]));
+
             if (shownotes) {
                 printf("%s %02X | ", getNoteStr(VGMDAT[idx][row],VGMVOL[idx][row]), VGMVOL[idx][row]);
+            }
+
+            static bool warn = false;
+            if ((!warn)&&(!clipbass)) {
+                if ((VGMDAT[idx][row] > 0x3ff) && (VGMVOL[idx][row] > 0)) {
+                    warn=true;
+                    printf("\nWarning: out of range bass for PSG (%03X)\n", VGMDAT[idx][row]);
+                }
             }
         }
         if (shownotes) {

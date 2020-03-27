@@ -420,7 +420,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM Pokey - v20200322\n");
+	printf("Import VGM Pokey - v20200327\n");
 
 	if (argc < 2) {
 		printf("vgm_pokey2psg [-q] [-d] [-disableperiodic] [-ignorehighpass] [-ignoreweird] <filename>\n");
@@ -665,9 +665,9 @@ int main(int argc, char* argv[])
 			case 0x7f:		// wait 16 samples
 				// try the same hack as above
 				if (nRunningOffset == 0) {
-					printf("\rWarning: fine timing lost.\n");
+					printf("\rWarning: fine timing (%d ticks) lost.\n", buffer[nOffset]-0x70+1);
 				}
-				nRunningOffset+=buffer[nOffset]-0x70;
+				nRunningOffset+=buffer[nOffset]-0x70+1;
 				if (nRunningOffset > ((nRate==60)?735:882)) {
 					nRunningOffset -= ((nRate==60)?735:882);
                     if (!outputData()) return -1;				
