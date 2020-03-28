@@ -41,6 +41,7 @@ double freqClockScale = 1.0;                // doesn't affect noise channel, eve
 int nTicks;                                 // this MUST be a 32-bit int
 bool verbose = false;                       // emit more information
 bool debug = false;                         // dump the parsing
+int output = 0;                             // which channel to output (0=all)
 
 // codes for noise processing (if not periodic, it's white noise)
 // Retriggering appears to have no effect, and the other bits have no meaning here
@@ -393,9 +394,10 @@ int main(int argc, char* argv[])
 	printf("Import AY PSG - v20200308\n");
 
 	if (argc < 2) {
-		printf("vgm_ay2psg [-q] [-d] [-notunenoise] [-noscalefreq] [-ignoreweird] <filename>\n");
+		printf("vgm_ay2psg [-q] [-d] [-o <n>] [-notunenoise] [-noscalefreq] [-ignoreweird] <filename>\n");
 		printf(" -q - quieter verbose data\n");
         printf(" -d - enable parser debug output\n");
+        printf(" -o <n> - output only channel <n> (1-5)\n");
 		printf(" -notunenoise - Do not retune noise (normally needed)\n");
 		printf(" -noscalefreq - do not apply frequency scaling if non-NTSC (normally automatic)\n");
         printf(" -ignoreweird - ignore anything else unexpected and treat as default\n");
@@ -410,6 +412,24 @@ int main(int argc, char* argv[])
 			verbose=false;
         } else if (0 == strcmp(argv[arg], "-d")) {
 			debug = true;
+        } else if (0 == strcmp(argv[arg], "-o")) {
+            if (arg+1 >= argc) {
+                printf("Not enough arguments for -o parameter.\n");
+                return -1;
+            }
+            ++arg;
+            output = atoi(argv[arg]);
+            if ((output > 8) || (output < 1)) {
+                printf("output channel must be 1-3 (tone), or 4 (noise) (5-8 for second chip)\n");
+                return -1;
+            }
+            printf("Output ONLY channel %d: ", debug);
+            switch(output) {
+                case 1: printf("Tone 1\n"); break;
+                case 2: printf("Tone 2\n"); break;
+                case 3: printf("Tone 3\n"); break;
+                case 4: printf("Noise\n"); break;
+            }
 		} else if (0 == strcmp(argv[arg], "-notunenoise")) {
 			noTuneNoise=true;
 		} else if (0 == strcmp(argv[arg], "-noscalefreq")) {
@@ -644,7 +664,7 @@ int main(int argc, char* argv[])
 			case 0x7f:		// wait 16 samples
 				// try the same hack as above
 				if (nRunningOffset == 0) {
-					printf("\rWarning: fine timing (%d ticks) lost.\n", buffer[nOffset]-0x70+1);
+					printf("\rWarning: fine timing (%d samples) lost.\n", buffer[nOffset]-0x70+1);
 				}
 				nRunningOffset+=buffer[nOffset]-0x70+1;
 				if (nRunningOffset > ((nRate==60)?735:882)) {
@@ -1288,7 +1308,11 @@ int main(int argc, char* argv[])
                 }
             }
             if (!process) {
-                myprintf("Skipping channel %d - no data\n", ch);
+                myprintf("Skipping channel %d - no data\n", ch/2+1);
+                continue;
+            }
+            if ((output)&&(ch/2 != output-1)) {
+                myprintf("Skipping channel %d - output not requested\n", ch/2+1);
                 continue;
             }
 
@@ -1310,7 +1334,7 @@ int main(int argc, char* argv[])
 			    printf("failed to open file '%s'\n", strout);
 			    return -1;
 		    }
-		    myprintf("Writing channel %d as %s...\n", ch, strout);
+		    myprintf("-Writing channel %d as %s...\n", ch/2+1, strout);
 
             for (int r=0; r<nTicks; ++r) {
                 fprintf(fp, "0x%08X,0x%02X\n", VGMStream[ch][r], VGMStream[ch+1][r]);

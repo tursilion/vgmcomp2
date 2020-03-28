@@ -1,16 +1,15 @@
-// STATUS:
-// Square: Okay
-// Triangle: Okay
-// Noise: Partial... SM3 still not working quite right
-// DMC: Nothing
-// Length: Okay
-// Freq Shift: Maybe?
-// Envelope: Okay
-
 // vgm_nes2psg.cpp : Defines the entry point for the console application.
 // This reads in a VGM file, and outputs raw 60hz streams for the
 // TI PSG sound chip. It will input NES APU input streams, and more
 // or less emulate the NES hardware to get PSG data.
+
+// Square: Okay
+// Triangle: Okay
+// Noise: Okay
+// DMC: Okay? Some limitations maybe can't be overcome? SMB3 for instance.
+// Length: Okay
+// Sweep: Maybe?
+// Envelope: Okay
 
 // Currently, we set all channels (even noise) to countdown values
 // compatible with the SN clock
@@ -47,7 +46,8 @@ double freqClockScale = 1.0;                // doesn't affect noise channel, eve
                                             // all chips assumed on same clock
 int nTicks;                                 // this MUST be a 32-bit int
 bool verbose = false;                       // emit more information
-bool debug = false;                         // dump parser data
+int debug = 0;                              // dump parser data
+int output = 0;                             // which channel to output (0=all)
 
 // codes for noise processing (NES periodic noise is a little random... PSG's is not)
 #define NOISE_MASK     0x00FFF
@@ -57,7 +57,7 @@ bool debug = false;                         // dump parser data
 // options
 bool enableperiodic = false;            // enable the periodic noise mode - probably won't work well without freq scaling
 bool disabledmcvolhack = false;         // the DMC reduces the volume of noise and triangle - this will disable that adjust
-int waveMode = 2;                       // 0 - treat as tone, 1 - treat as noise, 2 - ignore
+int waveMode = 0;                       // 0 - treat as tone, 1 - treat as noise, 2 - ignore
 bool scaleFreqClock = true;			    // apply scaling from APU clock rates (not an option here)
 bool ignoreWeird = false;               // ignore any other weirdness (like shift register)
 unsigned int nRate = 60;
@@ -109,13 +109,14 @@ unsigned int dmcData[16] = {
     0x5f0, 0x500, 0x470, 0x400, 0x350, 0x2a8, 0x240, 0x1b0
 };
 
+#define MIN(x,y) ((x) < (y) ? (x) : (y))
+
 class Channel {
 public:
     Channel() { reset(); }
 
     void reset() {
         // set values to default?
-        enabled = false;
         sweepEn = false;
         sweepPer = 0;
         sweepPerWork = 0;
@@ -146,12 +147,11 @@ public:
         dmcPerWork = 0;
         dmcOutput = 0;
         dmcDelta = 0;
+        dmcBuffer = 0;
+        dmcBitsLeft = 0;
 
         frequency = 0xfff;
     }
-
-    // internal enable flag
-    bool enabled;
 
     // sweep frequency generator
     bool sweepEn;
@@ -179,6 +179,7 @@ public:
     int dmcCnt, dmcCntRaw;
     int dmcOutput;
     int dmcDelta;
+    int dmcBuffer, dmcBitsLeft;
     double dmcPer, dmcPerWork;
 
     // Frequency
@@ -188,7 +189,7 @@ public:
 };
 
 // control registers
-unsigned char sampleRam[2][32*1024];  // 32k of DMA sample RAM for 2 chips
+unsigned char sampleRam[2][32*1024];  // 32k of DMA sample RAM for 2 chips (note: only 1 block supported in VGM)
 Channel chan[MAXCHIP];    // tone, tone, triangle, noise, dmc, two chips
 int sequence[2];          // sequence step for each chip
 bool seqlong[2];          // whether it's the long (5step) sequence
@@ -336,8 +337,25 @@ int getVolume(int ch) {
 
     if ((isWave) && (waveMode == 2)) return 0;     // user asked to ignore wave
 
-    // check for mute cases
-    if (!chan[ch].enabled) return 0;                // not enabled, no output
+    // square waves are muted when outside of valid frequency
+    if ((chanidx == 0)||(chanidx == 1)) {
+        if ((chan[ch].frequency < 8) || (chan[ch].frequency > 0x7ff)) {
+            return 0;
+        }
+    }
+
+    // DMC is muted when out of data (only in our case, not in real life, it holds level IRL)
+    if (chanidx == 4) {
+        // TODO: this might be 8 samples too early -- but in this
+        // frame-based player maybe that won't matter
+        if (chan[ch].dmcCnt <= 0) {
+            return 0;
+        }
+        // otherwise whatever the volume is is good
+        // DMC is from 0 to 127 - I don't want quite to 254... this gives to about 240
+        int ret = int(chan[ch].volume * 1.89 + .5);
+        return ret;
+    }
 
     // special case for triangle channel
     if (chanidx == 2) {
@@ -357,12 +375,7 @@ int getVolume(int ch) {
     // I think we're good
     int ret = 0;
     if (chan[ch].volume == 0) return 0;             // muted, no output
-    if (chanidx == 4) {
-        // DMC is from 0 to 127 - I don't want quite to 254... this gives to about 240
-        ret = int(chan[ch].volume * 1.89 + .5);
-    } else {
-        ret = volumeTable[15-(chan[ch].volume&0xf)];
-    }
+    ret = volumeTable[15-(chan[ch].volume&0xf)];
 
     // if noise or triangle, adjust with the DMC level
     if (!disabledmcvolhack) {
@@ -376,11 +389,9 @@ int getVolume(int ch) {
             // So... the fake volume control on noise and triangle is worth about 50%
             // We'll just do a sloppy linear scale on that.
             // Apparently SMB3 actually USES this.
-            // TODO: I think the channel needs to be disabled for this to matter
-            if (!chan[ch].enabled) {
-                double ratio = 1.0 - (chan[chip*5+4].dmcDelta / 240);   // division selected for 57% volume as per docs
-                ret = int(ret * ratio + 0.5);
-            }
+            // DMC has this affect whether it's clocking or not
+            double ratio = 1.0 - (chan[chip*5+4].dmcDelta / 240);   // division selected for 57% volume as per docs
+            ret = int(ret * ratio + 0.5);
         }
     }
 
@@ -390,6 +401,14 @@ int getVolume(int ch) {
 // run the emulation - at this point we always assume 60hz
 // This needs to get the nCurrentTone array up to date
 void runEmulation() {
+    // DMC volume emulation
+    int voldmc[MAXCHIP];
+    int cntdmc[MAXCHIP];
+    for (int channel = 0; channel < MAXCHIP; ++channel) {
+        voldmc[channel]=0;
+        cntdmc[channel]=0;
+    }
+
     // run frame sequencer for 1/60th of a second
     double time = (nClock/60.0) / SEQUENCECLK;
     seqClock += time;
@@ -443,7 +462,6 @@ void runEmulation() {
                         // stop cases
                         if ((newFreq < 8) || (newFreq > 0x7ff)) {
                             chan[channel].sweepEn = false;
-                            chan[channel].enabled = false;
                         }
                     }
                 }
@@ -472,14 +490,6 @@ void runEmulation() {
                         chan[channel].volume = chan[channel].volumeDecay;
                     }
                 }
-            }
-
-            if (channel == 3) {
-                if (debug) printf("  DEBUG: TICK: Noise: Freq: 0x%03X, length: %d(%d), linear: %d(%d):%d(%d), vol: %d(%d)\n",
-                       chan[channel].frequency,
-                       chan[channel].length, chan[channel].lengthEnable,
-                       chan[channel].linear, !chan[channel].lengthEnable, chan[channel].linearreload, chan[channel].linearreloadflag,
-                       getVolume(channel), chan[channel].enabled);
             }
 
             // Length counter (all channels but dmc)
@@ -519,56 +529,112 @@ void runEmulation() {
             if (channel-chip == 4) {
                 // we actually need some shift rate calculation this time
                 // to get an average for the played sample
-                if (chan[channel].enabled) {
-                    int vol = 0;
-                    int cnt = 0;
-                    chan[channel].dmcPerWork += (nClock/60.0);    // 60hz of clocks
-                    while (chan[channel].dmcPerWork > chan[channel].dmcPer) {
-                        // we'll always process a full byte at a time
-                        chan[channel].dmcPerWork -= chan[channel].dmcPer;
+                // this is run every seqclock (roughly 240hz), not at 60hz
+                chan[channel].dmcPerWork += (nClock/60.0);    // 240hz of clocks
+                while ((chan[channel].dmcPerWork > chan[channel].dmcPer) && (chan[channel].dmcCnt > 0)) {
+                    chan[channel].dmcPerWork -= chan[channel].dmcPer;
 
-                        // the address base is 0xC000, sampleRam is at 0x8000
-                        int offset = chan[channel].dmcAdr + 0x4000; // base offset
-                        if (offset >= 0x8000) offset -= 0x8000;     // handle wraparound
-
-                        int byte = sampleRam[chip][offset&0x7fff];
+                    // Sample RAM runs from 0x8000 to 0xFFFF, however, the
+                    // start address is 0xC000. It will wrap around to 0x8000
+                    // if necessary.
+                    if (chan[channel].dmcBitsLeft <= 0) {
+                        // TODO: probably a bug in the protocol, VGM doesn't support multiple
+                        // RAM blocks with multiple sound chips
+                        chan[channel].dmcBuffer = sampleRam[0][chan[channel].dmcAdr & 0x7fff];
+                        chan[channel].dmcBitsLeft = 7;
                         ++chan[channel].dmcAdr;
+                        if (chan[channel].dmcAdr > 0xffff) chan[channel].dmcAdr -= 0x8000;
                         --chan[channel].dmcCnt;
-
-                        if (chan[channel].dmcCnt < 0) {
-                            if (chan[channel].dmcLoop) {
-                                chan[channel].dmcAdr = chan[channel].dmcBase;
-                                chan[channel].dmcCnt = chan[channel].dmcCntRaw;
-                            } else {
-                                chan[channel].enabled = false;
-                                break;
-                            }
+                        if (debug == 5) {
+                            printf("  DEBUG: DMC byte: 0x%02X\n", chan[channel].dmcBuffer);
                         }
+                    } else {
+                        --chan[channel].dmcBitsLeft;
+                    }
 
-                        int bit = 0x01;
-                        for (int idx=0; idx<8; ++idx) {
-                            // real NES is LSB first, but we don't care here
-                            if (byte&bit) {
-                                chan[channel].dmcOutput++;
-                                if (chan[channel].dmcOutput > 0x3f) chan[channel].dmcOutput = 0x3f;
-                            } else {
-                                chan[channel].dmcOutput--;
-                                if (chan[channel].dmcOutput < 0) chan[channel].dmcOutput = 0;
-                            }
-                            ++cnt;
-                            vol += chan[channel].dmcOutput;
+                    if (chan[channel].dmcCnt < 0) {
+                        if (chan[channel].dmcLoop) {
+                            chan[channel].dmcAdr = chan[channel].dmcBase;
+                            chan[channel].dmcCnt = chan[channel].dmcCntRaw;
+                        } else {
+                            chan[channel].dmcCnt = 0;
+                            break;
                         }
                     }
-                    if (cnt > 0) {
-                        // no change if we didn't process anything
-                        chan[channel].volume = (int(vol/cnt) << 1);
-                        if (chan[channel].volume > 0x7f) chan[channel].volume = 0x7f;
-                        if (chan[channel].volume < 0) chan[channel].volume = 0;
+
+                    if (chan[channel].dmcBuffer & 0x01) {
+                        chan[channel].dmcOutput++;
+                        if (chan[channel].dmcOutput > 0x3f) chan[channel].dmcOutput = 0x3f;
+                    } else {
+                        chan[channel].dmcOutput--;
+                        if (chan[channel].dmcOutput < 0) chan[channel].dmcOutput = 0;
+                    }
+                    chan[channel].dmcBuffer >>= 1;
+#if 1
+                    // flat output
+                    voldmc[channel] += chan[channel].dmcOutput;
+#else
+                    // signed sample output to abs
+                    if (chan[channel].dmcOutput > 32) voldmc[channel] += chan[channel].dmcOutput-32;
+                    else voldmc[channel] += 32-chan[channel].dmcOutput;
+#endif
+                    ++cntdmc[channel];
+                }
+                if (chan[channel].dmcCnt <= 0) {
+                    // if we aren't playing, don't accumulate time
+                    chan[channel].dmcPerWork = 0;
+                }
+            }
+
+            if (debug) {
+                if (channel == debug-1) {
+                    switch (channel) {
+                        case 0:
+                        case 1: // square
+                            printf("DEBUG: SEQ: Freq: 0x%03X, length: %d(%d), sweep: (%d), vol: %d(%d,LP:%d)\n",
+                                    chan[channel].frequency,
+                                    chan[channel].length, chan[channel].lengthEnable,
+                                    chan[channel].sweepEn,
+                                    getVolume(channel), chan[channel].volumeEn, chan[channel].volumeLoop);
+                            break;
+                        case 2: // triangle
+                            printf("DEBUG: SEQ: Freq: 0x%03X, length: %d(%d), linear: %d:%d(%d), vol: %d\n",
+                                    chan[channel].frequency,
+                                    chan[channel].length, chan[channel].lengthEnable,
+                                    chan[channel].linear, chan[channel].linearreload, chan[channel].linearreloadflag,
+                                    getVolume(channel));
+                            break;
+                        case 3: // noise
+                            printf("DEBUG: SEQ: Freq: 0x%03X(%d), length: %d(%d), vol: %d(%d,LP:%d)\n",
+                                    chan[channel].frequency&0xfff, chan[channel].frequency&NOISE_PERIODIC?1:0,
+                                    chan[channel].length, chan[channel].lengthEnable,
+                                    getVolume(channel), chan[channel].volumeEn, chan[channel].volumeLoop);
+                            break;
+                        case 4: // dmc
+                            printf("DEBUG: SEQ: Freq: 0x%03X, Adr: 0x%04X, Cnt: 0x%04X, Loop:(%d), Output: %d, Delta: %d, vol: %d\n",
+                                    chan[channel].frequency,
+                                    chan[channel].dmcAdr, chan[channel].dmcCnt, chan[channel].dmcLoop?1:0,
+                                    chan[channel].dmcOutput, chan[channel].dmcDelta, getVolume(channel));
+                            break;
                     }
                 }
             }
+
         }   // channel
+
     }   // seqClock
+
+    // finish off the DMC sample munging
+    for (int channel = 0; channel < MAXCHIP; ++channel) {
+        // this will only be incremented on DMC channels
+        if (cntdmc[channel] > 0) {
+            // no change if we didn't process anything
+            chan[channel].volume = (int(voldmc[channel]/cntdmc[channel]) << 1); // volume times 2
+            if (chan[channel].volume > 0x7f) chan[channel].volume = 0x7f;
+            if (chan[channel].volume < 0) chan[channel].volume = 0;
+            chan[channel].dmcDelta = chan[channel].volume;  // overwrite it if valid
+        }
+    }
 
     // update nCurrentTone[]'s
     for (int ch = 0; ch < MAXCHIP; ++ch) {
@@ -662,12 +728,13 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM NES - v20200327\n");
+	printf("Import VGM NES - v20200328\n");
 
 	if (argc < 2) {
-		printf("vgm_nes2psg [-q] [-d] [-triangle <n>] [-enableperiodic] [-disabledmcvolhack] [-dmcnoise|-dmcnone] [-ignoreweird] <filename>\n");
+		printf("vgm_nes2psg [-q] [-d <n>] [-o <n>] [-triangle <n>] [-enableperiodic] [-disabledmcvolhack] [-dmcnoise|-dmcnone] [-ignoreweird] <filename>\n");
 		printf(" -q - quieter verbose data\n");
-        printf(" -d - enable parser debug output\n");
+        printf(" -d <n> - enable parser debug output for channel n (1-5) (use only with single chip)\n");
+        printf(" -o <n> - output only channel <n> (1-5)\n");
         printf(" -triangle <n> - set triangle volume to <n> (0-15, default is 8)\n");
         printf(" -enableperiodic - enable periodic noise when short mode set (usually not helpful)\n");
         printf(" -disabledmcvolhack - don't reduce volume of triangle and noise as DMC volume increases\n");
@@ -684,7 +751,43 @@ int main(int argc, char* argv[])
 		if (0 == strcmp(argv[arg], "-q")) {
 			verbose=false;
         } else if (0 == strcmp(argv[arg], "-d")) {
-			debug = true;
+            if (arg+1 >= argc) {
+                printf("Not enough arguments for -d parameter.\n");
+                return -1;
+            }
+            ++arg;
+            debug = atoi(argv[arg]);
+            if ((debug > 5) || (debug < 1)) {
+                printf("debug channel must be 1 (sq), 2 (sq), 3 (tri), 4 (noise) or 5 (dmc)\n");
+                return -1;
+            }
+            printf("Debug for channel %d: ", debug);
+            switch(debug) {
+                case 1: printf("Square 1\n"); break;
+                case 2: printf("Square 2\n"); break;
+                case 3: printf("Triangle\n"); break;
+                case 4: printf("Noise\n"); break;
+                case 5: printf("DMC\n"); break;
+            }
+        } else if (0 == strcmp(argv[arg], "-o")) {
+            if (arg+1 >= argc) {
+                printf("Not enough arguments for -o parameter.\n");
+                return -1;
+            }
+            ++arg;
+            output = atoi(argv[arg]);
+            if ((output > 10) || (output < 1)) {
+                printf("output channel must be 1 (sq), 2 (sq), 3 (tri), 4 (noise) or 5 (dmc) (6-10 for second chip)\n");
+                return -1;
+            }
+            printf("Output ONLY channel %d: ", debug);
+            switch(output) {
+                case 1: printf("Square 1\n"); break;
+                case 2: printf("Square 2\n"); break;
+                case 3: printf("Triangle\n"); break;
+                case 4: printf("Noise\n"); break;
+                case 5: printf("DMC\n"); break;
+            }
 		} else if (0 == strcmp(argv[arg], "-triangle")) {
             if (arg+1 >= argc) {
                 printf("Not enough arguments for -triangle parameter.\n");
@@ -936,15 +1039,19 @@ int main(int argc, char* argv[])
 			case 0x7e:
 			case 0x7f:		// wait 16 samples
 				// try the same hack as above
-				if (nRunningOffset == 0) {
-					printf("\rWarning: fine timing (%d ticks) lost.\n", buffer[nOffset]-0x70+1);
-				}
-				nRunningOffset+=buffer[nOffset]-0x70+1;
-				if (nRunningOffset > ((nRate==60)?735:882)) {
-					nRunningOffset -= ((nRate==60)?735:882);
-                    if (!outputData()) return -1;				
-				}
-				nOffset++;
+                {
+                    int cnt = buffer[nOffset]-0x70+1;
+			        if (nRunningOffset == 0) {
+				        printf("\rWarning: fine timing (%d samples) lost.\n", cnt);
+			        }
+                    if (debug) printf("  DEBUG: fine delay %d samples\n", cnt);
+			        nRunningOffset+=cnt;
+			        if (nRunningOffset > ((nRate==60)?735:882)) {
+				        nRunningOffset -= ((nRate==60)?735:882);
+                        if (!outputData()) return -1;				
+			        }
+			        nOffset++;
+                }
 				break;
 
 			// skipped opcodes - entered only as I encounter them - there are whole ranges I /could/ add, but I want to know.
@@ -1097,11 +1204,19 @@ int main(int argc, char* argv[])
                         start -= 0x8000;
                         sz-=2;
                         if ((start+sz > 0x8000) || (sz < 1)) {
-                            printf("\rNES DMA offset out of range: Start 0x%04X, length 0x%04X\n", start, sz);
+                            printf("\rNES DMC offset out of range: Start 0x%04X, length 0x%04X\n", start+0x8000, sz);
                         } else {
-                            memcpy(&dmcData[sz], &buffer[nOffset+9], sz);
-                            // todo: probably temporary debug...
-                            printf("Copy DMA data to 0x%04X, length 0x%04X\n", start, sz);
+                            // TODO: probably a bug in the protocol, VGM doesn't support multiple
+                            // RAM blocks with multiple sound chips
+                            memcpy(&sampleRam[0][start], &buffer[nOffset+9], sz);
+                            printf("Copy DMC data to 0x%04X, length 0x%04X\n", start+0x8000, sz);
+                            if (debug == 5) {
+                                printf("  DEBUG: ");
+                                for (unsigned int idx=0; idx<MIN(8,sz); ++idx) {
+                                    printf("%02X ", buffer[nOffset+9+idx]);
+                                }
+                                printf("...\n");
+                            }
                         }
                     }
                 
@@ -1258,15 +1373,15 @@ int main(int argc, char* argv[])
                                 }
                             }
 
-                            if (ad == 0xc) {
-                                if (debug) printf("  DEBUG:  Volume:%d(%d), LengthEn: (%d)\n", chan[ch].volume, chan[ch].volumeEn,
+                            if ((debug)&&(ad == (debug-1)*4)) {
+                                printf("  DEBUG: Volume:%d(%d), LengthEn: (%d)\n", chan[ch].volume, chan[ch].volumeEn,
                                        chan[ch].lengthEnable);
                             }
                         }
                         break;
 
-                        case 0x01:  // square sweep/period/negative/shift
-                        case 0x05:  // square sweep/period/negative/shift
+                        case 0x01:  // square sweep/period/negative/shift (0)
+                        case 0x05:  // square sweep/period/negative/shift (1)
                         {
                             // eppp nsss   enable sweep, period, negative, shift
                             int ch = (ad-1)/4+chipoff;
@@ -1280,6 +1395,11 @@ int main(int argc, char* argv[])
                             chan[ch].sweepPer = chan[ch].sweepPerWork = per;
                             chan[ch].sweepNeg = neg;
                             chan[ch].sweepShift = shift;
+
+                            if ((debug)&&(ad-1 == (debug-1)*4)) {
+                                printf("  DEBUG:  Sweep:%d(%d), Neg: %d, Shift: %d\n", chan[ch].sweepPer, chan[ch].sweepEn,
+                                       chan[ch].sweepNeg, chan[ch].sweepShift);
+                            }
                         }
                         break;
 
@@ -1291,6 +1411,11 @@ int main(int argc, char* argv[])
                             int ch = (ad-2)/4+chipoff;
                             chan[ch].frequency &= 0xf00;
                             chan[ch].frequency |= da;
+
+                            if ((debug)&&(ad-2 == (debug-1)*4)) {
+                                printf("  DEBUG:  Freq: 0x%03X (low)\n", chan[ch].frequency);
+                            }
+
                         }
                         break;
 
@@ -1316,8 +1441,8 @@ int main(int argc, char* argv[])
                                 chan[ch].linearreloadflag = true;
                             }
 
-                            if (ad == 0x0f) {
-                                if (debug) printf("  DEBUG: Frequency: 0x%03X  Length: %d\n", chan[ch].frequency, chan[ch].length);
+                            if ((debug)&&(ad-3 == (debug-1)*4)) {
+                                printf("  DEBUG: Frequency: 0x%03X  Length: %d\n", chan[ch].frequency, chan[ch].length);
                             }
                         }
                         break;
@@ -1330,6 +1455,9 @@ int main(int argc, char* argv[])
                             chan[ch].linearreload = da&0x7f;
                             if (chan[ch].lengthEnable) {
                                 chan[ch].clearreloadflag = true;
+                            }
+                            if ((debug)&&(debug==3)) {
+                                printf("  DEBUG: Linear: %d(%d)\n", chan[ch].linearreload, chan[ch].lengthEnable?0:1);
                             }
                         }
                         break;
@@ -1346,7 +1474,9 @@ int main(int argc, char* argv[])
                             // TODO: do we have to trigger? docs only say on reset
                             //chan[ch].frequency |= NOISE_TRIGGER;
                             
-                            if (debug) printf("  DEBUG: Frequency: 0x%03X\n", chan[ch].frequency);
+                            if ((debug)&&(debug==4)) {
+                                printf("  DEBUG: Frequency: 0x%03X  Short: %d\n", chan[ch].frequency, (da&0x80)?1:0);
+                            }
                         }
                         break;
 
@@ -1356,6 +1486,11 @@ int main(int argc, char* argv[])
                             int ch = chipoff+4;
                             chan[ch].dmcLoop = (da&0x40) ? true : false;
                             chan[ch].dmcPer = chan[ch].dmcPerWork = dmcData[da&0x0f];
+                            chan[ch].frequency = dmcData[da&0x0f];      // also copy to frequency for conversion
+
+                            if ((debug)&&(debug==5)) {
+                                printf("  DEBUG: DMC Period: %f  Loop: %d\n", chan[ch].dmcPer, chan[ch].dmcLoop ? 1: 0);
+                            }
                         }
                         break;
 
@@ -1365,34 +1500,76 @@ int main(int argc, char* argv[])
                             // control when the channel is disabled
                             int ch = chipoff+4;
                             chan[ch].dmcDelta = da&0x7f;
+
+                            if ((debug)&&(debug==5)) {
+                                printf("  DEBUG: DMC Delta: %d\n", chan[ch].dmcDelta);
+                            }
                         }
                         break;
 
                         case 0x12:  // dmc address load
                         {
                             int ch = chipoff+4;
-                            chan[ch].dmcAdr = chan[ch].dmcBase = da<<12;
+                            chan[ch].dmcAdr = chan[ch].dmcBase = (da<<6)|0xc000;
+                            chan[ch].dmcBitsLeft = 0;   // IRL the bits play out, then reload
+
+                            if ((debug)&&(debug==5)) {
+                                printf("  DEBUG: DMC Address: 0x%04X\n", chan[ch].dmcAdr);
+                            }
                         }
                         break;
 
                         case 0x13:  // dmc length
                         {
                             int ch = chipoff+4;
-                            chan[ch].dmcCnt = chan[ch].dmcCntRaw = da << 4;
+                            //chan[ch].dmcCnt =     TODO: I think we don't load dmcCnt here..
+                            chan[ch].dmcCntRaw = (da << 4) + 1;
+
+                            if ((debug)&&(debug==5)) {
+                                printf("  DEBUG: DMC Length: 0x%04X\n", chan[ch].dmcCntRaw);
+                            }
                         }
                         break;
 
                         case 0x15:  // DMC/IRQ/Length counter/channel enable
                         {
                             // ---d nt21   length ctr enable: DMC, noise, triangle, pulse 2, 1
-                            chan[4+chipoff].enabled = (da&0x10) ? true : false;
-                            chan[3+chipoff].enabled = (da&0x08) ? true : false;
-                            chan[2+chipoff].enabled = (da&0x04) ? true : false;
-                            chan[1+chipoff].enabled = (da&0x02) ? true : false;
-                            chan[0+chipoff].enabled = (da&0x01) ? true : false;
+                            chan[4+chipoff].lengthEnable = (da&0x10) ? true : false;
+                            chan[3+chipoff].lengthEnable = (da&0x08) ? true : false;
+                            chan[2+chipoff].lengthEnable = (da&0x04) ? true : false;
+                            chan[1+chipoff].lengthEnable = (da&0x02) ? true : false;
+                            chan[0+chipoff].lengthEnable = (da&0x01) ? true : false;
 
-                            if (!chan[2+chipoff].enabled) {
+                            // noise
+                            if (!chan[3+chipoff].lengthEnable) {
+                                chan[3+chipoff].length = 0;
+                            }
+
+                            // triangle
+                            if (!chan[2+chipoff].lengthEnable) {
                                 chan[2+chipoff].length = 0;
+                            }
+                            // squares
+                            if (!chan[1+chipoff].lengthEnable) {
+                                chan[1+chipoff].length = 0;
+                            }
+                            if (!chan[0+chipoff].lengthEnable) {
+                                chan[0+chipoff].length = 0;
+                            }
+
+                            // special cases for DMC
+                            if (!chan[4+chipoff].lengthEnable) {
+                                chan[4+chipoff].length = 0;
+                                chan[4+chipoff].dmcCnt = 0;
+                                chan[4+chipoff].dmcLoop = 0;
+                            } else {
+                                if (chan[4+chipoff].dmcCnt == 0) {
+                                    chan[4+chipoff].dmcCnt = chan[4+chipoff].dmcCntRaw;
+                                }
+                            }
+
+                            if (debug) {
+                                printf("  DEBUG: Length Counter Enable: %d\n", chan[chipoff+debug-1].lengthEnable ? 1:0);
                             }
                         }
                         break;
@@ -1402,6 +1579,10 @@ int main(int argc, char* argv[])
                             // fd-- ----   5-frame cycle, disable frame interrupt (ignored)
                             sequence[chipoff/5] = 0;          // sequence step for each chip
                             seqlong[chipoff/5] = (da&0x80) ? true : false;
+
+                            if (debug) {
+                                printf("  DEBUG: Frame length: %d\n", seqlong[chipoff/5] ? 5 : 4);
+                            }
                         }
                         break;
 
@@ -1706,16 +1887,25 @@ int main(int argc, char* argv[])
                 }
             }
             if (!process) {
-                myprintf("Skipping channel %d - no data\n", ch);
+                myprintf("Skipping channel %d - no data\n", ch/2+1);
+                continue;
+            }
+            if ((output)&&(ch/2 != output-1)) {
+                myprintf("Skipping channel %d - output not requested\n", ch/2+1);
                 continue;
             }
 
             // create a filename
             strcpy(strout, argv[arg]);
-            // every channel 6 is a noise channel, every channel 4 might be
+            // every channel 6 is a noise channel, every channel 8 might be
+            // 01 - square
+            // 23 - square
+            // 45 - triangle
+            // 67 - noise
+            // 89 - dmc
             bool isNoise = false;
-            if ((ch&7)==6) isNoise = true;
-            if (((ch&7)==4) && (waveMode == 1)) isNoise = true;
+            if ((ch%10)==6) isNoise = true;
+            if (((ch%10)==8) && (waveMode == 1)) isNoise = true;
             if (isNoise) {
                 strcat(strout, "_noi");     // noise (same format as tone, except noise flags are valid)
             } else {
@@ -1731,7 +1921,7 @@ int main(int argc, char* argv[])
 			    printf("failed to open file '%s'\n", strout);
 			    return -1;
 		    }
-		    myprintf("Writing channel %d as %s...\n", ch, strout);
+		    myprintf("-Writing channel %d as %s...\n", ch/2+1, strout);
 
             for (int r=0; r<nTicks; ++r) {
                 fprintf(fp, "0x%08X,0x%02X\n", VGMStream[ch][r], VGMStream[ch+1][r]);
