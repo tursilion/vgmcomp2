@@ -43,6 +43,7 @@ int nTicks;                                 // this MUST be a 32-bit int
 bool verbose = false;                       // emit more information
 bool debug = false;                         // dump parser data
 int output = 0;                             // which channel to output (0=all)
+int addout = 0;                             // fixed value to add to the output count
 
 // codes for noise processing (if not periodic, it's white noise)
 #define NOISE_MASK     0x00FFF
@@ -442,6 +443,14 @@ int main(int argc, char* argv[])
 			verbose=false;
         } else if (0 == strcmp(argv[arg], "-d")) {
 			debug = true;
+        } else if (0 == strcmp(argv[arg], "-add")) {
+            if (arg+1 >= argc) {
+                printf("Not enough arguments for -add parameter.\n");
+                return -1;
+            }
+            ++arg;
+            addout = atoi(argv[arg]);
+            printf("Output channel index offset is now %d\n", addout);
         } else if (0 == strcmp(argv[arg], "-o")) {
             if (arg+1 >= argc) {
                 printf("Not enough arguments for -o parameter.\n");
@@ -1275,7 +1284,7 @@ int main(int argc, char* argv[])
     // Volume is written alongside every tone
     // simple ASCII format, values stored as hex (but import should support decimal if no 0x), row number is implied frame
     {
-        int outChan = 0;
+        int outChan = addout;
         for (int ch=0; ch<MAXCHANNELS; ch+=2) {
             char strout[1024];
             char num[32];   // just a string buffer for the index number

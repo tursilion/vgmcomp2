@@ -48,6 +48,7 @@ int nTicks;                                 // this MUST be a 32-bit int
 bool verbose = false;                       // emit more information
 int debug = 0;                              // dump parser data
 int output = 0;                             // which channel to output (0=all)
+int addout = 0;                             // fixed value to add to the output count
 
 // codes for noise processing (NES periodic noise is a little random... PSG's is not)
 #define NOISE_MASK     0x00FFF
@@ -731,10 +732,11 @@ int main(int argc, char* argv[])
 	printf("Import VGM NES - v20200328\n");
 
 	if (argc < 2) {
-		printf("vgm_nes2psg [-q] [-d <n>] [-o <n>] [-triangle <n>] [-enableperiodic] [-disabledmcvolhack] [-dmcnoise|-dmcnone] [-ignoreweird] <filename>\n");
+		printf("vgm_nes2psg [-q] [-d <n>] [-o <n>] [-add <n>] [-triangle <n>] [-enableperiodic] [-disabledmcvolhack] [-dmcnoise|-dmcnone] [-ignoreweird] <filename>\n");
 		printf(" -q - quieter verbose data\n");
         printf(" -d <n> - enable parser debug output for channel n (1-5) (use only with single chip)\n");
         printf(" -o <n> - output only channel <n> (1-5)\n");
+        printf(" -add <n> - add 'n' to the output channel number (use for multiple chips, otherwise starts at zero)\n");
         printf(" -triangle <n> - set triangle volume to <n> (0-15, default is 8)\n");
         printf(" -enableperiodic - enable periodic noise when short mode set (usually not helpful)\n");
         printf(" -disabledmcvolhack - don't reduce volume of triangle and noise as DMC volume increases\n");
@@ -769,6 +771,14 @@ int main(int argc, char* argv[])
                 case 4: printf("Noise\n"); break;
                 case 5: printf("DMC\n"); break;
             }
+        } else if (0 == strcmp(argv[arg], "-add")) {
+            if (arg+1 >= argc) {
+                printf("Not enough arguments for -add parameter.\n");
+                return -1;
+            }
+            ++arg;
+            addout = atoi(argv[arg]);
+            printf("Output channel index offset is now %d\n", addout);
         } else if (0 == strcmp(argv[arg], "-o")) {
             if (arg+1 >= argc) {
                 printf("Not enough arguments for -o parameter.\n");
@@ -1862,7 +1872,7 @@ int main(int argc, char* argv[])
     // Volume is written alongside every tone
     // simple ASCII format, values stored as hex (but import should support decimal if no 0x), row number is implied frame
     {
-        int outChan = 0;
+        int outChan = addout;
         for (int ch=0; ch<MAXCHANNELS; ch+=2) {
             char strout[1024];
             char num[32];   // just a string buffer for the index number

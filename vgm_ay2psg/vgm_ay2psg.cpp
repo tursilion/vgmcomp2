@@ -42,6 +42,7 @@ int nTicks;                                 // this MUST be a 32-bit int
 bool verbose = false;                       // emit more information
 bool debug = false;                         // dump the parsing
 int output = 0;                             // which channel to output (0=all)
+int addout = 0;                             // fixed value to add to the output count
 
 // codes for noise processing (if not periodic, it's white noise)
 // Retriggering appears to have no effect, and the other bits have no meaning here
@@ -394,10 +395,11 @@ int main(int argc, char* argv[])
 	printf("Import AY PSG - v20200308\n");
 
 	if (argc < 2) {
-		printf("vgm_ay2psg [-q] [-d] [-o <n>] [-notunenoise] [-noscalefreq] [-ignoreweird] <filename>\n");
+		printf("vgm_ay2psg [-q] [-d] [-o <n>] [-add <n>] [-notunenoise] [-noscalefreq] [-ignoreweird] <filename>\n");
 		printf(" -q - quieter verbose data\n");
         printf(" -d - enable parser debug output\n");
         printf(" -o <n> - output only channel <n> (1-5)\n");
+        printf(" -add <n> - add 'n' to the output channel number (use for multiple chips, otherwise starts at zero)\n");
 		printf(" -notunenoise - Do not retune noise (normally needed)\n");
 		printf(" -noscalefreq - do not apply frequency scaling if non-NTSC (normally automatic)\n");
         printf(" -ignoreweird - ignore anything else unexpected and treat as default\n");
@@ -412,6 +414,14 @@ int main(int argc, char* argv[])
 			verbose=false;
         } else if (0 == strcmp(argv[arg], "-d")) {
 			debug = true;
+        } else if (0 == strcmp(argv[arg], "-add")) {
+            if (arg+1 >= argc) {
+                printf("Not enough arguments for -add parameter.\n");
+                return -1;
+            }
+            ++arg;
+            addout = atoi(argv[arg]);
+            printf("Output channel index offset is now %d\n", addout);
         } else if (0 == strcmp(argv[arg], "-o")) {
             if (arg+1 >= argc) {
                 printf("Not enough arguments for -o parameter.\n");
@@ -1283,7 +1293,7 @@ int main(int argc, char* argv[])
     // Volume is written alongside every tone
     // simple ASCII format, values stored as hex (but import should support decimal if no 0x), row number is implied frame
     {
-        int outChan = 0;
+        int outChan = addout;
         for (int ch=0; ch<MAXCHANNELS; ch+=2) {
             char strout[1024];
             char num[32];   // just a string buffer for the index number

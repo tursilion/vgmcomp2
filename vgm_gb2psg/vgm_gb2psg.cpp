@@ -40,6 +40,7 @@ int nTicks;                                 // this MUST be a 32-bit int
 bool verbose = false;                       // emit more information
 bool debug = false;                         // dump parser data
 int output = 0;                             // which channel to output (0=all)
+int addout = 0;                             // fixed value to add to the output count
 
 // codes for noise processing (if not periodic, it's white noise)
 #define NOISE_MASK     0x00FFF
@@ -457,11 +458,11 @@ void runEmulation() {
         int outch = ch*2;
         if ((ch&3) < 2) {
             // tone frequencies are inverted
-            nCurrentTone[outch] = (2048-chan[ch].frequency);
+            nCurrentTone[outch] = (2048-chan[ch].frequency)&0x7ff;
         } else if ((ch&3) < 3) {
             // wave channel seems to be about the same for SMB at least.
             // for more complex instruments, external tuning can be used
-            nCurrentTone[outch] = (2048-chan[ch].frequency);
+            nCurrentTone[outch] = (2048-chan[ch].frequency)&0x7ff;
         } else {
             // we already did the math for noise...
             nCurrentTone[outch] = chan[ch].frequency;
@@ -564,10 +565,11 @@ int main(int argc, char* argv[])
 	printf("Import VGM DMG (Gameboy) - v20200328\n");
 
 	if (argc < 2) {
-		printf("vgm_gb2psg [-q] [-d] [-o <n>] [-wavenoise|-wavenone] [-enable7bitnoise] [-ignoreweird] <filename>\n");
+		printf("vgm_gb2psg [-q] [-d] [-o <n>] [-add <n>] [-wavenoise|-wavenone] [-enable7bitnoise] [-ignoreweird] <filename>\n");
 		printf(" -q - quieter verbose data\n");
         printf(" -d - enable parser debug output\n");
         printf(" -o <n> - output only channel <n> (1-5)\n");
+        printf(" -add <n> - add 'n' to the output channel number (use for multiple chips, otherwise starts at zero)\n");
         printf(" -wavenoise - treat the wave channel as noise\n");
         printf(" -wavenone - ignore the wave channel (if neither, treat as tone)\n");
         printf(" -enable7bitnoise - normally we don't try to retune 7-bit noise - enable this to try\n");
@@ -583,6 +585,14 @@ int main(int argc, char* argv[])
 			verbose=false;
         } else if (0 == strcmp(argv[arg], "-d")) {
 			debug = true;
+        } else if (0 == strcmp(argv[arg], "-add")) {
+            if (arg+1 >= argc) {
+                printf("Not enough arguments for -add parameter.\n");
+                return -1;
+            }
+            ++arg;
+            addout = atoi(argv[arg]);
+            printf("Output channel index offset is now %d\n", addout);
         } else if (0 == strcmp(argv[arg], "-o")) {
             if (arg+1 >= argc) {
                 printf("Not enough arguments for -o parameter.\n");
@@ -1684,7 +1694,7 @@ int main(int argc, char* argv[])
     // Volume is written alongside every tone
     // simple ASCII format, values stored as hex (but import should support decimal if no 0x), row number is implied frame
     {
-        int outChan = 0;
+        int outChan = addout;
         for (int ch=0; ch<MAXCHANNELS; ch+=2) {
             char strout[1024];
             char num[32];   // just a string buffer for the index number

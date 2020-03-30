@@ -16,6 +16,8 @@
 #include <dsound.h>
 #include <stdio.h>
 #include <cmath>
+#include <string.h>
+#include <errno.h>
 #include "sound.h"
 
 extern LPDIRECTSOUNDBUFFER soundbuf;		// sound chip audio buffer
@@ -102,6 +104,79 @@ const char *getNoteStr(int note, int vol) {
     return NoteTable[note&0xfff];
 }
 
+// pass in file pointer (will be reset), channel index, last row count, first input column (from 0), and true if noise
+// set scalevol to true to scale PSG volumes back to 8-bit linear
+bool loadData(FILE *fp, int &chan, int &cnt, int column, bool noise, bool scalevol) {
+    // up to 8 columns allowed
+    int in[8];
+    
+    // remember last
+    int oldcnt = cnt;
+
+    // back to start of file
+    fseek(fp, 0, SEEK_SET);
+
+    cnt = 0;
+    while (!feof(fp)) {
+        char b2[256];
+        if (fgets(b2, sizeof(b2), fp)) {
+            int cols;
+            b2[sizeof(b2)-1]='\0';
+            cols = sscanf_s(b2, "0x%X,0x%X,0x%X,0x%X,0x%X,0x%X,0x%X,0x%X", &in[0], &in[1], &in[2], &in[3], &in[4], &in[5], &in[6], &in[7]);
+            if (cols == 0) {
+                // try decimal
+                cols = sscanf_s(b2, "%d,%d,%d,%d,%d,%d,%d,%d", &in[0], &in[1], &in[2], &in[3], &in[4], &in[5], &in[6], &in[7]);
+            }
+            if (cols < column+2) {
+                printf("Error parsing line %d\n", cnt+1);
+                return false;
+            }
+            VGMDAT[chan][cnt] = in[column];
+            if (scalevol) {
+                VGMVOL[chan][cnt] = volumeTable[in[column+1]&0x0f];
+            } else {
+                VGMVOL[chan][cnt] = in[column+1];
+            }
+
+            if (noise) {
+                VGMDAT[chan][cnt] &= NOISE_MASK|NOISE_TRIGGER|NOISE_PERIODIC;    // limit input
+                VGMVOL[chan][cnt] &= 0xff;
+                if (scalevol) {
+                    // the noise needs to be converted back to a shift rate too
+                    int mask = VGMDAT[chan][cnt] & NOISE_TRIGGER;
+                    int periodic = VGMDAT[chan][cnt] & 0x4;
+                    int type = VGMDAT[chan][cnt] & 3;
+                    switch (type) {
+                        case 0: type = 0x10; break;
+                        case 1: type = 0x20; break;
+                        case 2: type = 0x40; break;
+                        case 3: if (chan > 0) {type = VGMDAT[chan-1][cnt]&0x3ff;} break;  // works if you aren't being weird
+                    }
+                    VGMDAT[chan][cnt] = mask | (periodic?NOISE_PERIODIC:0) | type;
+                }
+            } else {
+                VGMDAT[chan][cnt] &= NOISE_MASK;    // limit input
+                VGMVOL[chan][cnt] &= 0xff;
+            }
+            ++cnt;
+            if (cnt >= MAXTICKS) {
+                printf("(maximum tick count reached) ");
+                break;
+            }
+        }
+    }
+    printf("read %d lines\n", cnt);
+    isNoise[chan] = noise;
+    registerChan(chan, noise);
+    ++chan;
+
+    if ((oldcnt > 0) && (oldcnt != cnt)) {
+        printf("* Warning: line count changed from %d to %d...\n", oldcnt, cnt);
+    }
+
+    return true;
+}
+
 int main(int argc, char *argv[])
 {
     char namebuf[128];
@@ -110,11 +185,13 @@ int main(int argc, char *argv[])
     int delay = 16;
 
 	if (argc < 2) {
-		printf("testPlayPSG [-clipbass] [-shownotes] <file prefix>\n");
+		printf("testPlayPSG [-clipbass] [-shownotes] [<file prefix> | <track1> <track2> ...]\n");
 		printf(" -clipbass - restrict bass notes to the range of the TI PSG\n");
 		printf(" -shownotes - display notes as the frames are played\n");
 		printf(" <file prefix> - PSG file prefix (usually the name of the original VGM).\n");
-        printf("Will search for 60hz, 50hz, 30hz, and 25hz in that order\n");
+        printf(" <track1> etc - instead of a prefix, you may explicitly list the files to play\n");
+        printf("Will search for 60hz, 50hz, 30hz, and 25hz in that order for a prefix.\n");
+        printf("Non-prefix can be a list of track files, or a single PSG file.\n");
 		return -1;
 	}
 
@@ -132,100 +209,103 @@ int main(int argc, char *argv[])
 		arg++;
 	}
 
-    strncpy_s(namebuf, argv[arg], sizeof(namebuf));
-    namebuf[sizeof(namebuf)-1]='\0';
+    int cnt = 0;    // total rows in song
+    int chan = 0;   // total channels in song
 
-    printf("Working with prefix '%s'... ", namebuf);
+    // check for explicit list. The problem is the prefix file usually exists, so
+    // we HAVE to try to parse first.
+    while (arg < argc) {
+        strncpy_s(namebuf, argv[arg], sizeof(namebuf));
+        namebuf[sizeof(namebuf)-1]='\0';
 
-    // work out which extension - channel 0 must exist
-    for (int idx=0; idx<5; ++idx) {
-        switch (idx) {
-            case 0: strcpy(ext,"60hz"); delay=1000/60; break;
-            case 1: strcpy(ext,"50hz"); delay=1000/50; break;
-            case 2: strcpy(ext,"30hz"); delay=1000/30; break;
-            case 3: strcpy(ext,"25hz"); delay=1000/25; break;
-            case 4: printf("\nCan't find the song. Channel 00 must exist as ton or noi!\n"); return 1;
+        FILE *fp=fopen(namebuf, "rb");
+        if (NULL == fp) {
+            printf("Failed to open '%s', code %d\n", namebuf, errno);
+            return 1;
         }
-        sprintf_s(buf, "%s_ton00.%s", namebuf, ext);
-        FILE *fp = fopen(buf, "rb");
-        if (NULL != fp) {fclose(fp); break;}
 
-        sprintf_s(buf, "%s_noi00.%s", namebuf, ext);
-        fp = fopen(buf, "rb");
-        if (NULL != fp) {fclose(fp); break;}
+        // it might be a 60Hz or a might be a PSG, they have different loaders
+        // look at the first line - just check for more than one comma ;)
+        char buf[256];
+        memset(buf, 0, sizeof(buf));
+        fgets(buf, sizeof(buf)-1, fp);
+
+        // find first comma and last comma
+        char *fcomma = strchr(buf, ',');
+        char *lcomma = strrchr(buf, ',');
+
+        if ((fcomma==NULL)||(lcomma==NULL)) {
+            if (chan != 0) {
+                // if we were processing...
+                printf("Failed to parse file at first line of file '%s'.\n", namebuf);
+                return 1;
+            }
+            // break and check for prefix
+            break;
+        }
+
+        if (fcomma == lcomma) {
+            // then it's a simple 60hz file with one channel
+            // noise or tone by filename
+            bool noise = (strstr(namebuf, "_noi") != NULL);
+            printf("Reading %s channel %d from %s... ", noise?"NOISE":"TONE", chan, namebuf);
+            if (!loadData(fp, chan, cnt, 0, noise, false)) return 1;
+        } else {
+            // it's a PSG file, we need to load all four channels
+            // This is not efficient, but it's simple
+            for (int idx=0; idx<4; ++idx) {
+                printf("Reading %s channel %d from %s... ", (idx==3)?"NOISE":"TONE", chan, namebuf);
+                if (!loadData(fp, chan, cnt, idx*2, (idx==3), true)) return 1;
+            }
+        }
+        ++arg;
     }
 
-    printf("Found extension %s\n", ext);
+    if (chan == 0) {
+        // maybe using a prefix, lots of guessing involved
 
-    // dumbest loader ever...
-    // first try all the tones
-    int chan = 0;
-    int cnt = 0;    // TODO: check that all files have the same cnt
-    for (int idx=0; idx<99; idx++) {
-        sprintf_s(buf, "%s_ton%02d.%s", namebuf, idx, ext);
-        FILE *fp = fopen(buf, "rb");
-        if (NULL != fp) {
-            printf("Reading TONE channel %d... ", idx);
-            cnt = 0;
-            while (!feof(fp)) {
-                char b2[256];
-                if (fgets(b2, sizeof(b2), fp)) {
-                    b2[sizeof(b2)-1]='\0';
-                    if (2 != sscanf_s(b2, "0x%X,0x%X", &VGMDAT[chan][cnt], &VGMVOL[chan][cnt])) {
-                        // try decimal
-                        if (2 != sscanf_s(b2, "%d,%d", &VGMDAT[chan][cnt], &VGMVOL[chan][cnt])) {
-                            printf("Error parsing line %d\n", cnt+1);
-                            return 1;
-                        }
-                    }
-                    VGMDAT[chan][cnt] &= NOISE_MASK;    // limit input
-                    VGMVOL[chan][cnt] &= 0xff;
-                    ++cnt;
-                    if (cnt >= MAXTICKS) {
-                        printf("(maximum reached) ");
-                        break;
-                    }
-                }
+        printf("Working with prefix '%s'... ", namebuf);
+
+        // work out which extension - channel 0 must exist
+        for (int idx=0; idx<5; ++idx) {
+            switch (idx) {
+                case 0: strcpy(ext,"60hz"); delay=1000/60; break;
+                case 1: strcpy(ext,"50hz"); delay=1000/50; break;
+                case 2: strcpy(ext,"30hz"); delay=1000/30; break;
+                case 3: strcpy(ext,"25hz"); delay=1000/25; break;
+                case 4: printf("\nCan't find the song. Channel 00 must exist as ton or noi!\n"); return 1;
             }
-            fclose(fp);
-            printf("read %d lines\n", cnt);
-            isNoise[chan] = false;
-            registerChan(chan, false);
-            ++chan;
+            sprintf_s(buf, "%s_ton00.%s", namebuf, ext);
+            FILE *fp = fopen(buf, "rb");
+            if (NULL != fp) {fclose(fp); break;}
+
+            sprintf_s(buf, "%s_noi00.%s", namebuf, ext);
+            fp = fopen(buf, "rb");
+            if (NULL != fp) {fclose(fp); break;}
         }
-    }
-    // then all the noises
-    for (int idx=0; idx<99; idx++) {
-        sprintf_s(buf, "%s_noi%02d.%s", namebuf, idx, ext);
-        FILE *fp = fopen(buf, "rb");
-        if (NULL != fp) {
-            printf("Reading NOISE channel %d... ", idx);
-            cnt = 0;
-            while (!feof(fp)) {
-                char b2[256];
-                if (fgets(b2, sizeof(b2), fp)) {
-                    b2[sizeof(b2)-1]='\0';
-                    if (2 != sscanf_s(b2, "0x%X,0x%X", &VGMDAT[chan][cnt], &VGMVOL[chan][cnt])) {
-                        // try decimal
-                        if (2 != sscanf_s(b2, "%d,%d", &VGMDAT[chan][cnt], &VGMVOL[chan][cnt])) {
-                            printf("Error parsing line %d\n", cnt+1);
-                            return 1;
-                        }
-                    }
-                    VGMDAT[chan][cnt] &= NOISE_MASK|NOISE_TRIGGER|NOISE_PERIODIC;    // limit input
-                    VGMVOL[chan][cnt] &= 0xff;
-                    ++cnt;
-                    if (cnt >= MAXTICKS) {
-                        printf("(maximum reached) ");
-                        break;
-                    }
-                }
+
+        printf("Found extension %s\n", ext);
+
+        // dumbest loader ever...
+        // first try all the tones
+        for (int idx=0; idx<99; idx++) {
+            sprintf_s(buf, "%s_ton%02d.%s", namebuf, idx, ext);
+            FILE *fp = fopen(buf, "rb");
+            if (NULL != fp) {
+                printf("Reading TONE channel %d from %s... ", idx, buf);
+                if (!loadData(fp, chan, cnt, 0, false, false)) return 1;
+                fclose(fp);
             }
-            fclose(fp);
-            printf("read %d lines\n", cnt);
-            isNoise[chan] = true;
-            registerChan(chan, true);
-            ++chan;
+        }
+        // then all the noises
+        for (int idx=0; idx<99; idx++) {
+            sprintf_s(buf, "%s_noi%02d.%s", namebuf, idx, ext);
+            FILE *fp = fopen(buf, "rb");
+            if (NULL != fp) {
+                printf("Reading NOISE channel %d from %s... ", idx, buf);
+                if (!loadData(fp, chan, cnt, 0, true, false)) return 1;
+                fclose(fp);
+            }
         }
     }
 
