@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
 		printf(" -shownotes - display notes as the frames are played\n");
 		printf(" <file prefix> - PSG file prefix (usually the name of the original VGM).\n");
         printf(" <track1> etc - instead of a prefix, you may explicitly list the files to play\n");
-        printf("Will search for 60hz, 50hz, 30hz, and 25hz in that order for a prefix.\n");
+        printf("Prefix will search for 60hz, 50hz, 30hz, and 25hz in that order.\n");
         printf("Non-prefix can be a list of track files, or a single PSG file.\n");
 		return -1;
 	}
