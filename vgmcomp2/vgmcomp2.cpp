@@ -68,6 +68,7 @@ int currentSong = 0;
 char szFileOut[256]={0};
 bool isPSG=false, isAY=false;
 bool verbose = false;
+bool debug = false;
 
 // pass in file pointer (will be reset), channel index, last row count, first input column (from 0), and true if noise
 // set scalevol to true to scale PSG volumes back to 8-bit linear
@@ -165,7 +166,7 @@ bool testOutputRLE(SONG *s) {
 
             timecnt = s->outStream[TIMESTREAM][incnt[TIMESTREAM]]&0x0f;
             
-            if (verbose) {
+            if (debug) {
                 printf("-- 0x%02X\n", s->outStream[TIMESTREAM][incnt[TIMESTREAM]]);
             }
 
@@ -188,7 +189,7 @@ bool testOutputRLE(SONG *s) {
             return false;
         }
 
-        if (verbose) {
+        if (debug) {
             // debug current row
             int lastrow = testCnt[0]-1;
             printf("%04d(%02d): ", lastrow, timecnt);
@@ -226,7 +227,7 @@ bool testOutputRLE(SONG *s) {
             }
         }
 
-        if (verbose) {
+        if (debug) {
             // debug current row
             int lastrow = testCnt[VOL1]-1;
             printf("%04d: ", lastrow);
@@ -422,7 +423,9 @@ int main(int argc, char *argv[])
                 // cover 'help' by not loading the filename arg
                 break;
             } else if (argv[idx][1] == 'd') {
-                verbose = true;
+                debug = true;
+            } else if (argv[idx][1] == 'v') {
+                verbose= true;
             } else if (0 == strcmp(argv[idx], "-psg")) {
                 isPSG=true;
                 if (isAY) {
@@ -447,13 +450,14 @@ int main(int argc, char *argv[])
         }
     }
     if ((strlen(szFileOut)==0)||((isAY==false)&&(isPSG==false))) {
-        printf("vgmcomp2 [-d] <-ay|-psg> <filenameout.psg> <filenamein1.psg> [<filenamein2.psg>...]\n");
+        printf("vgmcomp2 [-d] [-v] <-ay|-psg> <filenameout.psg> <filenamein1.psg> [<filenamein2.psg>...]\n");
         printf("Provides a compressed (sound compressed format) file from\n");
         printf("an input file containing either PSG or AY-3-8910 data\n");
         printf("Except for the noise handling, the output is the same.\n");
         printf("Specify either -ay for the AY-3-8910 data or -psg for PSG data\n");
         printf("Then input file and output filename.\n");
         printf("-d - add extra parser debug output\n");
+        printf("-v - add extra verbose information\n");
         return 1;
     }
 
@@ -474,7 +478,7 @@ int main(int argc, char *argv[])
             }
         }
         fclose(fp);
-        printf("Read %d lines from '%s'\n", songs[currentSong].outCnt, argv[fileIdx]);
+        if (verbose) printf("Read %d lines from '%s'\n", songs[currentSong].outCnt, argv[fileIdx]);
         totalC += songs[currentSong].outCnt;
         ++currentSong;
     }
@@ -482,7 +486,7 @@ int main(int argc, char *argv[])
         printf("No input files specified, nothing to do.\n");
         return 1;
     }
-    printf("Total of %d rows from %d songs\n", totalC, currentSong);
+    if (verbose) printf("Total of %d rows from %d songs\n", totalC, currentSong);
 
     // at this point the 4 tone channels are in VGMDAT[chan][rows]
     // and the 4 volume channels are in VGMVOL[chan][rows].
@@ -517,28 +521,44 @@ int main(int argc, char *argv[])
             }
         }
         if (currentSong > 1) {
-            printf("Song %d adds %d notes to note table\n", thisSong, noteCnt - oldNoteCnt);
+            if (verbose) printf("Song %d adds %d notes to note table\n", thisSong, noteCnt - oldNoteCnt);
         }
         oldNoteCnt = noteCnt;
     }
-    printf("Songbank contains %d/%d notes.\n", noteCnt, MAXNOTES);
-
+    if (verbose) printf("Songbank contains %d/%d notes.\n", noteCnt, MAXNOTES);
 
     // TODO: why are we pre-RLE-ing the data again? don't we have stronger RLE in the main pass?
     // try with and without this step
+#if 1
     for (int idx=0; idx<currentSong; ++idx) {
-        printf("RLE Packing song %d...\n", idx);
+        if (verbose) printf("RLE Packing song %d (%d rows)...\n", idx, songs[idx].outCnt);
         if (!initialRLE(&songs[idx])) {
             return 1;
+        }
+        if (verbose) {
+            printf("  - Tone 1 to %d rows\n", songs[idx].streamCnt[TONE1]);
+            printf("  - Tone 2 to %d rows\n", songs[idx].streamCnt[TONE2]);
+            printf("  - Tone 3 to %d rows\n", songs[idx].streamCnt[TONE3]);
+            printf("  - Noise  to %d rows\n", songs[idx].streamCnt[NOISE]);
+            printf("  - Vol  1 to %d rows\n", songs[idx].streamCnt[VOL1]);
+            printf("  - Vol  2 to %d rows\n", songs[idx].streamCnt[VOL2]);
+            printf("  - Vol  3 to %d rows\n", songs[idx].streamCnt[VOL3]);
+            printf("  - Vol  4 to %d rows\n", songs[idx].streamCnt[VOL4]);
+            printf("  - TimeSt to %d rows\n", songs[idx].streamCnt[TIMESTREAM]);
+            printf("  = %d bytes to %d bytes\n", songs[idx].outCnt*(2+2+2+1+1+1+1+1), 
+                   songs[idx].streamCnt[TONE1]+songs[idx].streamCnt[TONE2]+songs[idx].streamCnt[TONE3]+
+                   songs[idx].streamCnt[NOISE]+songs[idx].streamCnt[VOL1]+songs[idx].streamCnt[VOL2]+
+                   songs[idx].streamCnt[VOL3]+songs[idx].streamCnt[VOL4]+songs[idx].streamCnt[TIMESTREAM]);
         }
     }
     // test the RLE process
     for (int idx=0; idx<currentSong; ++idx) {
-        printf("RLE Testing song %d...\n", idx);
+        if (verbose) printf("RLE Testing song %d...\n", idx);
         if (!testOutputRLE(&songs[idx])) {
             return 1;
         }
     }
+#endif
 
     // prepare the output binary blob
 
