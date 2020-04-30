@@ -39,12 +39,17 @@ enum {
     MAXSTREAMS
 };
 
+// this are the bitmasks for encoding
+const int BACKREFBITS = 0xc0;   // 11
+const int RLE16BITS   = 0x80;   // 10
+const int RLEBITS     = 0x40;   // 01
+const int INLINEBITS  = 0x00;   // 00
+
+// some basic settings
 #define MAXTICKS 432000					    // about 2 hrs, but arbitrary
 #define MAXCHANNELS 4                       // channels 0-2 are tone, and 3 is noise
-int VGMDAT2[MAXCHANNELS][MAXTICKS];         // used for testing
-int VGMVOL2[MAXCHANNELS][MAXTICKS];
-
 #define MAXSONGS 16                         // kind of arbitrary
+
 struct SONG {
     // note: the VGMDAT, VGMVOL, and outStream must all be the SAME base type (int today)
 
@@ -62,7 +67,7 @@ struct SONG {
 
     // stream data
     int streamOffset[MAXSTREAMS];               // where in the binary blob does each stream start
-} songs[MAXSONGS];
+} songs[MAXSONGS], testSong;                    // testSong is used for the unpack testing
 
 #define MAXNOTES 256
 int noteCnt;
@@ -93,6 +98,11 @@ struct {
     int cntInlines;
 } minRunData[MAXRUN+1];
 unsigned char bestRunBuffer[65536];   // this is a little wasteful, but that's okay
+
+// byte swap for the unpack test
+inline short byteswap(short x) {
+    return ((x&0xff)<<8) | ((x&0xff00)>>8);
+}
 
 // pass in file pointer (will be reset), channel index, last row count, first input column (from 0), and true if noise
 // set scalevol to true to scale PSG volumes back to 8-bit linear
@@ -151,11 +161,12 @@ bool loadData(FILE *fp, int &chan, SONG *s, int column, bool noise) {
 }
 
 bool testOutputRLE(SONG *s) {
-    // output outStream[][] and streamCnt[] into a VGMDAT2[][] amd VGMVOL2[][]
+    // output outStream[][] and streamCnt[] into testSong's VGMDAT[][] amd VGMVOL[][]
     // so that we can make sure it packed correctly
     int incnt[MAXSTREAMS];
     int testCnt[MAXSTREAMS];    // we can do tones and volumes separately anyway
     bool ret = true;
+    SONG *t = &testSong;
 
     // prepare the arrays
     for (int idx=0; idx<MAXSTREAMS; ++idx) {
@@ -165,8 +176,8 @@ bool testOutputRLE(SONG *s) {
 
     // load the default data
     for (int idx=TONE1; idx<=NOISE; ++idx) {
-        VGMDAT2[idx][testCnt[idx]] = 1;
-        VGMVOL2[idx][testCnt[idx]] = 0xf;
+        t->VGMDAT[idx][testCnt[idx]] = 1;
+        t->VGMVOL[idx][testCnt[idx]] = 0xf;
     }
 
     // unpack the count channels
@@ -176,13 +187,13 @@ bool testOutputRLE(SONG *s) {
         if (--timecnt < 0) {
             for (int idx=TONE1; idx<=NOISE; ++idx) {
                 if (s->outStream[TIMESTREAM][incnt[TIMESTREAM]] & (0x80>>idx)) {
-                    VGMDAT2[idx][testCnt[idx]++] = s->outStream[idx][incnt[idx]++];
+                    t->VGMDAT[idx][testCnt[idx]++] = s->outStream[idx][incnt[idx]++];
                 } else {
                     if (testCnt[idx] > 0) {
                         // this test not normally needed, since a real tool would
                         // just remember what was currently set. It's only because
                         // I'm storing every frame into an array for later compare
-                        VGMDAT2[idx][testCnt[idx]] = VGMDAT2[idx][testCnt[idx]-1];
+                        t->VGMDAT[idx][testCnt[idx]] = t->VGMDAT[idx][testCnt[idx]-1];
                     }
                     testCnt[idx]++;
                 }
@@ -201,7 +212,7 @@ bool testOutputRLE(SONG *s) {
             incnt[TIMESTREAM]++;
         } else {
             for (int idx=TONE1; idx<=NOISE; ++idx) {
-                VGMDAT2[idx][testCnt[idx]] = VGMDAT2[idx][testCnt[idx]-1];
+                t->VGMDAT[idx][testCnt[idx]] = t->VGMDAT[idx][testCnt[idx]-1];
                 testCnt[idx]++;
             }
         }
@@ -218,7 +229,7 @@ bool testOutputRLE(SONG *s) {
             int lastrow = testCnt[0]-1;
             printf("%04d(%02d): ", lastrow, timecnt);
             for (int idx=TONE1; idx<=NOISE; ++idx) {
-                printf("0x%05X   ", VGMDAT2[idx][lastrow]);
+                printf("0x%05X   ", t->VGMDAT[idx][lastrow]);
             }
             printf("===   ");
             for (int idx=TONE1; idx<=NOISE; ++idx) {
@@ -235,7 +246,7 @@ bool testOutputRLE(SONG *s) {
         for (int idx=VOL1; idx<=VOL4; ++idx) {
             if (--volcnt[idx-VOL1] < 0) {
                 volcnt[idx-VOL1] = s->outStream[idx][incnt[idx]++];
-                VGMVOL2[idx-VOL1][testCnt[idx]++] = (volcnt[idx-VOL1]>>4)&0xf;
+                t->VGMVOL[idx-VOL1][testCnt[idx]++] = (volcnt[idx-VOL1]>>4)&0xf;
                 volcnt[idx-VOL1] &= 0x0f;
 
                 // check next row and this row for 0's, marking the end
@@ -246,7 +257,7 @@ bool testOutputRLE(SONG *s) {
                     }
                 }
             } else {
-                VGMVOL2[idx-VOL1][testCnt[idx]] = VGMVOL2[idx-VOL1][testCnt[idx]-1];
+                t->VGMVOL[idx-VOL1][testCnt[idx]] = t->VGMVOL[idx-VOL1][testCnt[idx]-1];
                 testCnt[idx]++;
             }
         }
@@ -256,7 +267,7 @@ bool testOutputRLE(SONG *s) {
             int lastrow = testCnt[VOL1]-1;
             printf("%04d: ", lastrow);
             for (int idx=VOL1; idx<=VOL4; ++idx) {
-                printf("0x%02X%c ", VGMVOL2[idx-VOL1][lastrow], volcnt[idx-VOL1]==0?'<':' ');
+                printf("0x%02X%c ", t->VGMVOL[idx-VOL1][lastrow], volcnt[idx-VOL1]==0?'<':' ');
             }
             printf("===   ");
             for (int idx=VOL1; idx<=VOL4; ++idx) {
@@ -280,19 +291,127 @@ bool testOutputRLE(SONG *s) {
     }
     for (int idx=0; idx<s->outCnt; ++idx) {
         for (int idx2=0; idx2<MAXCHANNELS; ++idx2) {
-            if (s->VGMDAT[idx2][idx] != VGMDAT2[idx2][idx]) {
+            if (s->VGMDAT[idx2][idx] != t->VGMDAT[idx2][idx]) {
                 printf("VERIFY PHASE 1 - failed on song data - channel %d, row %d, got 0x%X vs desired 0x%X (aborting check)\n",
-                       idx2, idx, VGMDAT2[idx2][idx], s->VGMDAT[idx2][idx]);
+                       idx2, idx, t->VGMDAT[idx2][idx], s->VGMDAT[idx2][idx]);
                 idx=s->outCnt;
                 ret = false;
                 break;
             }
-            if (s->VGMVOL[idx2][idx] != VGMVOL2[idx2][idx]) {
+            if (s->VGMVOL[idx2][idx] != t->VGMVOL[idx2][idx]) {
                 printf("VERIFY PHASE 1 - failed on song volume - channel %d, row %d, got 0x%X vs desired 0x%X (aborting check)\n",
-                       idx2, idx, VGMVOL2[idx2][idx], s->VGMVOL[idx2][idx]);
+                       idx2, idx, t->VGMVOL[idx2][idx], s->VGMVOL[idx2][idx]);
                 idx=s->outCnt;
                 ret = false;
                 break;
+            }
+        }
+    }
+
+    return ret;
+}
+
+bool testOutputSCF(SONG *s, int songidx) {
+    // unpack outputBuffer into testSong's outStream[][] and streamCnt[]
+    // so that we can make sure it packed correctly
+    // TODO: this function does not have much error checking... for this
+    // tool it's okay, but if you pull it out you need to check the buffer size.
+    bool ret = true;
+    SONG *t = &testSong;
+
+    // first, look up each stream offset
+    int noteOffset = outputBuffer[NOTETABLE]*256 + outputBuffer[NOTETABLE+1];
+    unsigned short *noteTable = (unsigned short*)(&outputBuffer[noteOffset]); // remember endianess is swapped!
+
+    // each stream is independent and can be unpacked separately
+    for (int st=0; st<MAXSTREAMS; ++st) {
+        int offset = (songidx*18) + (st*2) + outputBuffer[STREAMTABLE]*256 + outputBuffer[STREAMTABLE+1];
+        offset = outputBuffer[offset]*256 + outputBuffer[offset+1];
+        t->streamCnt[st] = 0;
+
+        if (verbose) printf("SCF Testing song %d, stream %d at offset 0x%04x...\n", songidx, st, offset);
+
+        bool keepgoing=true;
+
+        while (keepgoing) {
+            if (offset >= outputPos) {
+                printf("* Parse error - offset of 0x%04X exceeds data size of 0x%04x\n", offset, outputPos);
+                return false;
+            }
+            switch (outputBuffer[offset]&0xc0) {
+
+                case BACKREFBITS:   // min count is 4
+                {
+                    int cnt = (outputBuffer[offset++]&0x3f)+4;
+                    int off = outputBuffer[offset]*256 + outputBuffer[offset+1];
+                    offset+=2;
+                    if (off == 0) {
+                        if (debug) printf(" ENDSTREAM()");
+                        // end of stream (bytes are already encoded?)
+                        keepgoing = false;
+                    } else {
+                        if (debug) printf(" BACKREF(%d @ 0x%04X)", cnt, off);
+                        while (cnt--) {
+                            t->outStream[st][t->streamCnt[st]++] = outputBuffer[off++];
+                        }
+                    }
+                }
+                break;
+
+                case RLE16BITS:     // min count is 2
+                {
+                    int cnt = (outputBuffer[offset++]&0x3f)+2;
+                    int b1 = outputBuffer[offset++];
+                    int b2 = outputBuffer[offset++];
+                    if (debug) printf(" RLE16(%d x 0x%02X%02X)", cnt, b1,b2);
+                    while (cnt--) {
+                        t->outStream[st][t->streamCnt[st]++] = b1;
+                        t->outStream[st][t->streamCnt[st]++] = b2;
+                    }
+                }
+                break;
+
+                case RLEBITS:       // min count is 3
+                {
+                    int cnt = (outputBuffer[offset++]&0x3f)+3;
+                    int b1 = outputBuffer[offset++];
+                    if (debug) printf(" RLE(%d x 0x%02X)", cnt, b1);
+                    while (cnt--) {
+                        t->outStream[st][t->streamCnt[st]++] = b1;
+                    }
+                }
+                break;
+
+                case INLINEBITS:    // min count is 1
+                {
+                    int cnt = (outputBuffer[offset++]&0x3f)+1;
+                    if (debug) printf(" INLINE(%d)", cnt);
+                    while (cnt--) {
+                        t->outStream[st][t->streamCnt[st]++] = outputBuffer[offset++];
+                    }
+                }
+                break;
+            }
+        }
+        if (debug) printf("\n");
+    }
+
+    // and test it - VERIFY PHASE 2 means this whole SCF test
+    for (int st=0; st<MAXSTREAMS; ++st) {
+        // check length
+        if (t->streamCnt[st] != s->streamCnt[st]) {
+            printf("VERIFY PHASE 2 - failed on stream %d length, got 0x%X vs desired 0x%X\n",
+                    st, t->streamCnt[st], s->streamCnt[st]);
+            ret = false;
+        } else {
+            // check each row
+            for (int idx = 0; idx<t->streamCnt[st]; ++idx) {
+                if (t->outStream[st][idx] != s->outStream[st][idx]) {
+                    printf("VERIFY PHASE 2 - failed on stream %d entry %d, got 0x%X vs desired 0x%X (aborting check)\n",
+                            st, idx, t->outStream[st][idx], s->outStream[st][idx]);
+                    ret = false;
+                    break;
+                }
             }
         }
     }
@@ -555,12 +674,6 @@ bool compressStream(int song, int st) {
     const int RLE16COST=2;      // ABAB -> xAB  0-63 means 2 to 65 times
     const int BACKREFCOST=4;    // 1234 -> xOO  0-63 means 1 to 64 bytes
 
-    // this are the bitmasks for encoding
-    const int BACKREFBITS = 0xc0;   // 11
-    const int RLE16BITS   = 0x80;   // 10
-    const int RLEBITS     = 0x40;   // 01
-    const int INLINEBITS  = 0x00;   // 00
-
     // maximum size
     const int MAXSIZE = 63;         // 00111111
 
@@ -724,6 +837,15 @@ bool compressStream(int song, int st) {
         }
     }
 
+    // Set the end flag for the stream - three bytes - a long back reference offset of 0
+    if (outputPos >= sizeof(outputBuffer)-3) {
+        printf("Ran out of room in outputBuffer (maximum 64k!!) Encode failed.\n");
+        return false;
+    }
+    outputBuffer[outputPos++] = BACKREFBITS;
+    outputBuffer[outputPos++] = 0;
+    outputBuffer[outputPos++] = 0;
+
     if (verbose) {
         printf("                                        \b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
     }
@@ -774,7 +896,10 @@ int main(int argc, char *argv[])
         }
     }
     if ((strlen(szFileOut)==0)||((isAY==false)&&(isPSG==false))) {
-        printf("vgmcomp2 [-d] [-v] <-ay|-psg> <filenameout.psg> <filenamein1.psg> [<filenamein2.psg>...]\n");
+        if ((isAY==false)&&(isPSG==false)) {
+            printf("* You must specify -ay or -psg for output type\n");
+        }
+        printf("vgmcomp2 [-d] [-v] <-ay|-psg> <filenameout.scf> <filenamein1.psg> [<filenamein2.psg>...]\n");
         printf("Provides a compressed (sound compressed format) file from\n");
         printf("an input file containing either PSG or AY-3-8910 data\n");
         printf("Except for the noise handling, the output is the same.\n");
@@ -856,7 +981,7 @@ int main(int argc, char *argv[])
         }
         oldNoteCnt = noteCnt;
     }
-    if (verbose) printf("Songbank contains %d/%d notes.\n", noteCnt, MAXNOTES);
+    if (verbose) printf("Songbank contains %d/%d notes.\n\n", noteCnt, MAXNOTES);
 
     // do the RLE pack. It's necessary because it allows us to have RLE in the post-encoded stream
     for (int idx=0; idx<currentSong; ++idx) {
@@ -887,6 +1012,7 @@ int main(int argc, char *argv[])
             return 1;
         }
     }
+    if (verbose) printf("RLE tests successful.\n\n");
 
 #ifdef _DEBUG
     // dump the streams so I can look at them
@@ -920,7 +1046,7 @@ int main(int argc, char *argv[])
     for (int song=0; song<currentSong; ++song) {
         for (int st=0; st<MAXSTREAMS; ++st) {
             if (verbose) {
-                printf("Working on song %d, stream %d...", song, st);
+                printf("SCF packing song %d, stream %d...", song, st);
             }
             songs[song].streamOffset[st] = outputPos;
 
@@ -953,7 +1079,7 @@ int main(int argc, char *argv[])
             }
 
             // reload the best one...
-            printf("%4d bytes at minrun %d\n", bestSize, bestRun);
+            if (verbose) printf("%4d bytes at minrun %d\n", bestSize, bestRun);
             memcpy(&outputBuffer[songs[song].streamOffset[st]], bestRunBuffer, bestSize);
             outputPos = songs[song].streamOffset[st] + bestSize;
             // update totals
@@ -1001,13 +1127,23 @@ int main(int argc, char *argv[])
         outputBuffer[outputPos++] = noteTable[nt] % 256;
     }
 
+    // test the SCF process
+    for (int idx=0; idx<currentSong; ++idx) {
+        if (!testOutputSCF(&songs[idx], idx)) {
+            return 1;
+        }
+    }
+
+    // it all seems to have worked
+    printf("Successful!\n");
+
     // emit some stats
     int totalRows = 0;
     for (int idx=0; idx<currentSong; ++idx) {
         totalRows += songs[idx].outCnt;
     }
     double totalTime = int(totalRows / 60.0 * 100 + 0.5) / 100.0;
-    printf("%d songs (%f seconds) compressed to %d bytes (%f bytes/second)\n",
+    printf("\n%d songs (%f seconds) compressed to %d bytes (%f bytes/second)\n",
            currentSong, totalTime, outputPos, int(outputPos / totalTime * 1000 + 0.5) / 1000.0);
 
     if (verbose) {
@@ -1028,7 +1164,7 @@ int main(int argc, char *argv[])
         fclose(fp);
     }
 
-    printf("** DONE **\n");
+    printf("\n** DONE **\n");
 
     return 0;
 }
