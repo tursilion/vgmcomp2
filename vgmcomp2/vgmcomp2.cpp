@@ -86,7 +86,7 @@ char szFileOut[256]={0};
 bool isPSG=false, isAY=false;
 bool verbose = false;
 bool debug = false;
-int noiseMask;
+int noiseMask, toneMask;
 int minRun = 0;
 
 // stats for minrun loops
@@ -106,7 +106,7 @@ inline short byteswap(short x) {
 
 // pass in file pointer (will be reset), channel index, last row count, first input column (from 0), and true if noise
 // set scalevol to true to scale PSG volumes back to 8-bit linear
-bool loadData(FILE *fp, int &chan, SONG *s, int column, bool noise) {
+bool loadDataCSV(FILE *fp, int &chan, SONG *s, int column, bool noise) {
     // up to 8 columns allowed
     int in[8];
     int cnt = 0;
@@ -140,7 +140,7 @@ bool loadData(FILE *fp, int &chan, SONG *s, int column, bool noise) {
                 }
                 s->VGMVOL[chan][cnt] &= 0xff;
             } else {
-                s->VGMDAT[chan][cnt] &= noiseMask;    // limit input
+                s->VGMDAT[chan][cnt] &= toneMask;    // limit input
                 s->VGMVOL[chan][cnt] &= 0xff;
             }
             ++cnt;
@@ -325,6 +325,7 @@ bool testOutputSCF(SONG *s, int songidx) {
 
     // each stream is independent and can be unpacked separately
     for (int st=0; st<MAXSTREAMS; ++st) {
+        if (debug) printf("Testing stream %d\n", st);
         int offset = (songidx*18) + (st*2) + outputBuffer[STREAMTABLE]*256 + outputBuffer[STREAMTABLE+1];
         offset = outputBuffer[offset]*256 + outputBuffer[offset+1];
         t->streamCnt[st] = 0;
@@ -491,11 +492,13 @@ bool initialRLE(SONG *s) {
     if (s->streamCnt[TONE3] == 0) s->outStream[TIMESTREAM][0] &= 0xdf;
     if (s->streamCnt[NOISE] == 0) s->outStream[TIMESTREAM][0] &= 0xef;
 
-    // dual-zero the timestream (there might already be one at the end, but unlikely)
+#if 0
+    // Not using double-zero to mark the end - don't do this
     s->streamCnt[TIMESTREAM]++;
     s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]=0;
     s->streamCnt[TIMESTREAM]++;
     s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]=0;
+#endif
 
     // Individually RLE each volume channel (not included in the streams above)
     for (int idx=VOL1; idx<=VOL4; ++idx) {
@@ -542,6 +545,8 @@ bool initialRLE(SONG *s) {
         }
     }
 
+#if 0
+    // Not using double-zero to mark the end - don't do this
     // I don't think it matters, but double-zero these too
     for (int idx2=VOL1; idx2<=VOL4; ++idx2) {
         s->streamCnt[idx2]++;
@@ -549,6 +554,7 @@ bool initialRLE(SONG *s) {
         s->streamCnt[idx2]++;
         s->outStream[idx2][s->streamCnt[idx2]]=0;
     }
+#endif
 
     return true;
 }
@@ -855,6 +861,9 @@ bool compressStream(int song, int st) {
 // these are stored in noiseMask instead
 #define NOISE_MASK     0x0000F              // noise should be pre-converted to target
 #define NOISE_MASK_AY  0x0001F              // AY has larger range
+// these in toneMask
+#define TONE_MASK      0x003ff
+#define TONE_MASK_AY   0x00fff
 
 int main(int argc, char *argv[])
 {
@@ -873,6 +882,7 @@ int main(int argc, char *argv[])
             } else if (0 == strcmp(argv[idx], "-psg")) {
                 isPSG=true;
                 noiseMask = NOISE_MASK;
+                toneMask = TONE_MASK;
                 if (isAY) {
                     printf("Can't select both PSG and AY options.\n");
                     return 1;
@@ -880,6 +890,7 @@ int main(int argc, char *argv[])
             } else if (0 == strcmp(argv[idx], "-ay")) {
                 isAY=true;
                 noiseMask = NOISE_MASK_AY;
+                toneMask = TONE_MASK_AY;
                 if (isPSG) {
                     printf("Can't select both PSG and AY options.\n");
                     return 1;
@@ -913,7 +924,7 @@ int main(int argc, char *argv[])
     // loop through all the songs
     int totalC = 0;
     for (int fileIdx = nextarg; fileIdx < argc; ++fileIdx) {
-        // load data file through loadData(FILE *fp, int &chan, int &cnt, int column, bool noise)
+        // load data file through loadDataCSV(FILE *fp, int &chan, int &cnt, int column, bool noise)
         FILE *fp = fopen(argv[fileIdx], "r");
         if (NULL == fp) {
             printf("Failed to open input file '%s'\n", argv[fileIdx]);
@@ -921,7 +932,7 @@ int main(int argc, char *argv[])
         }
         int chan = 0;
         for (int idx=TONE1; idx<=NOISE; ++idx) {
-            if (!loadData(fp, chan, &songs[currentSong], idx*2, idx==NOISE)) {
+            if (!loadDataCSV(fp, chan, &songs[currentSong], idx*2, idx==NOISE)) {
                 printf("Failed reading channel %d from '%s'\n", idx, argv[fileIdx]);
                 return 1;
             }
@@ -1102,6 +1113,7 @@ int main(int argc, char *argv[])
     // write out the tables - the stream table is first
     outputBuffer[STREAMTABLE]   = outputPos/256; 
     outputBuffer[STREAMTABLE+1] = outputPos%256;
+    if (debug) printf("Stream table @ 0x%02X%02X:\n", outputBuffer[STREAMTABLE], outputBuffer[STREAMTABLE+1]);
     for (int song=0; song<currentSong; ++song) {
         for (int st=0; st<MAXSTREAMS; ++st) {
             // we need 2 bytes space to encode
@@ -1111,20 +1123,37 @@ int main(int argc, char *argv[])
             }
             outputBuffer[outputPos++] = songs[song].streamOffset[st] / 256;
             outputBuffer[outputPos++] = songs[song].streamOffset[st] % 256;
+            if (debug) printf("  [%d]: 0x%04X -> 0x%02X%02X\n", st, songs[song].streamOffset[st], outputBuffer[outputPos-2], outputBuffer[outputPos-1]);
         }
     }
 
     // then the note table
     outputBuffer[NOTETABLE]   = outputPos/256; 
     outputBuffer[NOTETABLE+1] = outputPos%256;
+    if (debug) printf("Note table @ 0x%02X%02X:\n", outputBuffer[NOTETABLE], outputBuffer[NOTETABLE+1]);
     for (int nt=0; nt<noteCnt; ++nt) {
         // we need 2 bytes space to encode
         if (outputPos >= sizeof(outputBuffer)-2) {
             printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
             return false;
         }
-        outputBuffer[outputPos++] = noteTable[nt] / 256;
-        outputBuffer[outputPos++] = noteTable[nt] % 256;
+        if (isPSG) {
+            // PSG uses a two byte format, where the first byte contains the
+            // least significant nibble plus a command nibble, and the second
+            // byte contains the most significant 6 bits
+            outputBuffer[outputPos++] = noteTable[nt] & 0xf;
+            outputBuffer[outputPos++] = (noteTable[nt] >> 4) & 0x3f;
+        } else if (isAY) {
+            // AY uses two registers. The even register contains the least
+            // significant 8 bits, and the odd register contains the most
+            // significant 4 bits
+            outputBuffer[outputPos++] = noteTable[nt] & 0xff;
+            outputBuffer[outputPos++] = (noteTable[nt] >> 8) & 0xf;
+        } else {
+            printf("Output failed - neither PSG nor AY mode set?\n");
+            return false;
+        }
+        if (debug) printf("  [%3d]: 0x%04X -> 0x%02X%02X\n", nt, noteTable[nt], outputBuffer[outputPos-2], outputBuffer[outputPos-1]);
     }
 
     // test the SCF process

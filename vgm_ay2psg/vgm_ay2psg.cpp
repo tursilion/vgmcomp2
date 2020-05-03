@@ -4,7 +4,9 @@
 
 // Currently, we set all channels (even noise) to countdown values
 // compatible with the SN clock, which is assumed to be the same
-// values as the PSG clock. Noise is always 16-bit.
+// values as the PSG clock. AY noise is 16 bit but has only 31 steps,
+// so I have left them at their original shift rates (scaling takes 0-31 
+// to 0-29, not much difference. Can shift externally if desired.)
 // All volume is set to 8 bit values. This lets us take in a wider
 // range of input datas, and gives us more flexibility on the output.
 // Likewise, noise is stored as its frequency count, for more flexibility
@@ -13,7 +15,7 @@
 // tones and odd numbers being volumes, and the fourth tone is assumed
 // to be the noise channel.
 
-// Tones: scales to SN countdown rates, even on noise, 0 to 0xfff (4095) (other chips may go higher!)
+// Tones: scales to SN countdown rates, 0 to 0xfff (4095) (other chips may go higher!)
 // Volume: 8-bit linear (NOT logarithmic) with 0 silent and 0xff loudest
 // Note that /either/ value can be -1 (integer), which means never set (these won't land in the stream though)
 
@@ -95,7 +97,6 @@ int envVolume[2] = {0,0};      // what volume are we currently at?
 int envDir[2] = {-1,-1};       // are we counting up or down? When we are at the end, we evaluate the flags
 
 // options
-bool noTuneNoise = false;               // don't retune for noises
 bool scaleFreqClock = true;			    // apply scaling for unexpected clock rates
 bool ignoreWeird = false;               // ignore any other weirdness (like shift register)
 unsigned int nRate = 60;
@@ -395,12 +396,11 @@ int main(int argc, char* argv[])
 	printf("Import AY PSG - v20200308\n");
 
 	if (argc < 2) {
-		printf("vgm_ay2psg [-q] [-d] [-o <n>] [-add <n>] [-notunenoise] [-noscalefreq] [-ignoreweird] <filename>\n");
+		printf("vgm_ay2psg [-q] [-d] [-o <n>] [-add <n>] [-noscalefreq] [-ignoreweird] <filename>\n");
 		printf(" -q - quieter verbose data\n");
         printf(" -d - enable parser debug output\n");
         printf(" -o <n> - output only channel <n> (1-5)\n");
         printf(" -add <n> - add 'n' to the output channel number (use for multiple chips, otherwise starts at zero)\n");
-		printf(" -notunenoise - Do not retune noise (normally needed)\n");
 		printf(" -noscalefreq - do not apply frequency scaling if non-NTSC (normally automatic)\n");
         printf(" -ignoreweird - ignore anything else unexpected and treat as default\n");
 		printf(" <filename> - VGM file to read.\n");
@@ -440,8 +440,6 @@ int main(int argc, char* argv[])
                 case 3: printf("Tone 3\n"); break;
                 case 4: printf("Noise\n"); break;
             }
-		} else if (0 == strcmp(argv[arg], "-notunenoise")) {
-			noTuneNoise=true;
 		} else if (0 == strcmp(argv[arg], "-noscalefreq")) {
 			scaleFreqClock=false;
 		} else if (0 == strcmp(argv[arg], "-ignoreweird")) {
@@ -550,7 +548,6 @@ int main(int argc, char* argv[])
         if ((buffer[0x79]!=0)||(buffer[0x7a]!=0)||(buffer[0x7b]!=0)) printf("Non-zero AY flags ignored\n");
         
         nClock&=0x0FFFFFFF;
-		double nNoiseRatio = 1.0;
 
         // SMS Power says usually 1789750, but that is an odd value
         // actually saw this one in the wild on Time Pilot, and seems
@@ -578,14 +575,6 @@ int main(int argc, char* argv[])
 			}
 		}
 		myprintf("Refresh rate %d Hz\n", nRate);
-		unsigned int nShiftRegister=16;     // this is the only option
-
-        // TI/Coleco has a 15 bit shift register, so if it's 16 (default), scale it down
-        // again, both chips are assumed the same, and the AY only has one possibility
-		if (nShiftRegister == 16) {
-			nNoiseRatio *= 15.0/16.0;   // shift it down to the TI version 15-bit shift register
-			myprintf("Selecting 16-bit shift register.\n");
-		}
 
         // find the start of data
 		unsigned int nOffset=0x40;
@@ -606,7 +595,6 @@ int main(int argc, char* argv[])
 		bool delaywarn = false;			// warn about imprecise delay conversion
 
 		// Use nRate - if it's 50, add one tick delay every 5 frames
-		// If user-defined noise is used, multiply voice 3 frequency by nNoiseRatio
 		// Use nOffset for the pointer
 		// Stop parsing at nEOF
 		// 1 'sample' is intended to be at 44.1kHz
@@ -1233,20 +1221,6 @@ int main(int argc, char* argv[])
 		}
 
 		myprintf("File %d parsed! Processed %d ticks (%f seconds)\n", 1, nTicks, (float)nTicks/60.0);
-
-		if ((nShiftRegister != 15) && (!noTuneNoise)) {
-			int cnt=0;
-			myprintf("Adapting noise shift rates...\n");
-			// go through every frame - on this chip we ALWAYS need to adjust it
-			// adapt the tone by nRatio
-            // there is no channel 3 conflict in this chip
-            for (int chipoff = 0; chipoff < MAXCHANNELS; chipoff += 8) {
-			    for (int idx=0; idx<nTicks; idx++) {
-                    // no noise flags to preserve here
-    				VGMStream[6+chipoff][idx]=(int)((VGMStream[6+chipoff][idx]/nNoiseRatio)+0.5);
-			    }
-            }
-		}
 
 		if (scaleFreqClock) {
 			int clip = 0;
