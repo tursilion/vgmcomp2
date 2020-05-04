@@ -40,10 +40,14 @@ enum {
 };
 
 // this are the bitmasks for encoding
-const int BACKREFBITS = 0xc0;   // 11
-const int RLE16BITS   = 0x80;   // 10
-const int RLEBITS     = 0x40;   // 01
-const int INLINEBITS  = 0x00;   // 00
+const int BACKREFBITS = 0xc0;   // 11x
+const int BACKREFBITS2= 0xe0;   // 11x
+const int RLE16BITS   = 0x80;   // 100
+const int RLE24BITS   = 0xA0;   // 101
+const int RLEBITS     = 0x40;   // 010
+const int RLE32BITS   = 0x60;   // 011
+const int INLINEBITS  = 0x00;   // 00x
+const int INLINEBITS2 = 0x20;   // 00x
 
 // some basic settings
 #define MAXTICKS 432000					    // about 2 hrs, but arbitrary
@@ -86,16 +90,47 @@ char szFileOut[256]={0};
 bool isPSG=false, isAY=false;
 bool verbose = false;
 bool debug = false;
+bool debug2 = false;
 int noiseMask, toneMask;
 int minRun = 0;
+int minRunMin = 0;
+int minRunMax = 8;
+bool noRLE = false;
+bool noRLE16 = false;
+bool noRLE24 = false;
+bool noRLE32 = false;
+bool noFwdSearch = false;
+bool noBwdSearch = false;
 
 // stats for minrun loops
 #define MAXRUN 21
+struct OneVal {
+    int cnt;
+    int total;
+
+    int avg(int add) {
+        if (cnt == 0) return 0;
+        // add is used to give the offset each type has
+        return total / cnt + add;
+    }
+    struct OneVal& operator+= (const struct OneVal &b) {
+        cnt += b.cnt;
+        total += b.total;
+        return *this;
+    }
+    void reset() {
+        cnt=0;
+        total=0;
+    }
+};
 struct {
-    int cntRLEs;
-    int cntRLE16s;
-    int cntBacks;
-    int cntInlines;
+    struct OneVal cntRLEs;
+    struct OneVal cntRLE16s;
+    struct OneVal cntRLE24s;
+    struct OneVal cntRLE32s;
+    struct OneVal cntBacks;
+    struct OneVal cntInlines;
+    struct OneVal cntFwds;
 } minRunData[MAXRUN+1];
 unsigned char bestRunBuffer[65536];   // this is a little wasteful, but that's okay
 
@@ -339,8 +374,8 @@ bool testOutputSCF(SONG *s, int songidx) {
                 printf("* Parse error - offset of 0x%04X exceeds data size of 0x%04x\n", offset, outputPos);
                 return false;
             }
-            switch (outputBuffer[offset]&0xc0) {
-
+            switch (outputBuffer[offset]&0xe0) {
+                case BACKREFBITS2:
                 case BACKREFBITS:   // min count is 4
                 {
                     int cnt = (outputBuffer[offset++]&0x3f)+4;
@@ -361,7 +396,8 @@ bool testOutputSCF(SONG *s, int songidx) {
 
                 case RLE16BITS:     // min count is 2
                 {
-                    int cnt = (outputBuffer[offset++]&0x3f)+2;
+                    // cnt is thus 1 bit smaller
+                    int cnt = (outputBuffer[offset++]&0x1f)+2;
                     int b1 = outputBuffer[offset++];
                     int b2 = outputBuffer[offset++];
                     if (debug) printf(" RLE16(%d x 0x%02X%02X)", cnt, b1,b2);
@@ -372,9 +408,44 @@ bool testOutputSCF(SONG *s, int songidx) {
                 }
                 break;
 
+                case RLE24BITS:     // min count is 2
+                {
+                    // cnt is thus 1 bit smaller
+                    int cnt = (outputBuffer[offset++]&0x1f)+2;
+                    int b1 = outputBuffer[offset++];
+                    int b2 = outputBuffer[offset++];
+                    int b3 = outputBuffer[offset++];
+                    if (debug) printf(" RLE24(%d x 0x%02X%02X%02X)", cnt, b1,b2,b3);
+                    while (cnt--) {
+                        t->outStream[st][t->streamCnt[st]++] = b1;
+                        t->outStream[st][t->streamCnt[st]++] = b2;
+                        t->outStream[st][t->streamCnt[st]++] = b3;
+                    }
+                }
+                break;
+
+                case RLE32BITS:     // min count is 2
+                {
+                    // cnt is thus 1 bit smaller
+                    int cnt = (outputBuffer[offset++]&0x1f)+2;
+                    int b1 = outputBuffer[offset++];
+                    int b2 = outputBuffer[offset++];
+                    int b3 = outputBuffer[offset++];
+                    int b4 = outputBuffer[offset++];
+                    if (debug) printf(" RLE32(%d x 0x%02X%02X%02X%02X)", cnt, b1,b2,b3,b4);
+                    while (cnt--) {
+                        t->outStream[st][t->streamCnt[st]++] = b1;
+                        t->outStream[st][t->streamCnt[st]++] = b2;
+                        t->outStream[st][t->streamCnt[st]++] = b3;
+                        t->outStream[st][t->streamCnt[st]++] = b4;
+                    }
+                }
+                break;
+
                 case RLEBITS:       // min count is 3
                 {
-                    int cnt = (outputBuffer[offset++]&0x3f)+3;
+                    // cnt is thus 1 bit smaller
+                    int cnt = (outputBuffer[offset++]&0x1f)+3;
                     int b1 = outputBuffer[offset++];
                     if (debug) printf(" RLE(%d x 0x%02X)", cnt, b1);
                     while (cnt--) {
@@ -383,6 +454,7 @@ bool testOutputSCF(SONG *s, int songidx) {
                 }
                 break;
 
+                case INLINEBITS2:
                 case INLINEBITS:    // min count is 1
                 {
                     int cnt = (outputBuffer[offset++]&0x3f)+1;
@@ -605,15 +677,88 @@ int RLE16size(int *str, int cnt) {
     return out;
 }
 
+// return how many repeated three-int cases exist at the passed in location, no more than cnt ints exist
+// does NOT include the first one!
+int RLE24size(int *str, int cnt) {
+    if (cnt < 4) return 0;
+
+    int out = 0;
+    int match1 = *(str++);
+    int match2 = *(str++);
+    int match3 = *(str++);
+    cnt -= 3;
+
+    while (cnt >= 3) {
+        if (*(str++) == match1) {
+            if (*(str++) == match2) {
+                if (*(str++) == match3) {
+                    ++out;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+        cnt -= 3;
+    }
+
+    return out;
+}
+
+// return how many repeated four-int cases exist at the passed in location, no more than cnt ints exist
+// does NOT include the first one!
+int RLE32size(int *str, int cnt) {
+    if (cnt < 4) return 0;
+
+    int out = 0;
+    int match1 = *(str++);
+    int match2 = *(str++);
+    int match3 = *(str++);
+    int match4 = *(str++);
+    cnt -= 4;
+
+    while (cnt >= 4) {
+        if (*(str++) == match1) {
+            if (*(str++) == match2) {
+                if (*(str++) == match3) {
+                    if (*(str++) == match4) {
+                        ++out;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+        cnt -= 4;
+    }
+
+    return out;
+}
+
 // string search a stream for all full and partial string matches
 // - the source string is str and is strLen ints long
 // - the search space is buf and is bufLen ints long
 // - bestLen holds the longest match found
+// - scores must be longer than bestBwd to be added to the total
 // - return value is the total of all matches (full and partial) found
 // Note that buf is allowed to overlap str, and we should deal with that
-int stringSearch(int *str, int strLen, int *buf, int bufLen, int &bestLen) {
-    int totalOut = 0;
+int stringSearch(int *str, int strLen, int *buf, int bufLen, int &bestLen, int bestBwd) {
     bestLen = 0;
+    int bestScore = 0;
+    int score = 0;
+
+    if (strLen > 64) {
+        strLen = 64;
+    }
 
     // matches need to be at least 4 bytes long
     for (int x=0; x<bufLen; ++x) {
@@ -624,15 +769,26 @@ int stringSearch(int *str, int strLen, int *buf, int bufLen, int &bestLen) {
         }
         if (x+tmpLen >= bufLen) continue;
 
-        for (int cnt = 4; cnt < tmpLen; ++cnt) {
+        score = 0;
+        bool update = false;
+
+        for (int cnt = tmpLen-1; cnt >= 4; --cnt) {
             if (0 == memcmp(str, &buf[x], cnt)) {   // matching ints to ints, with byte padding, should always work
                 bestLen = cnt;
-                totalOut += cnt;
+                update = true;
+                if (cnt > bestBwd) {
+                    score += cnt-bestBwd;
+                }
+                break;
             }
+        }
+
+        if (update) {
+            bestScore = score;
         }
     }
 
-    return totalOut;
+    return bestScore;
 }
 
 // string search a char memory buffer for all full and partial string matches
@@ -644,6 +800,11 @@ int stringSearch(int *str, int strLen, int *buf, int bufLen, int &bestLen) {
 int memorySearch(int *str, int strLen, unsigned char *buf, int bufLen, int &bestLen, int &bestPos) {
     int totalOut = 0;
     bestLen = 0;
+
+    // maximum backref len is 67 bytes
+    if (strLen > 67) {
+        strLen = 67;
+    }
 
     // matches need to be at least 4 bytes long
     for (int cnt = 4; cnt < strLen; ++cnt) {
@@ -674,105 +835,135 @@ bool compressStream(int song, int st) {
     int *str = songs[song].outStream[st];
     int cnt = songs[song].streamCnt[st];
 
-    // tuning as noted below. You can't change this as the unpacker hard codes it too,
-    // but having this information provides clarity. These are the 1 byte saved thresholds.
-    const int RLECOST=3;        // AAA -> xA    0-63 means 3 to 66 times
-    const int RLE16COST=2;      // ABAB -> xAB  0-63 means 2 to 65 times
-    const int BACKREFCOST=4;    // 1234 -> xOO  0-63 means 1 to 64 bytes
-
     // maximum size
     const int MAXSIZE = 63;         // 00111111
 
+    // counter for debug throttling
     int dbg = 0;
+
+    // used for collapsing consecutive inlines
+    bool lastWasFwd = false;
+    int lastFwdPos = 0;
+    int lastFwdSize = 0;
 
     while (cnt > 0) {
         if (verbose) {
             if (dbg++ % 100 == 0) {
-                printf("  %5d rows (%2d passes) remain...      \b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b", cnt, MAXRUN-minRun);
+                printf("  %5d rows (%2d passes) remain...      \b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b", cnt, minRunMax-minRun);
             }
         }
+
         // First, check if this is a single-byte RLE run (must be at least 3 bytes, 0-63 means 3-66 times)
-        int x = RLEsize(str, cnt);
-        if (x >= 2) {
-            // we need 2 bytes space to encode
-            if (outputPos >= sizeof(outputBuffer)-2) {
-                printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
-                return false;
-            }
-
-            // '2' means this one, plus 2 more, so that's three. We encode that as zero. There's also an upper limit.
-            x -= 2;
-            if (x > MAXSIZE) x=MAXSIZE;   // that's all the bits we have
-            outputBuffer[outputPos++] = RLEBITS | x;
-            outputBuffer[outputPos++] = (*str) & 0xff;
-
-            // update the input position - careful of the offset tweaking above
-            str += x+3;
-            cnt -= x+3;
-            ++minRunData[minRun].cntRLEs;
-            continue;
+        // Forcing minRun on the RLE typically results in worse performance
+        int rleRun = 0;
+        if (!noRLE) {
+            rleRun = RLEsize(str, cnt);
+            if (rleRun < 2) rleRun = 0;
+            if (rleRun > 34) rleRun = 34;
+        }
+        int rle16Run = 0;
+        if (!noRLE16) {
+            rle16Run = RLE16size(str, cnt);
+            if (rle16Run < 1) rle16Run = 0; // isn't that obvious? ;)
+            if (rle16Run > 32) rle16Run = 32;
+        }
+        int rle24Run = 0;
+        if (!noRLE24) {
+            rle24Run = RLE24size(str, cnt);
+            if (rle24Run < 1) rle24Run = 0;
+            if (rle24Run > 32) rle24Run = 32;
+        }
+        int rle32Run = 0;
+        if (!noRLE32) {
+            rle32Run = RLE32size(str, cnt);
+            if (rle32Run < 1) rle32Run = 0;
+            if (rle32Run > 32) rle32Run = 32;
         }
 
-        // Second, check if this is a 16-bit RLE run (must be at least twice, 0-63 means 2-65 times)
-        x = RLE16size(str, cnt);
-        if (x >= 1) {
-            // we need 3 bytes space to encode
-            if (outputPos >= sizeof(outputBuffer)-3) {
-                printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
-                return false;
-            }
-
-            // '1' means this one, plus 1 more, so that's two. We encode that as zero. There's also an upper limit.
-            x -= 1;
-            if (x > MAXSIZE) x=MAXSIZE;   // that's all the bits we have
-            outputBuffer[outputPos++] = RLE16BITS | x;
-            outputBuffer[outputPos++] = (*(str)) & 0xff;
-            outputBuffer[outputPos++] = (*(str+1)) & 0xff;
-
-            // update the input position - careful of the offset tweaking above
-            str += (x+2)*2;
-            cnt -= (x+2)*2;
-            ++minRunData[minRun].cntRLE16s;
-            continue;
-        }
-
+        // then check for string matches
         // The optimization of string searches makes or breaks this algorithm.
 
         // Find the ending point of this string (must be at least 1 byte, 0-63 means 1-64, or stop at first matching RLE)
-        int *endpoint = str+(cnt < 64 ? cnt : 64);        // maximum possible run
-        for (int idx=1; idx<64; ++idx) {
-            if ((RLEsize(str+idx, cnt-idx) >= 2) || (RLE16size(str+idx, cnt-idx) >= 1)) {
-                endpoint = str + idx;
-                break;
+        int thisLen = (cnt < 68 ? cnt : 68);        // maximum possible run - cnt is rows remaining in data
+
+        // determine if there are any good overlaps inside this string
+        // and stop at the first repeated data, if there are. We do this by sliding the string over itself
+        // and checking how many sequential matches we find.
+        // for each possible offset. Either search may benefit.
+        if ((!noFwdSearch)||(!noBwdSearch)) {
+            int match=0;
+            int matchpos=0;
+            int bestmatch=0;
+            int bestpos=0;
+            for (int off=1; off<thisLen; ++off) {
+                // it's okay to search off the string if there's room
+                // tested checking only half the string, but that was worse
+                int testlen = (off+thisLen > cnt ? cnt : thisLen);
+                for (int tst=0; tst<testlen; ++tst) {
+                    if (str[off+tst] != str[tst]) {
+                        // we don't break cause we are looking for ANY substrings
+                        // but we have to clear the counters
+                        match = 0;
+                        matchpos = 0;
+                    } else {
+                        if (match == 0) {
+                            match=1;
+                            matchpos=off+tst;
+                        } else {
+                            ++match;
+                            if (match > bestmatch) {
+                                // skipping early is much worse - this search is worth it
+                                bestmatch=match;
+                                bestpos=matchpos;
+                            }
+                        }
+                    }
+                }
+            }
+            if (bestmatch >= 4) {
+                thisLen = bestpos;  // since we're based at 0
             }
         }
-        int thisLen = endpoint - str;
-        // now we have a string from str to endpoint (non-inclusive), length of thisLen
+
+        // now we have a string at str, length of thisLen
 
         // Search forward and see how many times this string or any subset of it matches, save the best hit (minimum 4 bytes) AND the total
         int bestFwd = 0;
         int bestBwd = 0;
         int bestBwdPos = 0;
 
-        // note that we include the region INSIDE the current string, just in case!
-        int off = thisLen > 8 ? 8: thisLen;
-        int fwdSearch = stringSearch(str, thisLen, str+off, cnt-off, bestFwd);
+        // Search backward and see if this string or any subset matches, save the best hit (minimum 4 bytes)
+        // Don't need to save the total, it doesn't help us here.
+        if (!noBwdSearch) {
+            memorySearch(str, thisLen, outputBuffer, outputPos, bestBwd, bestBwdPos);
+        }
 
-        // now check the remaining streams for forward refs
-        for (int sng=song; sng<currentSong; ++sng) {
-            for (int stx=(sng==song?st+1:0); stx<MAXSTREAMS; ++stx) {
-                int altbest = 0;
-                int altSearch = stringSearch(str, thisLen, songs[sng].outStream[stx], songs[sng].streamCnt[stx], altbest);
-                if ((altSearch > fwdSearch) && (altbest >= bestFwd)) {
-                    fwdSearch = altSearch;
-                    bestFwd = altbest;
+        // now try the forward search
+        int fwdSearch = 0;
+        bestFwd = 0;
+        if (!noFwdSearch) {
+            // note that we include the region INSIDE the current string, just in case!
+            // We only score runs longer than the best backwards ref, since the backref
+            // would win those anyway.
+            int off = thisLen > 8 ? 8: thisLen;
+            fwdSearch = stringSearch(str, thisLen, str+off, cnt-off, bestFwd, bestBwd);
+            if (bestFwd < 4+minRun) {
+                fwdSearch = 0;
+                bestFwd = 0;
+            }
+
+            // now check the remaining streams for forward refs
+            for (int sng=song; sng<currentSong; ++sng) {
+                for (int stx=(sng==song?st+1:0); stx<MAXSTREAMS; ++stx) {
+                    int altbest = 0;
+                    int altSearch = stringSearch(str, thisLen, songs[sng].outStream[stx], songs[sng].streamCnt[stx], altbest, bestBwd);
+                    if (altbest < 4+minRun) altSearch = 0;
+                    if (altbest >= bestFwd) {
+                        bestFwd = altbest;
+                    }
                 }
             }
         }
-
-        // Search backward and see if this string or any subset matches, save the best hit (minimum 4 bytes)
-        // Don't need to save the total, it doesn't help us here.
-        memorySearch(str, thisLen, outputBuffer, outputPos, bestBwd, bestBwdPos);
 
         // fwdSearch contains the expected bytes saved (minus the backreference costs) if we save bestFwd bytes
         // as a string. bestBwd contains the best backwards match for this string.
@@ -782,12 +973,14 @@ bool compressStream(int song, int st) {
         // but in theory it should turn out nicely. It might be a place to try a tuning parameter and go
         // for some level of additional slack...
         bool isBackref = false;
+        bool fakeFwd = false;
         if ((bestBwd >= 4+minRun) && (bestFwd >= 4+minRun)) {
             // if we found both, decide which one to use
             if (bestBwd >= bestFwd) {
                 // the later refs can use the same backref we found
                 isBackref = true;
-            } else if (fwdSearch > bestBwd-3) {
+            } else if (fwdSearch > bestBwd*3) {     // *3 seems to be the sweet spot, hand-tuned
+                // a backref is normally the better case, so I fudge it here with hand-tuned values
                 // we are probably the best case for those later matches
                 isBackref = false;
             } else {
@@ -798,11 +991,190 @@ bool compressStream(int song, int st) {
             // we have backward but no forward
             isBackref = true;
         } else if (bestFwd < 4+minRun) {
-            // we have nothing, not even a forward, so fake it
+            // we have nothing, not even a forward, so check for RLE to end the string
+            for (int idx=1; idx<thisLen; ++idx) {
+                if (!noRLE) {
+                    if (RLEsize(str+idx, cnt-idx) >= 2) {
+                        thisLen = idx;
+                        break;
+                    }
+                }
+                if (!noRLE16) {
+                    if (RLE16size(str+idx, cnt-idx) >= 1) {
+                        thisLen = idx;
+                        break;
+                    }
+                }
+                if (!noRLE24) {
+                    if (RLE24size(str+idx, cnt-idx) >= 1) {
+                        thisLen = idx;
+                        break;
+                    }
+                }
+                if (!noRLE32) {
+                    if (RLE32size(str+idx, cnt-idx) >= 1) {
+                        thisLen = idx;
+                        break;
+                    }
+                }
+            }
+
             bestFwd = thisLen;
+            fakeFwd = true;     // tells us to ignore forward for RLE test
         }
 
+        // finally, determine whether we should RLE instead of doing a string
+        // we only need one flag, since both RLEs are not possible
+        bool doRLE = false;
         if (isBackref) {
+            if (rleRun > bestBwd) doRLE=true;
+            if (rle16Run*2 > bestBwd) doRLE=true;
+            if (rle24Run*3 > bestBwd) doRLE=true;
+            if (rle32Run*4 > bestBwd) doRLE=true;
+        } else {
+            if (fakeFwd) doRLE=true;    // okay even if we don't have an RLE
+            if (rleRun > bestFwd) doRLE=true;
+            if (rle16Run*2 > bestFwd) doRLE=true;
+            if (rle24Run*3 > bestFwd) doRLE=true;
+            if (rle32Run*4 > bestFwd) doRLE=true;
+        }
+
+        if (debug2) {
+            printf("[%d] Search: %3d BestBwd: %3d BestFwd: %3d%s FwdSearch: %5d RLE: %3d RLE16: %3d RLE24: %3d  RLE32: %3d Decided: ", 
+                minRun, thisLen, bestBwd, bestFwd, fakeFwd?"*":" ", fwdSearch,
+                rleRun, rle16Run, rle24Run, rle32Run);
+        }
+
+        if (doRLE) {
+            // if we don't have an RLE (such as possible in the fakeFwd case)
+            // then we'll fall out of here into ths string handler
+            if (rle16Run*2 > rleRun) {
+                // force use of the 16-bit one instead - rare case but larger range
+                rleRun = 0;
+            }
+            if (rle24Run*3 > rleRun) {
+                // force use of the 24-bit one instead - rare case but larger range
+                rleRun = 0;
+            }
+            if (rle24Run*3 > rle16Run*2) {
+                // force use of the 24-bit one instead - rare case but larger range
+                rle16Run = 0;
+            }
+            if (rle32Run*4 > rleRun) {
+                // force use of the 32-bit one instead - rare case but larger range
+                rleRun = 0;
+            }
+            if (rle32Run*4 > rle24Run*3) {
+                // force use of the 32-bit one instead - rare case but larger range
+                rle24Run = 0;
+            }
+            if (rle32Run*4 > rle16Run*2) {
+                // force use of the 32-bit one instead - rare case but larger range
+                rle16Run = 0;
+            }
+
+            // the RLEs have already been gated by minimum size, so if not zero they are valid
+            if (rleRun > 0) {
+                if (debug2) printf("RLE\n");
+                lastWasFwd = false;
+                // we need 2 bytes space to encode
+                if (outputPos >= sizeof(outputBuffer)-2) {
+                    printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
+                    return false;
+                }
+
+                // '2' means this one, plus 2 more, so that's three. We encode that as zero. There's also an upper limit.
+                rleRun -= 2;
+                if (rleRun > 31) rleRun=31;   // that's all the bits we have
+                outputBuffer[outputPos++] = RLEBITS | rleRun;
+                outputBuffer[outputPos++] = (*str) & 0xff;
+
+                // update the input position - careful of the offset tweaking above
+                str += rleRun+3;
+                cnt -= rleRun+3;
+                ++minRunData[minRun].cntRLEs.cnt;
+                minRunData[minRun].cntRLEs.total += rleRun;
+                continue;
+            }
+            if (rle16Run > 0) {
+                if (debug2) printf("RLE16\n");
+                lastWasFwd = false;
+                // we need 3 bytes space to encode
+                if (outputPos >= sizeof(outputBuffer)-3) {
+                    printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
+                    return false;
+                }
+
+                // '1' means this one, plus 1 more, so that's two. We encode that as zero. There's also an upper limit.
+                rle16Run -= 1;
+                // we don't have MAXSIZE here
+                if (rle16Run > 0x1f) rle16Run=0x1f;   // that's all the bits we have
+                outputBuffer[outputPos++] = RLE16BITS | rle16Run;
+                outputBuffer[outputPos++] = (*(str)) & 0xff;
+                outputBuffer[outputPos++] = (*(str+1)) & 0xff;
+
+                // update the input position - careful of the offset tweaking above
+                str += (rle16Run+2)*2;
+                cnt -= (rle16Run+2)*2;
+                ++minRunData[minRun].cntRLE16s.cnt;
+                minRunData[minRun].cntRLE16s.total += rle16Run;
+                continue;
+            }
+            if (rle24Run > 0) {
+                if (debug2) printf("RLE24\n");
+                lastWasFwd = false;
+                // we need 4 bytes space to encode
+                if (outputPos >= sizeof(outputBuffer)-4) {
+                    printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
+                    return false;
+                }
+
+                // '1' means this one, plus 1 more, so that's two. We encode that as zero. There's also an upper limit.
+                rle24Run -= 1;
+                if (rle24Run > 31) rle24Run=31;   // that's all the bits we have
+                outputBuffer[outputPos++] = RLE24BITS | rle24Run;
+                outputBuffer[outputPos++] = (*(str)) & 0xff;
+                outputBuffer[outputPos++] = (*(str+1)) & 0xff;
+                outputBuffer[outputPos++] = (*(str+2)) & 0xff;
+
+                // update the input position - careful of the offset tweaking above
+                str += (rle24Run+2)*3;
+                cnt -= (rle24Run+2)*3;
+                ++minRunData[minRun].cntRLE24s.cnt;
+                minRunData[minRun].cntRLE24s.total += rle24Run;
+                continue;
+            }
+            if (rle32Run > 0) {
+                if (debug2) printf("RLE32\n");
+                lastWasFwd = false;
+                // we need 5 bytes space to encode
+                if (outputPos >= sizeof(outputBuffer)-5) {
+                    printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
+                    return false;
+                }
+
+                // '1' means this one, plus 1 more, so that's two. We encode that as zero. There's also an upper limit.
+                rle32Run -= 1;
+                if (rle32Run > 31) rle32Run=31;   // that's all the bits we have
+                outputBuffer[outputPos++] = RLE32BITS | rle32Run;
+                outputBuffer[outputPos++] = (*(str)) & 0xff;
+                outputBuffer[outputPos++] = (*(str+1)) & 0xff;
+                outputBuffer[outputPos++] = (*(str+2)) & 0xff;
+                outputBuffer[outputPos++] = (*(str+3)) & 0xff;
+
+                // update the input position - careful of the offset tweaking above
+                str += (rle32Run+2)*4;
+                cnt -= (rle32Run+2)*4;
+                ++minRunData[minRun].cntRLE32s.cnt;
+                minRunData[minRun].cntRLE32s.total += rle32Run;
+                continue;
+            }
+        }
+
+        // handle it as a string
+        if (isBackref) {
+            if (debug2) printf("Back\n");
+            lastWasFwd = false;
             // we need 3 bytes space to encode
             if (outputPos >= sizeof(outputBuffer)-3) {
                 printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
@@ -819,26 +1191,82 @@ bool compressStream(int song, int st) {
             // update the input position - careful of the offset tweaking above
             str += bestBwd+4;
             cnt -= bestBwd+4;
-            ++minRunData[minRun].cntBacks;
+            ++minRunData[minRun].cntBacks.cnt;
+            minRunData[minRun].cntBacks.total += bestBwd;
             continue;
         } else {
-            // inline string - 1 + length bytes space to encode
-            if (outputPos >= (signed)sizeof(outputBuffer)-bestFwd-1) {
-                printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
-                return false;
-            }
+            if (debug2) if (fakeFwd) printf("FakeFwd"); else printf("Fwd");
 
-            // 1 is the smallest legal length, so map it down
-            bestFwd -= 1;
-            if (bestFwd > MAXSIZE) bestFwd=MAXSIZE;   // that's all the bits we have
-            outputBuffer[outputPos++] = INLINEBITS | bestFwd;
-            for (int idx=0; idx<=bestFwd; ++idx) {
-                outputBuffer[outputPos++] = ((*(str++)) & 0xff);
-                --cnt;
-            }
+            // if the last was also an inline reference, we might collapse this one
+            // into it, if it fits. This is simpler than changing the code which
+            // tries to decide how much of an inline to evaluate.
+            // The maximum size of a forward is 64 bytes - if this one
+            // will not fit, then we don't bother. Two sequences are two sequences,
+            // and it doesn't matter if one is full. It may be better not, if the
+            // earlier code correctly detected a split point.
+            if ((lastWasFwd) && (lastFwdSize+bestFwd <= 64)) {
+                if (debug2) printf(" (Merged)\n");
 
-            // Already updated position and cnt above
-            ++minRunData[minRun].cntInlines;
+                // inline string - just need to add the length to the old encoding
+                if (outputPos >= (signed)sizeof(outputBuffer)-bestFwd) {
+                    printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
+                    return false;
+                }
+
+                // fix up the size output - remember the /actual/ size, not the encoded one
+                // lastWasFwd and lastFwdPos don't change.
+                lastFwdSize += bestFwd;
+                // subtract 1 when encoding for the minimum count of 1 entry
+                outputBuffer[lastFwdPos] = INLINEBITS | (lastFwdSize-1);
+
+                // now append the bytes
+                // we do the subtraction here just to make the loop the same as below
+                --bestFwd;
+                for (int idx=0; idx<=bestFwd; ++idx) {
+                    outputBuffer[outputPos++] = ((*(str++)) & 0xff);
+                    --cnt;
+                }
+
+                // we'll update the appropriate total, but stats gets screwy here
+                // we'll end up mixing fakes and fwds, but it'll probably be close enough
+                // Don't update the count, though, we didn't add a new one!
+                if (fakeFwd) {
+                    minRunData[minRun].cntInlines.total += lastFwdSize-1;
+                } else {
+                    minRunData[minRun].cntFwds.total += lastFwdSize-1;
+                }
+            } else {
+                if (debug2) printf("\n");
+
+                // remember this one - store size BEFORE we subtract 1
+                lastWasFwd = true;
+                lastFwdPos = outputPos;
+                lastFwdSize = bestFwd;
+
+                // inline string - 1 + length bytes space to encode
+                if (outputPos >= (signed)sizeof(outputBuffer)-bestFwd-1) {
+                    printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
+                    return false;
+                }
+
+                // 1 is the smallest legal length, so map it down
+                bestFwd -= 1;
+                if (bestFwd > MAXSIZE) bestFwd=MAXSIZE;   // that's all the bits we have
+                outputBuffer[outputPos++] = INLINEBITS | bestFwd;
+                for (int idx=0; idx<=bestFwd; ++idx) {
+                    outputBuffer[outputPos++] = ((*(str++)) & 0xff);
+                    --cnt;
+                }
+
+                // Already updated position and cnt above
+                if (fakeFwd) {
+                    ++minRunData[minRun].cntInlines.cnt;
+                    minRunData[minRun].cntInlines.total += bestFwd;
+                } else {
+                    ++minRunData[minRun].cntFwds.cnt;
+                    minRunData[minRun].cntFwds.total += bestFwd;
+                }
+            }
             continue;
         }
     }
@@ -875,6 +1303,9 @@ int main(int argc, char *argv[])
             if (argv[idx][1] == 'h') {
                 // cover 'help' by not loading the filename arg
                 break;
+            } else if ((argv[idx][1] == 'd')&&(argv[idx][2] == 'd')) {
+                // secret: "-dd" for encoding debug. You still need "-d" for the test debug
+                debug2 = true;
             } else if (argv[idx][1] == 'd') {
                 debug = true;
             } else if (argv[idx][1] == 'v') {
@@ -895,29 +1326,78 @@ int main(int argc, char *argv[])
                     printf("Can't select both PSG and AY options.\n");
                     return 1;
                 }
+            } else if (0 == strcmp(argv[idx], "-minrun")) {
+                ++idx;
+                if (idx>=argc) {
+                    printf("Not enough arguments for minrun!\n");
+                    return 1;
+                }
+                if (2 != sscanf(argv[idx], "%d,%d", &minRunMin, &minRunMax)) {
+                    printf("Parse error on minrun, must be like: -minrun 0,7\n");
+                    return 1;
+                }
+                ++minRunMax;
+                if (minRunMax < minRunMin) {
+                    printf("MinRunMax must be larger than MinRunMin, got %d,%d\n", minRunMin, minRunMax);
+                    return 1;
+                }
+                if (minRunMax >= MAXRUN) {
+                    printf("MinRunMax must be less than %d\n", MAXRUN);
+                    return 1;
+                }
+            } else if (0 == strcmp(argv[idx], "-norle")) {
+                noRLE = true;
+            } else if (0 == strcmp(argv[idx], "-norle16")) {
+                noRLE16 = true;
+            } else if (0 == strcmp(argv[idx], "-norle24")) {
+                noRLE24 = true;
+            } else if (0 == strcmp(argv[idx], "-norle32")) {
+                noRLE32 = true;
+            } else if (0 == strcmp(argv[idx], "-nofwd")) {
+                noFwdSearch = true;
+            } else if (0 == strcmp(argv[idx], "-nobwd")) {
+                noBwdSearch = true;
+                noFwdSearch = true; // no point searching forward if a back search will never find it
             } else {
                 printf("Unknown switch '%s'\n", argv[idx]);
             }
         } else {
-            if (strlen(szFileOut) == 0) {
-                strcpy(szFileOut, argv[idx]);
-                nextarg = idx+1;
-                break;
-            }
+            // no more arguments, into the filenames
+            nextarg = idx;
+            break;
         }
     }
+
+    // get the output file as the last one
+    if (nextarg < argc-1) {
+        strcpy(szFileOut, argv[argc-1]);
+        --argc;
+    } else {
+        printf("Not enough input and output arguments!\n");
+        return 1;
+    }
+
     if ((strlen(szFileOut)==0)||((isAY==false)&&(isPSG==false))) {
         if ((isAY==false)&&(isPSG==false)) {
             printf("* You must specify -ay or -psg for output type\n");
         }
-        printf("vgmcomp2 [-d] [-v] <-ay|-psg> <filenameout.scf> <filenamein1.psg> [<filenamein2.psg>...]\n");
-        printf("Provides a compressed (sound compressed format) file from\n");
+        printf("vgmcomp2 [-d] [-dd] [-v] [-minrun s,e] [-norle] [-norle16] [-norle24] [-norle32] [-nofwd] [-nobwd] <-ay|-psg> <filenamein1.psg> [<filenamein2.psg>...] <filenameout.scf>\n");
+        printf("\nProvides a compressed (sound compressed format) file from\n");
         printf("an input file containing either PSG or AY-3-8910 data\n");
         printf("Except for the noise handling, the output is the same.\n");
         printf("Specify either -ay for the AY-3-8910 data or -psg for PSG data\n");
-        printf("Then input file and output filename.\n");
-        printf("-d - add extra parser debug output\n");
+        printf("Then input file(s) and lastly output filename.\n");
+        printf("\n-d - add extra parser debug output\n");
+        printf("-dd - add extra compressor debug output (does not include -d)\n");
         printf("-v - add extra verbose information\n");
+        printf("-minrun - specify start and end for minrun search. Default %d,%d. Maximum 0,20\n", minRunMin, minRunMax);
+        printf("\nThe following tuning options may very rarely be helpful. They apply to the SCF compression and not the initial RLE pack:\n");
+        printf("-norle - disable single-byte RLE encoding\n");
+        printf("-norle16 - disable 16-bit RLE encoding\n");
+        printf("-norle24 - disable 24-bit RLE encoding\n");
+        printf("-norle32 - disable 32-bit RLE encoding\n");
+        printf("-nofwd - disable forward searching\n");
+        printf("-nobwd - disable backward searching (unlikely to be useful)\n");
         return 1;
     }
 
@@ -1048,10 +1528,13 @@ int main(int argc, char *argv[])
     outputPos = NOTETABLE+2;
 
     // store totals here
-    minRunData[MAXRUN].cntBacks = 0;
-    minRunData[MAXRUN].cntInlines = 0;
-    minRunData[MAXRUN].cntRLE16s = 0;
-    minRunData[MAXRUN].cntRLEs = 0;
+    minRunData[MAXRUN].cntBacks.reset();
+    minRunData[MAXRUN].cntFwds.reset();
+    minRunData[MAXRUN].cntInlines.reset();
+    minRunData[MAXRUN].cntRLE32s.reset();
+    minRunData[MAXRUN].cntRLE24s.reset();
+    minRunData[MAXRUN].cntRLE16s.reset();
+    minRunData[MAXRUN].cntRLEs.reset();
 
     // Individually compress each of the 9 channels (all treated the same)
     for (int song=0; song<currentSong; ++song) {
@@ -1070,11 +1553,14 @@ int main(int argc, char *argv[])
             int bestRun = 0;
             int bestSize = 65536;
 
-            for (minRun = 0; minRun < MAXRUN; ++minRun) {
-                minRunData[minRun].cntBacks = 0;
-                minRunData[minRun].cntInlines = 0;
-                minRunData[minRun].cntRLE16s = 0;
-                minRunData[minRun].cntRLEs = 0;
+            for (minRun = minRunMin; minRun < minRunMax; ++minRun) {
+                minRunData[minRun].cntBacks.reset();
+                minRunData[minRun].cntFwds.reset();
+                minRunData[minRun].cntInlines.reset();
+                minRunData[minRun].cntRLE32s.reset();
+                minRunData[minRun].cntRLE24s.reset();
+                minRunData[minRun].cntRLE16s.reset();
+                minRunData[minRun].cntRLEs.reset();
 
                 outputPos = songs[song].streamOffset[st];
 
@@ -1082,11 +1568,18 @@ int main(int argc, char *argv[])
                     return 1;
                 }
 
+                if (debug2) {
+                    printf("[%d] got size %d", minRun, outputPos-songs[song].streamOffset[st]);
+                }
+
                 if (outputPos-songs[song].streamOffset[st] < bestSize) {
+                    if (debug2) printf(" (BEST!)");
                     bestSize = outputPos-songs[song].streamOffset[st];
                     bestRun = minRun;
                     memcpy(bestRunBuffer, &outputBuffer[songs[song].streamOffset[st]], bestSize);
                 }
+
+                if (debug2) printf("\n");
             }
 
             // reload the best one...
@@ -1095,7 +1588,10 @@ int main(int argc, char *argv[])
             outputPos = songs[song].streamOffset[st] + bestSize;
             // update totals
             minRunData[MAXRUN].cntBacks += minRunData[bestRun].cntBacks;
+            minRunData[MAXRUN].cntFwds += minRunData[bestRun].cntFwds;
             minRunData[MAXRUN].cntInlines += minRunData[bestRun].cntInlines;
+            minRunData[MAXRUN].cntRLE32s += minRunData[bestRun].cntRLE32s;
+            minRunData[MAXRUN].cntRLE24s += minRunData[bestRun].cntRLE24s;
             minRunData[MAXRUN].cntRLE16s += minRunData[bestRun].cntRLE16s;
             minRunData[MAXRUN].cntRLEs += minRunData[bestRun].cntRLEs;
 #else
@@ -1166,6 +1662,34 @@ int main(int argc, char *argv[])
     // it all seems to have worked
     printf("Successful!\n");
 
+#ifdef _DEBUG
+    // dump the compressed streams so I can look at them
+    for (int song=0; song<currentSong; ++song) {
+        for (int st=0; st<MAXSTREAMS; ++st) {
+            char buf[128];
+            sprintf(buf, "D:\\new\\stream%d_%d.scf", song, st);
+            FILE *fp=fopen(buf, "wb");
+            // can just dump it now that it's binary
+            int start = songs[song].streamOffset[st];
+            int end;
+            if (st == MAXSTREAMS-1) {
+                if (song == currentSong-1) {
+                    // last stream, last song, take till the note table
+                    end = outputBuffer[NOTETABLE]*256+outputBuffer[NOTETABLE+1];
+                } else {
+                    // last stream, more songs, take till the next song's first stream
+                    end = songs[song+1].streamOffset[0];
+                }
+            } else {
+                // more streams, take till the next stream
+                end = songs[song].streamOffset[st+1];
+            }
+            fwrite(&outputBuffer[start], 1, end-start, fp);
+            fclose(fp);
+        }
+    }
+#endif
+
     // emit some stats
     int totalRows = 0;
     for (int idx=0; idx<currentSong; ++idx) {
@@ -1176,10 +1700,13 @@ int main(int argc, char *argv[])
            currentSong, totalTime, outputPos, int(outputPos / totalTime * 1000 + 0.5) / 1000.0);
 
     if (verbose) {
-        printf("  %d RLE encoded sequences\n", minRunData[MAXRUN].cntRLEs);
-        printf("  %d RLE16 encoded sequences\n", minRunData[MAXRUN].cntRLE16s);
-        printf("  %d backref sequences\n", minRunData[MAXRUN].cntBacks);
-        printf("  %d inline sequences\n", minRunData[MAXRUN].cntInlines);
+        printf("  %d RLE encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLEs.cnt, minRunData[MAXRUN].cntRLEs.avg(3));
+        printf("  %d RLE16 encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLE16s.cnt, minRunData[MAXRUN].cntRLE16s.avg(2));
+        printf("  %d RLE24 encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLE24s.cnt, minRunData[MAXRUN].cntRLE24s.avg(2));
+        printf("  %d RLE32 encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLE32s.cnt, minRunData[MAXRUN].cntRLE32s.avg(2));
+        printf("  %d backref sequences, avg length %d\n", minRunData[MAXRUN].cntBacks.cnt, minRunData[MAXRUN].cntBacks.avg(4));
+        printf("  %d inline sequences, avg length %d\n", minRunData[MAXRUN].cntInlines.cnt, minRunData[MAXRUN].cntInlines.avg(1));
+        printf("  %d fwdref inlines, avg length %d\n", minRunData[MAXRUN].cntFwds.cnt, minRunData[MAXRUN].cntFwds.avg(1));
     }
 
     // write out the final file

@@ -30,7 +30,7 @@ int VGMVOL[MAXCHANNELS][MAXTICKS];
 bool isNoise[MAXCHANNELS];
 
 bool shownotes = true;                      // whether to scroll the notes
-char NoteTable[4096][4];                    // we'll just lookup the whole range
+char NoteTable[4096][4];                    // note names - we'll just lookup the whole range
 bool testay = false;
 bool testpsg = false;
 
@@ -52,9 +52,13 @@ struct STREAM {
     int curType;    // the mask of the type
 };
 #define TYPEBACKREF 0xc0
+#define TYPEBACKREF2 0xe0
 #define TYPERLE16 0x80
+#define TYPERLE24 0xa0
 #define TYPERLE 0x40
+#define TYPERLE32 0x60
 #define TYPEINLINE 0x00
+#define TYPEINLINE2 0x20
 
 // input: 8 bit unsigned audio (centers on 128)
 // output: 15 (silent) to 0 (max)
@@ -200,8 +204,26 @@ int getByte(STREAM *str, unsigned char *buf) {
 
         switch(str->curType) {
         case TYPEINLINE:
+        case TYPEINLINE2:
         case TYPEBACKREF:
+        case TYPEBACKREF2:
             // just pull a string of bytes
+            return buf[str->curPtr++];
+
+        case TYPERLE32:
+            // pull the last four bytes over and over
+            // mainPtr is assumed already incremented
+            if (str->curPtr == str->mainPtr) {
+                str->curPtr -= 4;
+            }
+            return buf[str->curPtr++];
+
+        case TYPERLE24:
+            // pull the last three bytes over and over
+            // mainPtr is assumed already incremented
+            if (str->curPtr == str->mainPtr) {
+                str->curPtr -= 3;
+            }
             return buf[str->curPtr++];
 
         case TYPERLE16:
@@ -220,9 +242,10 @@ int getByte(STREAM *str, unsigned char *buf) {
 
     // start a new stream
     int x = buf[str->mainPtr++];
-    str->curType = x&0xc0;
+    str->curType = x&0xe0;
     switch (str->curType) {
-    case 0xc0:  // long back reference
+    case TYPEBACKREF:  // long back reference
+    case TYPEBACKREF2:
         str->curPtr = buf[str->mainPtr]*256 + buf[str->mainPtr+1];
         // check for end of stream
         if (str->curPtr == 0) {
@@ -233,19 +256,32 @@ int getByte(STREAM *str, unsigned char *buf) {
         str->curBytes = (x&0x3f) + 4;
         break;
         
-    case 0x80:  // RLE-16
+    case TYPERLE32:  // RLE-32
+        str->curPtr = str->mainPtr;
+        str->mainPtr += 4;
+        str->curBytes = ((x&0x1f) + 2)*4;
+        break;
+
+    case TYPERLE24:  // RLE-24
+        str->curPtr = str->mainPtr;
+        str->mainPtr += 3;
+        str->curBytes = ((x&0x1f) + 2)*3;
+        break;
+
+    case TYPERLE16:  // RLE-16
         str->curPtr = str->mainPtr;
         str->mainPtr += 2;
-        str->curBytes = ((x&0x3f) + 2)*2;
+        str->curBytes = ((x&0x1f) + 2)*2;
         break;
 
-    case 0x40:  // RLE
+    case TYPERLE:  // RLE
         str->curPtr = str->mainPtr;
         str->mainPtr++;
-        str->curBytes = (x&0x3f) + 3;
+        str->curBytes = (x&0x1f) + 3;
         break;
 
-    case 0x00:  // inline
+    case TYPEINLINE:  // inline
+    case TYPEINLINE2:
         str->curPtr = str->mainPtr;
         str->curBytes = (x&0x3f) + 1;
         str->mainPtr += str->curBytes;
@@ -689,14 +725,15 @@ int main(int argc, char *argv[])
         // a comma injected, it's extremely unlikely.
         // Well, that failed on my first test. 0x00. Who knew? So also check that val2 is within the
         // legal position for the end of the file. 
-        memset(buf, 0, sizeof(buf));
-        fread(buf, 1, 4, fp);
+        unsigned char testbuf[4];
+        memset(testbuf, 0, sizeof(testbuf));
+        fread(testbuf, 1, 4, fp);
         fseek(fp, 0, SEEK_END);
         int end = ftell(fp);
         fseek(fp, 0, SEEK_SET);
 
-        int val1=buf[0]*256+buf[1];
-        int val2=buf[2]*256+buf[3];
+        int val1=testbuf[0]*256+testbuf[1];
+        int val2=testbuf[2]*256+testbuf[3];
         if (((val2-val1)%18 == 0) && (val2 < end) && (val2 >= end-512)) {
             printf("SCF import %s...\n", namebuf);
 
