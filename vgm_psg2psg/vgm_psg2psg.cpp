@@ -43,7 +43,7 @@ bool debug = false;                         // dump parser data
 int output = 0;                             // which channel to output (0=all)
 int addout = 0;                             // fixed value to add to the output count
 
-// codes for noise processing (if not periodic, it's white noise)
+// codes for noise processing (if not periodic (types 0-3), it's white noise (types 4-7))
 #define NOISE_MASK     0x00FFF
 #define NOISE_TRIGGER  0x10000
 #define NOISE_PERIODIC 0x20000

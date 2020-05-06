@@ -12,7 +12,7 @@ int VGMDAT[MAXCHANNELS][MAXTICKS];
 int VGMVOL[MAXCHANNELS][MAXTICKS];
 FILE *fp[4];
 
-// codes for noise processing (if not periodic, it's white noise)
+// codes for noise processing (if not periodic (types 0-3), it's white noise (types 4-7))
 // only NOISE_TRIGGER makes it to the output file
 #define NOISE_MASK     0x00FFF
 #define NOISE_TRIGGER  0x10000
@@ -230,7 +230,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (bPeriodic) out += 4;                // make it periodic
+        if (!bPeriodic) out += 4;               // make it white noise
         if (bTrigger) out |= NOISE_TRIGGER;     // save the trigger flag
         VGMDAT[3][idx] = out;                   // record the translated noise
     }

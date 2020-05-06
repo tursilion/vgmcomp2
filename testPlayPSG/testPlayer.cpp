@@ -163,7 +163,7 @@ bool loadDataCSV(FILE *fp, int &chan, int &cnt, int column, bool noise, bool sca
                 if (scalevol) {
                     // the noise needs to be converted back to a shift rate too
                     int mask = VGMDAT[chan][cnt] & NOISE_TRIGGER;
-                    int periodic = VGMDAT[chan][cnt] & 0x4;
+                    int periodic = (VGMDAT[chan][cnt] & 0x4) == 0;
                     int type = VGMDAT[chan][cnt] & 3;
                     switch (type) {
                         case 0: type = 0x10; break;

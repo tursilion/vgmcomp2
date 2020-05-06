@@ -322,6 +322,7 @@ void sound_update(short *buf, int nSamples) {
 			        // Noise output sign goes from negative to positive
 			        if (voice[idx].nNoisePos > 0) {
 				        int in=0;
+                        // note this is using the converter flags, not the hardware type
 				        if (!(voice[idx].nRegister&NOISE_PERIODIC)) {
 					        // white noise - actual tapped bits uncertain?
 					        if (parity(voice[idx].LFSR&nTappedBits)) {
