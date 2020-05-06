@@ -18,6 +18,8 @@
 #include <cmath>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
+#include <time.h>
 #include "sound.h"
 
 extern LPDIRECTSOUNDBUFFER soundbuf;		// sound chip audio buffer
@@ -25,14 +27,24 @@ struct StreamData soundDat;
 
 #define MAXTICKS 432000					    // about 2 hrs, but arbitrary
 #define MAXCHANNELS 100
+#define MAXHEATMAP 45
 int VGMDAT[MAXCHANNELS][MAXTICKS];
 int VGMVOL[MAXCHANNELS][MAXTICKS];
+unsigned int VGMADR[MAXTICKS][MAXHEATMAP];  // a scaled address, always range 0-65535, for heatmap (max read is 4 bytes times 9 streams - 45 bytes (ouch))
 bool isNoise[MAXCHANNELS];
 
 bool shownotes = true;                      // whether to scroll the notes
+bool heatmap = false;                       // show a heatmap for SCF files (forces hidenotes)
 char NoteTable[4096][4];                    // note names - we'll just lookup the whole range
 bool testay = false;
 bool testpsg = false;
+
+// heatmap statistics - gives an average bytes per decode (ignoring frames with no decode)
+int thisHeatMap;
+int totalHeatMap;
+int cntHeatMap;
+int smallestHeatMap = 9999;
+int biggestHeatMap = 0;
 
 // lookup table to map PSG volume to linear 8-bit. AY is assumed close enough.
 // mapVolume assumes the order of this table for mute suppression
@@ -132,11 +144,22 @@ bool loadDataCSV(FILE *fp, int &chan, int &cnt, int column, bool noise, bool sca
     // remember last
     int oldcnt = cnt;
 
+    // get total size for heatmap
+    fseek(fp, 0, SEEK_END);
+    int maxsize=ftell(fp);
+
     // back to start of file
     fseek(fp, 0, SEEK_SET);
 
     cnt = 0;
     while (!feof(fp)) {
+        // just to put something in there, scale to 0-65535
+        for (int idx=1; idx<MAXHEATMAP; ++idx) {
+            VGMADR[cnt][idx] = 0;
+        }
+        // have to divide first to avoid 32-bit int overflow
+        VGMADR[cnt][chan] = (int)(((double)ftell(fp) / maxsize) * 65535);
+
         char b2[256];
         if (fgets(b2, sizeof(b2), fp)) {
             int cols;
@@ -196,8 +219,45 @@ bool loadDataCSV(FILE *fp, int &chan, int &cnt, int column, bool noise, bool sca
     return true;
 }
 
-// unpack a stream byte
-int getByte(STREAM *str, unsigned char *buf) {
+// extract a byte from the buffer, range check it, and
+// add an address to the heatmap adr table (not called in realtime code)
+unsigned char getBufferByte(int cnt, unsigned char *buf, int adr, int maxbytes) {
+    int idx;
+
+    // either of these tripping likely indicates a bug or a corrupt file...
+    if (adr < 0) {
+        printf("* bad SCF unpack address of %d (max %d)\n", adr, maxbytes);
+        exit(0);
+    }
+    if (adr >= maxbytes) {
+        printf("* bad SCF unpack address of %d (max %d)\n", adr, maxbytes);
+        exit(0);
+    }
+
+    // calculate the scaled address (0-65535)
+    unsigned int z = (unsigned int)(((double)adr / maxbytes) * 65535 + 0.5);
+
+    // find the first free data slot for this frame
+    for (idx=0; idx<MAXHEATMAP; ++idx) {
+        if (VGMADR[cnt][idx] == 0) {
+            VGMADR[cnt][idx] = (int)z;
+            break;
+        }
+    }
+
+    // if there's no room, we just ignore it
+    // this is surprisingly useful to provide some end of song statistics on the packing...
+    // we just save the largest value stored - gives us an idea of bytes this frame
+    thisHeatMap = idx+1;
+
+    // either way, return the data requested
+    return buf[adr];
+}
+
+// unpack a stream byte - offset and maxbytes are used to write a scaled
+// address for the heatmap to display later
+// cnt is row count, and maxbytes is used for scaling, max size of data
+int getCompressedByte(STREAM *str, unsigned char *buf, int cnt, int maxbytes) {
     // bytes left in the current stream?
     if (str->curBytes > 0) {
         --str->curBytes;
@@ -208,7 +268,7 @@ int getByte(STREAM *str, unsigned char *buf) {
         case TYPEBACKREF:
         case TYPEBACKREF2:
             // just pull a string of bytes
-            return buf[str->curPtr++];
+            return getBufferByte(cnt, buf, str->curPtr++, maxbytes);
 
         case TYPERLE32:
             // pull the last four bytes over and over
@@ -216,7 +276,7 @@ int getByte(STREAM *str, unsigned char *buf) {
             if (str->curPtr == str->mainPtr) {
                 str->curPtr -= 4;
             }
-            return buf[str->curPtr++];
+            return getBufferByte(cnt, buf, str->curPtr++, maxbytes);
 
         case TYPERLE24:
             // pull the last three bytes over and over
@@ -224,7 +284,7 @@ int getByte(STREAM *str, unsigned char *buf) {
             if (str->curPtr == str->mainPtr) {
                 str->curPtr -= 3;
             }
-            return buf[str->curPtr++];
+            return getBufferByte(cnt, buf, str->curPtr++, maxbytes);
 
         case TYPERLE16:
             // pull the last two bytes over and over
@@ -232,28 +292,32 @@ int getByte(STREAM *str, unsigned char *buf) {
             if (str->curPtr == str->mainPtr) {
                 str->curPtr -= 2;
             }
-            return buf[str->curPtr++];
+            return getBufferByte(cnt, buf, str->curPtr++, maxbytes);
 
         case TYPERLE:
             // pull the single byte - no increment
-            return buf[str->curPtr];
+            return getBufferByte(cnt, buf, str->curPtr, maxbytes);
         }
     }
 
     // start a new stream
-    int x = buf[str->mainPtr++];
+    int x = getBufferByte(cnt, buf, str->mainPtr++, maxbytes);
     str->curType = x&0xe0;
     switch (str->curType) {
     case TYPEBACKREF:  // long back reference
     case TYPEBACKREF2:
-        str->curPtr = buf[str->mainPtr]*256 + buf[str->mainPtr+1];
-        // check for end of stream
-        if (str->curPtr == 0) {
-            str->mainPtr = 0;
-            return 0;
+        {
+            int x1 = getBufferByte(cnt, buf, str->mainPtr, maxbytes);
+            int x2 = getBufferByte(cnt, buf, str->mainPtr+1, maxbytes);
+            str->curPtr = x1*256 + x2;
+            // check for end of stream
+            if (str->curPtr == 0) {
+                str->mainPtr = 0;
+                return 0;
+            }
+            str->mainPtr += 2;
+            str->curBytes = (x&0x3f) + 4;
         }
-        str->mainPtr += 2;
-        str->curBytes = (x&0x3f) + 4;
         break;
         
     case TYPERLE32:  // RLE-32
@@ -289,7 +353,7 @@ int getByte(STREAM *str, unsigned char *buf) {
     }
 
     // recurse call to get the next byte of data
-    return getByte(str, buf);
+    return getCompressedByte(str, buf, cnt, maxbytes);
 }
 
 int tonetable(unsigned char *buf, int toneoffset, int y) {
@@ -318,13 +382,20 @@ bool importSCF(FILE *fp, int &chan, int &cnt, int scfsong) {
     // a place to store the file
     unsigned char buf[64*1024];
 
+    // zero the heatmap statistics
+    totalHeatMap = 0;
+    thisHeatMap = 0;
+    cntHeatMap = 0;
+    smallestHeatMap = 9999;
+    biggestHeatMap = 0;
+
     // remember last - this is just to report a warning if the
     // line count is at all different
     int oldcnt = cnt;
 
     // back to start of file and suck it in
     fseek(fp, 0, SEEK_SET);
-    fread(buf, 1, sizeof(buf), fp);
+    int maxbytes = fread(buf, 1, sizeof(buf), fp);
 
     // new row count
     cnt = 0;
@@ -368,6 +439,10 @@ bool importSCF(FILE *fp, int &chan, int &cnt, int scfsong) {
     while (!done) {
         // run until we have no more data
         done = true;
+        // by default, this tick reads NO data
+        for (int idx=0; idx<MAXHEATMAP; ++idx) {
+            VGMADR[cnt][idx] = 0;
+        }
 
         if (strDat[8].mainPtr != 0) {
             // check the timestream
@@ -375,7 +450,8 @@ bool importSCF(FILE *fp, int &chan, int &cnt, int scfsong) {
                 --strDat[8].framesLeft;
                 done = false;
             } else {
-                int x = getByte(&strDat[8], buf);
+                // timestream data
+                int x = getCompressedByte(&strDat[8], buf, cnt, maxbytes);
                 if (strDat[8].mainPtr) {
                     done = false;
                     // song not over, x is valid
@@ -383,7 +459,7 @@ bool importSCF(FILE *fp, int &chan, int &cnt, int scfsong) {
                     if (x&0x80) {
                         // voice 0
                         if (strDat[0].mainPtr) {
-                            int y = getByte(&strDat[0], buf);
+                            int y = getCompressedByte(&strDat[0], buf, cnt, maxbytes);
                             if (strDat[0].mainPtr) {
                                 // look up frequency table
                                 curFreq[0] = tonetable(buf, toneoffset, y);
@@ -395,7 +471,7 @@ bool importSCF(FILE *fp, int &chan, int &cnt, int scfsong) {
                     if (x&0x40) {
                         // voice 1
                         if (strDat[1].mainPtr) {
-                            int y = getByte(&strDat[1], buf);
+                            int y = getCompressedByte(&strDat[1], buf, cnt, maxbytes);
                             if (strDat[1].mainPtr) {
                                 // look up frequency table
                                 curFreq[1] = tonetable(buf, toneoffset, y);
@@ -407,7 +483,7 @@ bool importSCF(FILE *fp, int &chan, int &cnt, int scfsong) {
                     if (x&0x20) {
                         // voice 2
                         if (strDat[2].mainPtr) {
-                            int y = getByte(&strDat[2], buf);
+                            int y = getCompressedByte(&strDat[2], buf, cnt, maxbytes);
                             if (strDat[2].mainPtr) {
                                 // look up frequency table
                                 curFreq[2] = tonetable(buf, toneoffset, y);
@@ -423,7 +499,7 @@ bool importSCF(FILE *fp, int &chan, int &cnt, int scfsong) {
                     if (x&0x10) {
                         // noise
                         if (strDat[3].mainPtr) {
-                            int y = getByte(&strDat[3], buf);
+                            int y = getCompressedByte(&strDat[3], buf, cnt, maxbytes);
                             if (strDat[3].mainPtr) {
                                 if (testay) {
                                     // AY - frequency is frequency
@@ -437,7 +513,7 @@ bool importSCF(FILE *fp, int &chan, int &cnt, int scfsong) {
                                     case 2: curFreq[3]=0x40; break;
                                     case 3: curFreq[3]=curFreq[2]; customNoise = true; break;
                                     }
-                                    if (y&0x04) curFreq[3] |= NOISE_PERIODIC;
+                                    if (0==(y&0x04)) curFreq[3] |= NOISE_PERIODIC;
                                     curFreq[3] |= NOISE_TRIGGER;
                                 }
                             }
@@ -455,7 +531,7 @@ bool importSCF(FILE *fp, int &chan, int &cnt, int scfsong) {
                     --strDat[str].framesLeft;
                     done = false;
                 } else {
-                    int x = getByte(&strDat[str], buf);
+                    int x = getCompressedByte(&strDat[str], buf, cnt, maxbytes);
                     if (strDat[str].mainPtr) {
                         done = false;
                         strDat[str].framesLeft = x&0xf;
@@ -474,13 +550,29 @@ bool importSCF(FILE *fp, int &chan, int &cnt, int scfsong) {
         }
         // clear the trigger flag
         curFreq[3] &= ~NOISE_TRIGGER;
+
+        // update statistics from the heat map
+        if (thisHeatMap != 0) {
+            if (thisHeatMap > biggestHeatMap) biggestHeatMap = thisHeatMap;
+            if (thisHeatMap < smallestHeatMap) smallestHeatMap = thisHeatMap;
+            totalHeatMap += thisHeatMap;
+            thisHeatMap = 0;
+            ++cntHeatMap;
+        }
         
         // next row
         ++cnt;
     }
 
-    printf("read %d lines\n", cnt);
+    printf("Read %d lines\n", cnt);
     chan += 4;  // return 4 channels loaded
+
+    printf("Number of lines with data: %d\n", cntHeatMap);
+    printf("Largest data line: %d bytes\n", biggestHeatMap);
+    printf("Smallest data line: %d bytes\n", smallestHeatMap);
+    if (cntHeatMap > 0) {
+        printf("Average data line: %d\n", (totalHeatMap+(cntHeatMap/2))/cntHeatMap);
+    }
 
     if ((oldcnt > 0) && (oldcnt != cnt)) {
         printf("* Warning: line count changed from %d to %d...\n", oldcnt, cnt);
@@ -653,11 +745,12 @@ int main(int argc, char *argv[])
     int scfsong = 0;
 
 	if (argc < 2) {
-		printf("testPlayPSG [-ay|-psg] [-scfsong x] [-hidenotes] [<file prefix> | <file.scf> | <track1> <track2> ...]\n");
+		printf("testPlayPSG [-ay|-psg] [-scfsong x] [-hidenotes] [-heatmap] [<file prefix> | <file.scf> | <track1> <track2> ...]\n");
         printf(" -ay - force AY restrictions\n");
         printf(" -psg - force PSG restrictions\n");
         printf(" -scfsong x - play SCF song 'x' instead of song 0\n");
 		printf(" -hidenotes - do not display notes as the frames are played\n");
+        printf(" -heatmap - visualize a heatmap instead of notes while playing - only useful with SCF import\n");
 		printf(" <file prefix> - PSG file prefix (usually the name of the original VGM).\n");
         printf(" <track1> etc - instead of a prefix, you may explicitly list the files to play\n");
         printf("Prefix will search for 60hz, 50hz, 30hz, and 25hz in that order.\n");
@@ -689,6 +782,9 @@ int main(int argc, char *argv[])
             printf("Playing SCF song %d (if SCF is loaded)\n", scfsong);
         } else if (0 == strcmp(argv[arg], "-hidenotes")) {
 			shownotes=false;
+        } else if (0 == strcmp(argv[arg], "-heatmap")) {
+			shownotes=false;
+            heatmap=true;
 		} else {
 			printf("\rUnknown command '%s'\n", argv[arg]);
 			return -1;
@@ -868,7 +964,43 @@ int main(int argc, char *argv[])
     // setup the sound system
     if (!sound_init(22050)) return 1;
 
+    // set up the heatmap, if that's what we're doing
+    HANDLE hConsole = INVALID_HANDLE_VALUE;
+    char *scrn = NULL;
+    int scrnsize = 0;
+    int consoleWidth=0;
+    int consoleHeight=0;
+    CONSOLE_CURSOR_INFO cursor;
+    if (heatmap) {
+        CONSOLE_SCREEN_BUFFER_INFO scrnBufInfo;
+        hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+        if (!GetConsoleScreenBufferInfo(hConsole, &scrnBufInfo)) {
+            printf("* Failed to get console information.\n");
+            CloseHandle(hConsole);
+            hConsole = INVALID_HANDLE_VALUE;
+        } else {
+            consoleWidth = scrnBufInfo.srWindow.Right - scrnBufInfo.srWindow.Left;
+            consoleHeight = scrnBufInfo.srWindow.Bottom - scrnBufInfo.srWindow.Top - 1;
+            scrnsize = consoleWidth * consoleHeight;
+            printf("Heatmap with screen buffer of %d x %d\n", consoleWidth, consoleHeight);
+            scrn = (char*)malloc(scrnsize+10);
+            memset(scrn, ' ', scrnsize);
+            SetConsoleMode(hConsole, ENABLE_WRAP_AT_EOL_OUTPUT);    // turn off processing to speed up output
+            GetConsoleCursorInfo(hConsole, &cursor);
+            cursor.bVisible = false;
+            SetConsoleCursorInfo(hConsole, &cursor);        // turn off the cursor
+            COORD newsize = {(SHORT)consoleWidth, (SHORT)consoleHeight};
+            SetConsoleScreenBufferSize(hConsole, newsize);  // resize back buffer
+            system("CLS");
+        }
+    }
+
     printf(".. and playing...\n");
+
+    // some timing information so you can see if it's running slow
+    int frames = 0;
+    int fps = 0;
+    time_t lastTime = time(NULL);
 
     // now play out the song, at delay ms per frame
     // cnt better be the same on each channel ;)
@@ -877,8 +1009,31 @@ int main(int argc, char *argv[])
         // works oddly well on Win10...
         Sleep(delay);
 
+        // header for the shownotes
         if (shownotes) {
             printf("%04d | ", row);
+        }
+
+        // update the heatmap, if that's what we're doing
+        // we update 1/5th per frame for performance and to
+        // slow the fade a bit.
+        if (heatmap) {
+            static int nCnt = 0;
+            // first, fade out old data: Oo.
+            if (++nCnt >= 5) {
+                nCnt = 0;
+            }
+            int start = (scrnsize/5)*nCnt;
+            int end = start + scrnsize/5;
+            assert(start>=0 && start<scrnsize);
+            assert(end>=0 && end<=scrnsize);
+            for (int idx=start; idx<end; ++idx) {
+                switch (scrn[idx]) {
+                case 'O': scrn[idx]='o'; break;
+                case 'o': scrn[idx]='.'; break;
+                case '.': scrn[idx]=' '; break;
+                }
+            }
         }
 
         // process the command line from each channel
@@ -890,13 +1045,59 @@ int main(int argc, char *argv[])
                 printf("%s %02X | ", getNoteStr(VGMDAT[idx][row],VGMVOL[idx][row]), VGMVOL[idx][row]);
             }
         }
+
+        // calculate timing
+        {
+            ++frames;
+            time_t tnow = time(NULL);
+            if (tnow != lastTime) {
+                fps = frames;
+                frames = 0;
+                lastTime = tnow;
+            }
+        }
+
         if (shownotes) {
-            printf("\n");
+            printf(" (%d fps)\n", fps);
+        } else if (heatmap) {
+            // add the new data
+            for (int idx=0; idx<MAXHEATMAP; ++idx) {
+                if (VGMADR[row][idx] == 0) break;
+                int offset = (int)((VGMADR[row][idx]/65535.0)*scrnsize);
+                assert(offset>=0 && offset<scrnsize);
+                scrn[offset] = 'O';
+            }
+
+            // we also split up the output by 5ths
+            static int nCnt = 0;
+            if (++nCnt >= 5) {
+                nCnt = 0;
+                // copy timing info into the scrn buffer
+                sprintf(scrn, "(%d fps)", fps);
+            }
+
+            // write output
+            COORD pos;
+            int start = (scrnsize/5)*nCnt;
+            pos.X = start%consoleWidth;
+            pos.Y = start/consoleWidth;
+            SetConsoleCursorPosition(hConsole, pos);
+            WriteConsole(hConsole, scrn+start, scrnsize/5, NULL, NULL);
+        } else {
+            printf("\r(%d fps)  ", fps);
         }
 
         if (NULL != soundbuf) {
         	UpdateSoundBuf(soundbuf, sound_update, &soundDat);
         }
+    }
+
+    if (heatmap) {
+        free(scrn);
+        cursor.bVisible = true;
+        SetConsoleCursorInfo(hConsole, &cursor);        // turn off the cursor
+        system("CLS");
+        CloseHandle(hConsole);
     }
 
     printf("** DONE **\n");

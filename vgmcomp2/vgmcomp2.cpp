@@ -101,6 +101,7 @@ bool noRLE24 = false;
 bool noRLE32 = false;
 bool noFwdSearch = false;
 bool noBwdSearch = false;
+bool alwaysRLE = false;
 
 // stats for minrun loops
 #define MAXRUN 21
@@ -1025,7 +1026,9 @@ bool compressStream(int song, int st) {
 
         // finally, determine whether we should RLE instead of doing a string
         // we only need one flag, since both RLEs are not possible
-        bool doRLE = false;
+        // if always RLE is set, we'll take it whether it looks better than
+        // the string or not
+        bool doRLE = alwaysRLE;
         if (isBackref) {
             if (rleRun > bestBwd) doRLE=true;
             if (rle16Run*2 > bestBwd) doRLE=true;
@@ -1345,6 +1348,8 @@ int main(int argc, char *argv[])
                     printf("MinRunMax must be less than %d\n", MAXRUN);
                     return 1;
                 }
+            } else if (0 == strcmp(argv[idx], "-alwaysrle")) {
+                alwaysRLE = true;
             } else if (0 == strcmp(argv[idx], "-norle")) {
                 noRLE = true;
             } else if (0 == strcmp(argv[idx], "-norle16")) {
@@ -1381,7 +1386,7 @@ int main(int argc, char *argv[])
         if ((isAY==false)&&(isPSG==false)) {
             printf("* You must specify -ay or -psg for output type\n");
         }
-        printf("vgmcomp2 [-d] [-dd] [-v] [-minrun s,e] [-norle] [-norle16] [-norle24] [-norle32] [-nofwd] [-nobwd] <-ay|-psg> <filenamein1.psg> [<filenamein2.psg>...] <filenameout.scf>\n");
+        printf("vgmcomp2 [-d] [-dd] [-v] [-minrun s,e] [-alwaysrle] [-norle] [-norle16] [-norle24] [-norle32] [-nofwd] [-nobwd] <-ay|-psg> <filenamein1.psg> [<filenamein2.psg>...] <filenameout.scf>\n");
         printf("\nProvides a compressed (sound compressed format) file from\n");
         printf("an input file containing either PSG or AY-3-8910 data\n");
         printf("Except for the noise handling, the output is the same.\n");
@@ -1392,6 +1397,7 @@ int main(int argc, char *argv[])
         printf("-v - add extra verbose information\n");
         printf("-minrun - specify start and end for minrun search. Default %d,%d. Maximum 0,20\n", minRunMin, minRunMax);
         printf("\nThe following tuning options may very rarely be helpful. They apply to the SCF compression and not the initial RLE pack:\n");
+        printf("-alwaysrle - always use RLE over string if available - the following disables are still honored\n");
         printf("-norle - disable single-byte RLE encoding\n");
         printf("-norle16 - disable 16-bit RLE encoding\n");
         printf("-norle24 - disable 24-bit RLE encoding\n");
