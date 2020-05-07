@@ -34,7 +34,7 @@ unsigned int VGMADR[MAXTICKS][MAXHEATMAP];  // a scaled address, always range 0-
 bool isNoise[MAXCHANNELS];
 
 bool shownotes = true;                      // whether to scroll the notes
-bool heatmap = false;                       // show a heatmap for SCF files (forces hidenotes)
+bool heatmap = false;                       // show a heatmap for SBF files (forces hidenotes)
 char NoteTable[4096][4];                    // note names - we'll just lookup the whole range
 bool testay = false;
 bool testpsg = false;
@@ -226,11 +226,11 @@ unsigned char getBufferByte(int cnt, unsigned char *buf, int adr, int maxbytes) 
 
     // either of these tripping likely indicates a bug or a corrupt file...
     if (adr < 0) {
-        printf("* bad SCF unpack address of %d (max %d)\n", adr, maxbytes);
+        printf("* bad SBF unpack address of %d (max %d)\n", adr, maxbytes);
         exit(0);
     }
     if (adr >= maxbytes) {
-        printf("* bad SCF unpack address of %d (max %d)\n", adr, maxbytes);
+        printf("* bad SBF unpack address of %d (max %d)\n", adr, maxbytes);
         exit(0);
     }
 
@@ -366,12 +366,12 @@ int tonetable(unsigned char *buf, int toneoffset, int y) {
 }
 
 
-// import a fully featured SCF file
+// import a fully featured SBF file
 // fp: file pointer at beginning of data structure
 // chan - first channel to import into (must be updated on exit)
 // cnt - count of rows imported (checked and then updated)
-// scfsong - which song to import - must be already verified
-bool importSCF(FILE *fp, int &chan, int &cnt, int scfsong) {
+// sbfsong - which song to import - must be already verified
+bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
     // 4 tone, 4 vol, 1 time
     struct STREAM strDat[9];
     // output data
@@ -405,13 +405,13 @@ bool importSCF(FILE *fp, int &chan, int &cnt, int scfsong) {
     int toneoffset=buf[2]*256+buf[3];
 
     // Checking for valid song here rather than externally cause it's safer
-    if (streamoffset+18*scfsong >= toneoffset) {
-        printf("Invalid song %d - SCF contains only %d song(s).\n", scfsong, (toneoffset-streamoffset)/18);
+    if (streamoffset+18*sbfsong >= toneoffset) {
+        printf("Invalid song %d - SBF contains only %d song(s).\n", sbfsong, (toneoffset-streamoffset)/18);
         return 1;
     }
 
     // point to the first stream of 9
-    streamoffset+=18*scfsong;
+    streamoffset+=18*sbfsong;
 
     for (int idx=0; idx<9; ++idx) {
         strDat[idx].mainPtr = buf[streamoffset+idx*2]*256+buf[streamoffset+idx*2+1];
@@ -742,15 +742,17 @@ int main(int argc, char *argv[])
     char buf[1024];
     char ext[16];
     int delay = 16;
-    int scfsong = 0;
+    int sbfsong = 0;
+
+	printf("VGMComp Test Player - v20200507\n");
 
 	if (argc < 2) {
-		printf("testPlayPSG [-ay|-psg] [-scfsong x] [-hidenotes] [-heatmap] [<file prefix> | <file.scf> | <track1> <track2> ...]\n");
+		printf("testPlayPSG [-ay|-psg] [-sbfsong x] [-hidenotes] [-heatmap] [<file prefix> | <file.sbf> | <track1> <track2> ...]\n");
         printf(" -ay - force AY restrictions\n");
         printf(" -psg - force PSG restrictions\n");
-        printf(" -scfsong x - play SCF song 'x' instead of song 0\n");
+        printf(" -sbfsong x - play SBF song 'x' instead of song 0\n");
 		printf(" -hidenotes - do not display notes as the frames are played\n");
-        printf(" -heatmap - visualize a heatmap instead of notes while playing - only useful with SCF import\n");
+        printf(" -heatmap - visualize a heatmap instead of notes while playing - only useful with SBF import\n");
 		printf(" <file prefix> - PSG file prefix (usually the name of the original VGM).\n");
         printf(" <track1> etc - instead of a prefix, you may explicitly list the files to play\n");
         printf("Prefix will search for 60hz, 50hz, 30hz, and 25hz in that order.\n");
@@ -768,18 +770,18 @@ int main(int argc, char *argv[])
                 printf("\rInvalid to specify both AY and PSG restrictions\n");
                 return 1;
             }
-        } else if (0 == strcmp(argv[arg], "-scfsong")) {
+        } else if (0 == strcmp(argv[arg], "-sbfsong")) {
             ++arg;
             if (arg >= argc-1) {
-                printf("\rInsufficient arguments for -scfsong\n");
+                printf("\rInsufficient arguments for -sbfsong\n");
                 return 1;
             }
             if (!isdigit(argv[arg][0])) {
-                printf("\rArgument for -scfsong must be numeric\n");
+                printf("\rArgument for -sbfsong must be numeric\n");
                 return 1;
             }
-            scfsong = atoi(argv[arg]);
-            printf("Playing SCF song %d (if SCF is loaded)\n", scfsong);
+            sbfsong = atoi(argv[arg]);
+            printf("Playing SBF song %d (if SBF is loaded)\n", sbfsong);
         } else if (0 == strcmp(argv[arg], "-hidenotes")) {
 			shownotes=false;
         } else if (0 == strcmp(argv[arg], "-heatmap")) {
@@ -813,7 +815,7 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        // check if it's an SCF file first
+        // check if it's an SBF file first
         // Although it's binary data, it COULD theorhetically look like text.
         // It's pretty unlikely, but that's okay. There's a more reliable test:
         // the distance between the first and second 16-bit values must be a multiple
@@ -831,15 +833,15 @@ int main(int argc, char *argv[])
         int val1=testbuf[0]*256+testbuf[1];
         int val2=testbuf[2]*256+testbuf[3];
         if (((val2-val1)%18 == 0) && (val2 < end) && (val2 >= end-512)) {
-            printf("SCF import %s...\n", namebuf);
+            printf("SBF import %s...\n", namebuf);
 
-            // this is probably an SCF file
+            // this is probably an SBF file
             if ((testay==false)&&(testpsg==false)) {
-                printf("SCF files must specify -ay or -psg to be imported!\n");
+                printf("SBF files must specify -ay or -psg to be imported!\n");
                 fclose(fp);
                 return 1;
             }
-            if (!importSCF(fp, chan, cnt, scfsong)) {
+            if (!importSBF(fp, chan, cnt, sbfsong)) {
                 fclose(fp);
                 return 1;
             }

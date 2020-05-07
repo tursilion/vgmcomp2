@@ -347,7 +347,7 @@ bool testOutputRLE(SONG *s) {
     return ret;
 }
 
-bool testOutputSCF(SONG *s, int songidx) {
+bool testOutputSBF(SONG *s, int songidx) {
     // unpack outputBuffer into testSong's outStream[][] and streamCnt[]
     // so that we can make sure it packed correctly
     // TODO: this function does not have much error checking... for this
@@ -366,7 +366,7 @@ bool testOutputSCF(SONG *s, int songidx) {
         offset = outputBuffer[offset]*256 + outputBuffer[offset+1];
         t->streamCnt[st] = 0;
 
-        if (verbose) printf("SCF Testing song %d, stream %d at offset 0x%04x...\n", songidx, st, offset);
+        if (verbose) printf("SBF Testing song %d, stream %d at offset 0x%04x...\n", songidx, st, offset);
 
         bool keepgoing=true;
 
@@ -470,7 +470,7 @@ bool testOutputSCF(SONG *s, int songidx) {
         if (debug) printf("\n");
     }
 
-    // and test it - VERIFY PHASE 2 means this whole SCF test
+    // and test it - VERIFY PHASE 2 means this whole SBF test
     for (int st=0; st<MAXSTREAMS; ++st) {
         // check length
         if (t->streamCnt[st] != s->streamCnt[st]) {
@@ -1298,6 +1298,8 @@ bool compressStream(int song, int st) {
 
 int main(int argc, char *argv[])
 {
+	printf("VGMComp2 Compression Tool - v20200507\n\n");
+
     // parse arguments
     int nextarg = -1;
     for (int idx=1; idx<argc; ++idx) {
@@ -1386,7 +1388,7 @@ int main(int argc, char *argv[])
         if ((isAY==false)&&(isPSG==false)) {
             printf("* You must specify -ay or -psg for output type\n");
         }
-        printf("vgmcomp2 [-d] [-dd] [-v] [-minrun s,e] [-alwaysrle] [-norle] [-norle16] [-norle24] [-norle32] [-nofwd] [-nobwd] <-ay|-psg> <filenamein1.psg> [<filenamein2.psg>...] <filenameout.scf>\n");
+        printf("vgmcomp2 [-d] [-dd] [-v] [-minrun s,e] [-alwaysrle] [-norle] [-norle16] [-norle24] [-norle32] [-nofwd] [-nobwd] <-ay|-psg> <filenamein1.psg> [<filenamein2.psg>...] <filenameout.sbf>\n");
         printf("\nProvides a compressed (sound compressed format) file from\n");
         printf("an input file containing either PSG or AY-3-8910 data\n");
         printf("Except for the noise handling, the output is the same.\n");
@@ -1396,7 +1398,7 @@ int main(int argc, char *argv[])
         printf("-dd - add extra compressor debug output (does not include -d)\n");
         printf("-v - add extra verbose information\n");
         printf("-minrun - specify start and end for minrun search. Default %d,%d. Maximum 0,20\n", minRunMin, minRunMax);
-        printf("\nThe following tuning options may very rarely be helpful. They apply to the SCF compression and not the initial RLE pack:\n");
+        printf("\nThe following tuning options may very rarely be helpful. They apply to the SBF compression and not the initial RLE pack:\n");
         printf("-alwaysrle - always use RLE over string if available - the following disables are still honored\n");
         printf("-norle - disable single-byte RLE encoding\n");
         printf("-norle16 - disable 16-bit RLE encoding\n");
@@ -1546,7 +1548,7 @@ int main(int argc, char *argv[])
     for (int song=0; song<currentSong; ++song) {
         for (int st=0; st<MAXSTREAMS; ++st) {
             if (verbose) {
-                printf("SCF packing song %d, stream %d...", song, st);
+                printf("SBF packing song %d, stream %d...", song, st);
             }
             songs[song].streamOffset[st] = outputPos;
 
@@ -1658,9 +1660,9 @@ int main(int argc, char *argv[])
         if (debug) printf("  [%3d]: 0x%04X -> 0x%02X%02X\n", nt, noteTable[nt], outputBuffer[outputPos-2], outputBuffer[outputPos-1]);
     }
 
-    // test the SCF process
+    // test the SBF process
     for (int idx=0; idx<currentSong; ++idx) {
-        if (!testOutputSCF(&songs[idx], idx)) {
+        if (!testOutputSBF(&songs[idx], idx)) {
             return 1;
         }
     }
@@ -1673,7 +1675,7 @@ int main(int argc, char *argv[])
     for (int song=0; song<currentSong; ++song) {
         for (int st=0; st<MAXSTREAMS; ++st) {
             char buf[128];
-            sprintf(buf, "D:\\new\\stream%d_%d.scf", song, st);
+            sprintf(buf, "D:\\new\\stream%d_%d.sbf", song, st);
             FILE *fp=fopen(buf, "wb");
             // can just dump it now that it's binary
             int start = songs[song].streamOffset[st];

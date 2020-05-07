@@ -65,6 +65,8 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
+	printf("VGMComp2 PSG Prep Tool - v20200507\n\n");
+
     if (argc < 6) {
         printf("prepare4PSG <tone1> <tone2> <tone3> <noise> <output>\n");
         printf("  You must specify 4 channels to prepare - three tone and one noise.\n");
@@ -79,23 +81,26 @@ int main(int argc, char *argv[])
     }
 
     // open up the files (if defined)
+    // continue only if at least one opens!
+    bool cont = false;
+
     for (int idx=0; idx<4; ++idx) {
         if (argv[idx+1][0]=='-') {
             printf("Channel %d (%s) free\n", idx, idx == 3 ? "noise":"tone");
             fp[idx] = NULL;
         } else {
             fp[idx] = fopen(argv[idx+1], "r");
-            if (NULL == fp) {
+            if (NULL == fp[idx]) {
                 printf("Failed to open file '%s' for channel %d, code %d\n", argv[idx+1], idx, errno);
                 return 1;
             }
             printf("Opened %s channel %d: %s\n", idx == 3 ? "noise":"tone", idx, argv[idx+1]);
+            cont = true;
         }
     }
 
     // read until one of the channels ends
     int row = 0;
-    bool cont = true;
     while (cont) {
         for (int idx=0; idx<4; ++idx) {
             if (NULL == fp[idx]) {
@@ -103,6 +108,11 @@ int main(int argc, char *argv[])
                 VGMVOL[idx][row]=0;
             } else {
                 char buf[128];
+
+                if (feof(fp[idx])) {
+                    cont = false;
+                    break;
+                }
 
                 if (NULL == fgets(buf, 128, fp[idx])) {
                     cont = false;
