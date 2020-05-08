@@ -1044,7 +1044,11 @@ int main(int argc, char *argv[])
             setvol(idx, mapVolume(VGMVOL[idx][row]));
 
             if (shownotes) {
-                printf("%s %02X | ", getNoteStr(VGMDAT[idx][row],VGMVOL[idx][row]), VGMVOL[idx][row]);
+                if (isNoise[idx]) {
+                    printf("%03X%c%02X | ", VGMDAT[idx][row]&NOISE_MASK, (VGMDAT[idx][row]&NOISE_PERIODIC)?'~':' ', VGMVOL[idx][row]);
+                } else {
+                    printf("%s %02X | ", getNoteStr(VGMDAT[idx][row],VGMVOL[idx][row]), VGMVOL[idx][row]);
+                }
             }
         }
 

@@ -126,6 +126,10 @@ void registerChan(int channel, bool noise) {
     voice[channel].isActive = true;
 }
 
+bool isNoise(int channel) {
+    return voice[channel].isNoise;
+}
+
 // prepare the sound emulation. 
 
 // called from sound_init

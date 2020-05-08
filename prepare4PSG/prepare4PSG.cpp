@@ -56,8 +56,9 @@ int mapVolume(int nTmp) {
 
 // return true if the channel is muted (by frequency or by volume)
 // We cut off at a frequency count of 7, which is roughly 16khz.
+// The volume table at this point has been adjusted to the TI volume values
 bool muted(int ch, int row) {
-    if ((VGMDAT[ch][row] <= 7) || (VGMVOL[ch][row] == 0)) {
+    if ((VGMDAT[ch][row] <= 7) || (VGMVOL[ch][row] == 0xf)) {
         return true;
     }
     return false;
@@ -175,7 +176,7 @@ int main(int argc, char *argv[])
         if (VGMVOL[3][idx] == 0xf) {
             // we're muted, nothing to be mapped - save last note
             if (idx == 0) {
-                out = 1;    // match the tones for default output
+                out = 1;    // match the tones for default output (this is shift rate 32)
             } else {
                 out = VGMDAT[3][idx-1]&0x03;    // take just the noise shift, we add trigger and periodic below
             }
@@ -190,18 +191,18 @@ int main(int argc, char *argv[])
             }
 
             if (-1 == out) {
-                // it wasn't fixed, so can we just copy it over into channel 3?
+                // it wasn't fixed, so can we just copy it over into channel 2?
                 if ((muted(2, idx))||(muted(1, idx))||(muted(0, idx))) {
                     // at least one of them are muted
                     if (!muted(2,idx)) {
-                        // we need to move channel 3
+                        // we need to move channel 2
                         if (muted(1,idx)) {
-                            VGMDAT[1][idx] = VGMDAT[2][idx];
+                            VGMDAT[1][idx] = VGMDAT[2][idx];    // move 2->1
                             VGMVOL[1][idx] = VGMVOL[2][idx];
                             ++tonesMoved;
                         } else if (muted(0,idx)) {
                             // this must be true, otherwise something weird happened
-                            VGMDAT[0][idx] = VGMDAT[2][idx];
+                            VGMDAT[0][idx] = VGMDAT[2][idx];    // move 2->0
                             VGMVOL[0][idx] = VGMVOL[2][idx];
                             ++tonesMoved;
                         } else {
@@ -211,7 +212,7 @@ int main(int argc, char *argv[])
                     } else {
                         ++customNoises;
                     }
-                    // channel 3 is ready to use
+                    // channel 2 is ready to use, overwrite it
                     VGMDAT[2][idx] = VGMDAT[3][idx]&NOISE_MASK;    // take the custom shift rate
                     VGMVOL[2][idx] = 0xf;               // keep it muted though
                     out = 3;                            // custom shift mode
@@ -220,9 +221,9 @@ int main(int argc, char *argv[])
 
             if (-1 == out) {
                 // we still don't have one, so map to the closest shift
-                int diff16 = ABS(16 - VGMDAT[2][idx]);
-                int diff32 = ABS(32 - VGMDAT[2][idx]);
-                int diff64 = ABS(64 - VGMDAT[2][idx]);
+                int diff16 = ABS(16 - (VGMDAT[3][idx]&NOISE_MASK));
+                int diff32 = ABS(32 - (VGMDAT[3][idx]&NOISE_MASK));
+                int diff64 = ABS(64 - (VGMDAT[3][idx]&NOISE_MASK));
                 if ((diff16 <= diff32) && (diff16 <= diff64)) {
                     out = 0;    // use 16
                 } else if ((diff32 <= diff16) && (diff32 <= diff64)) {
