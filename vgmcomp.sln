@@ -3,11 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27004.2009
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testPlayPSG", "testPlayPSG\testPlayPSG.vcxproj", "{D147FE48-6FCE-4D40-A4B7-2015F928603D}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testPlayer", "testPlayPSG\testPlayPSG.vcxproj", "{D147FE48-6FCE-4D40-A4B7-2015F928603D}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vgm_psg2psg", "vgm_psg2psg\vgm_psg2psg.vcxproj", "{E8E19087-1527-41CA-AAD0-53680DDE5B11}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7612C3B9-CD65-4A9D-843C-F3AA6E228662}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vgm_ay2psg", "vgm_ay2psg\vgm_ay2psg.vcxproj", "{C953C8D9-E80D-4B3D-86BB-C5B1C1B6875A}"
 EndProject
@@ -22,6 +20,29 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vgm_nes2psg", "vgm_nes2psg\vgm_nes2psg.vcxproj", "{BE8572BB-4415-48D6-AEE0-FC27A74C3CED}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vgmcomp2", "vgmcomp2\vgmcomp2.vcxproj", "{12A01668-FF88-4A88-8AC5-394B447B2D7E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Players", "Players", "{17620A3A-947D-4A8C-8D6F-8418F127E2AB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CPlayer", "CPlayer", "{009FB895-AF76-4DBE-B35A-E43ABAFFE563}"
+	ProjectSection(SolutionItems) = preProject
+		Players\CPlayer\CPlayer.c = Players\CPlayer\CPlayer.c
+		Players\CPlayer\CPlayer.h = Players\CPlayer\CPlayer.h
+		Players\CPlayer\CPlayerCommon.c = Players\CPlayer\CPlayerCommon.c
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Archive", "Archive", "{522A08F5-16EF-408B-A701-B78561777CB6}"
+	ProjectSection(SolutionItems) = preProject
+		Players\archive\tiPlayback.asm = Players\archive\tiPlayback.asm
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCAY", "Players\PCAY\PC.vcxproj", "{E20C76E4-3B50-4905-91AD-15736D64ED57}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCSN", "Players\PCSN\PCSN.vcxproj", "{01263202-227D-4316-8459-25D35EFCD16E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LICENSE", "LICENSE", "{8F2A78CE-93B2-45DB-964B-40991EEAD2DC}"
+	ProjectSection(SolutionItems) = preProject
+		PublicDomain.txt = PublicDomain.txt
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -103,9 +124,31 @@ Global
 		{12A01668-FF88-4A88-8AC5-394B447B2D7E}.Release|Win32.Build.0 = Release|Win32
 		{12A01668-FF88-4A88-8AC5-394B447B2D7E}.Release|x64.ActiveCfg = Release|x64
 		{12A01668-FF88-4A88-8AC5-394B447B2D7E}.Release|x64.Build.0 = Release|x64
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Debug|Win32.Build.0 = Debug|Win32
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Debug|x64.ActiveCfg = Debug|x64
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Debug|x64.Build.0 = Debug|x64
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Release|Win32.ActiveCfg = Release|Win32
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Release|Win32.Build.0 = Release|Win32
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Release|x64.ActiveCfg = Release|x64
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Release|x64.Build.0 = Release|x64
+		{01263202-227D-4316-8459-25D35EFCD16E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{01263202-227D-4316-8459-25D35EFCD16E}.Debug|Win32.Build.0 = Debug|Win32
+		{01263202-227D-4316-8459-25D35EFCD16E}.Debug|x64.ActiveCfg = Debug|x64
+		{01263202-227D-4316-8459-25D35EFCD16E}.Debug|x64.Build.0 = Debug|x64
+		{01263202-227D-4316-8459-25D35EFCD16E}.Release|Win32.ActiveCfg = Release|Win32
+		{01263202-227D-4316-8459-25D35EFCD16E}.Release|Win32.Build.0 = Release|Win32
+		{01263202-227D-4316-8459-25D35EFCD16E}.Release|x64.ActiveCfg = Release|x64
+		{01263202-227D-4316-8459-25D35EFCD16E}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{009FB895-AF76-4DBE-B35A-E43ABAFFE563} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
+		{522A08F5-16EF-408B-A701-B78561777CB6} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
+		{E20C76E4-3B50-4905-91AD-15736D64ED57} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
+		{01263202-227D-4316-8459-25D35EFCD16E} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

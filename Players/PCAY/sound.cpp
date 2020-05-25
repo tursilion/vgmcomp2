@@ -1,5 +1,9 @@
+// This is NOT the same one in testPlayer - this is by and large
+// the sound emulation from Classic99, so register writes work
+// as they would be expected to.
+
 //
-// (C) 2020 Mike Brent aka Tursi aka HarmlessLion.com
+// (C) 2009 Mike Brent aka Tursi aka HarmlessLion.com
 // This software is provided AS-IS. No warranty
 // express or implied is provided.
 //
@@ -39,58 +43,36 @@
 // Tursi's own from-scratch TMS9919 emulation
 // Because everyone uses the MAME source.
 //
-// Based on documentation on the SN76489 from SMSPOWER
-// and datasheets for the SN79489/SN79486/SN79484,
-// and recordings from an actual TI99 console (gasp!)
-//
 
-// This is a virtual sound chip version that supports 100 channels, be they noise or tone
-// This lets my player play back any supported song
-// To do this, I've broken things into more of a loop
-
-#include "stdafx.h"
 #include <windows.h>
 #include <dsound.h>
 #include <stdio.h>
 #include "sound.h"
 
 // some Classic99 stuff
+int hzRate = 60;		// 50 or 60 fps (HZ50 or HZ60)
 LPDIRECTSOUNDBUFFER soundbuf;		// sound chip audio buffer
 LPDIRECTSOUND lpds;					// DirectSound handle
-int hzRate = 60;            		// 50 or 60 fps (HZ50 or HZ60)
 void rampVolume(LPDIRECTSOUNDBUFFER ds, long newVol);       // to reduce up/down clicks
 
 // helper for audio buffers
 CRITICAL_SECTION csAudioBuf;
 
 // value to fade every clock/16
+// this value compares with the recordings I made of the noise generator back in the day
+// This is good, but why doesn't this match the math above, though?
 #define FADECLKTICK (0.001/9.0)
 
 int nClock = 3579545;					// NTSC, PAL may be at 3546893? - this is divided by 16 to tick
-struct CHAN {
-    CHAN() {
-        nCounter = 1;
-        nOutput = 1.0;
-        nNoisePos = 1;
-        LFSR = 0x4000;
-        nRegister = 0;
-        nVolume = 0;
-        nFade = 1.0;
-        isNoise = false;
-        isActive = false;
-    }
-
-    int nCounter;                       // 10 bit countdown timer
-    double nOutput;                     // output scale
-    int nNoisePos;                      // whether noise is positive or negative (white noise only)
-    unsigned short LFSR;				// noise shifter (only 15 bit)
-    int nRegister;      				// frequency registers
-    int nVolume;         				// volume attenuation
-    double nFade;               		// emulates the voltage drift back to 0 with FADECLKTICK (TODO: what does this mean with a non-zero center?)
+int nCounter[4]= {0,0,0,1};				// 10 bit countdown timer
+double nOutput[4]={1.0,1.0,1.0,1.0};	// output scale
+int nNoisePos=1;						// whether noise is positive or negative (white noise only)
+unsigned short LFSR=0x4000;				// noise shifter (only 15 bit)
+int nRegister[4]={0,0,0,0};				// frequency registers
+int nVolume[4]={0,0,0,0};				// volume attenuation
+double nFade[4]={1.0,1.0,1.0,1.0};		// emulates the voltage drift back to 0 with FADECLKTICK (TODO: what does this mean with a non-zero center?)
 										// we should test this against an external chip with a clean circuit.
-    bool isNoise;                       // true if this is a noise channel
-    bool isActive;                      // true if this channel is active
-} voice[100];
+int max_volume;
 
 // audio
 int AudioSampleRate=22050;				// in hz
@@ -98,6 +80,9 @@ unsigned int CalculatedAudioBufferSize=22080*2;	// round audiosample rate up to 
 
 // The tapped bits are XORd together for the white noise
 // generator feedback.
+// These are the BBC micro version/Coleco? Need to check
+// against a real TI noise generator. 
+// This matches what MAME uses (although MAME shifts the other way ;) )
 int nTappedBits=0x0003;
 
 // logarithmic scale (linear isn't right!)
@@ -118,18 +103,6 @@ int parity(int val) {
 	val^=val>>1;
 	return val&1;
 };
-
-// called from main to activate a channel
-void registerChan(int channel, bool noise) {
-    voice[channel].isNoise = noise;
-    voice[channel].isActive = true;
-}
-
-bool isNoise(int channel) {
-    return voice[channel].isNoise;
-}
-
-// prepare the sound emulation. 
 
 // called from sound_init
 void GenerateToneBuffer() {
@@ -205,16 +178,18 @@ void GenerateToneBuffer() {
 	LeaveCriticalSection(&csAudioBuf);
 }
 
+// prepare the sound emulation. 
 // freq - output sound frequency in hz
-bool sound_init(int freq) {
-	InitializeCriticalSection(&csAudioBuf);
-
+void sound_init(int freq) {
     HRESULT res;
-	if (FAILED(res=DirectSoundCreate(NULL, &lpds, NULL)))
+	
+    InitializeCriticalSection(&csAudioBuf);
+
+    if (FAILED(res=DirectSoundCreate(NULL, &lpds, NULL)))
 	{
         printf("Failed DirectSoundCreate, code 0x%08X\n", res);
 		lpds=NULL;		// no sound
-		return false;
+		return;
 	}
 	
 	if (FAILED(res=lpds->SetCooperativeLevel(GetDesktopWindow(), DSSCL_NORMAL)))	// normal created a 22khz, 8 bit stereo DirectSound system
@@ -222,10 +197,10 @@ bool sound_init(int freq) {
         printf("Failed SetCooperativeLevel, code 0x%08X\n", res);
 		lpds->Release();
 		lpds=NULL;
-		return false;
+		return;
 	}
 
-	// use the SMS power Logarithmic table
+    // use the SMS power Logarithmic table
 	for (int idx=0; idx<16; idx++) {
 		// this magic number makes maximum volume (32767) become about 0.9375
 		nVolumeTable[idx]=(double)(sms_volume_table[idx])/34949.3333;	
@@ -235,47 +210,51 @@ bool sound_init(int freq) {
 	AudioSampleRate=freq;
 
 	GenerateToneBuffer();
-
-    return true;
 }
 
 // change the frequency counter on a channel
-// chan - channel 0-99
-// freq - frequency counter (0-4095) (EVEN FOR NOISE, which may include flags, also note expanded range!)
-// clip - true to restrict to the TI PSG range
-void setfreq(int chan, int freq, bool clip) {
-	if ((chan < 0)||(chan > 99)) return;
+// chan - channel 0-3 (3 is noise)
+// freq - frequency counter (0-1023) or noise code (0-7)
+void setfreq(int chan, int freq) {
+	if ((chan < 0)||(chan > 3)) return;
 
-	if (voice[chan].isNoise) {
-		// reset shift register on trigger
-        if (freq&NOISE_TRIGGER) {
-    		voice[chan].LFSR=0x4000;	//	(15 bit)
-        }
-	} 
-    
-	// limit freq
-	freq&=NOISE_PERIODIC | NOISE_MASK;    // TI chip is 0x3ff!
+	if (chan==3) {
+		// limit noise 
+		freq&=0x07;
+		nRegister[3]=freq;
 
-    if (clip) {
-        if (freq > 0x3ff) {
-            freq = 0x3ff;
-        }
-    }
-    
-    voice[chan].nRegister=freq;
-	// don't update the counters, let them run out on their own
+		// reset shift register
+		LFSR=0x4000;	//	(15 bit)
+		switch (nRegister[3]&0x03) {
+			// these values work but check the datasheet dividers
+			case 0: nCounter[3]=0x10; break;
+			case 1: nCounter[3]=0x20; break;
+			case 2: nCounter[3]=0x40; break;
+			// even when the count is zero, the noise shift still counts
+			// down, so counting down from 0 is the same as wrapping up to 0x400
+			case 3: nCounter[3]=(nRegister[2]?nRegister[2]:0x400); break;		// is never zero!
+		}
+	} else {
+		// limit freq
+		freq&=0x3ff;
+		nRegister[chan]=freq;
+		// don't update the counters, let them run out on their own
+	}
 }
 
 // change the volume on a channel
 // chan - channel 0-3
 // vol - 0 (loudest) to 15 (silent)
 void setvol(int chan, int vol) {
-	if ((chan < 0)||(chan > 99)) return;
-	voice[chan].nVolume=vol&0xf;
+	if ((chan < 0)||(chan > 3)) return;
+
+	nVolume[chan]=vol&0xf;
 }
 
 // fill the output audio buffer with signed 16-bit values
-void sound_update(short *buf, int nSamples) {
+// nAudioIn contains a fixed value to add to all samples (used to mix in the casette audio)
+// (this emu doesn't run speech through there, though, speech gets its own buffer for now)
+void sound_update(short *buf, double nAudioIn, int nSamples) {
 	// nClock is the input clock frequency, which runs through a divide by 16 counter
 	// The frequency does not divide exactly by 16
 	// AudioSampleRate is the frequency at which we actually output bytes
@@ -283,94 +262,146 @@ void sound_update(short *buf, int nSamples) {
 	double nTimePerClock=1000.0/(nClock/16.0);
 	double nTimePerSample=1000.0/(double)AudioSampleRate;
 	int nClocksPerSample = (int)(nTimePerSample / nTimePerClock + 0.5);		// +0.5 to round up if needed
+	int newdacpos = 0;
 	int inSamples = nSamples;
 
 	while (nSamples) {
 		// emulate drift to zero
-		for (int idx=0; idx<100; idx++) {
-			if (voice[idx].nFade > 0.0) {
-				voice[idx].nFade-=FADECLKTICK*nClocksPerSample;
-				if (voice[idx].nFade < 0.0) voice[idx].nFade=0.0;
+		for (int idx=0; idx<4; idx++) {
+			if (nFade[idx] > 0.0) {
+				nFade[idx]-=FADECLKTICK*nClocksPerSample;
+				if (nFade[idx] < 0.0) nFade[idx]=0.0;
 			} else {
-				voice[idx].nFade=0.0;
+				nFade[idx]=0.0;
 			}
 		}
 
-		// process channels
-        int chanCount = 0;
-        double output = 0;
+		// tone channels
 
-		for (int idx=0; idx<100; idx++) {
-            if (!voice[idx].isActive) continue;
-            if (!voice[idx].isNoise) {
-			    voice[idx].nCounter-=nClocksPerSample;
-			    while (voice[idx].nCounter <= 0) {
-				    voice[idx].nCounter+=(voice[idx].nRegister?voice[idx].nRegister:0x400);
-				    voice[idx].nOutput*=-1.0;
-				    voice[idx].nFade=1.0;
-			    }
-			    // A little check to eliminate high frequency tones
-			    if ((voice[idx].nRegister != 0) && (voice[idx].nRegister <= (int)(111860.0/(double)(AudioSampleRate/2)))) {
-				    voice[idx].nFade=0.0;
-			    }
-		    } else {
-		        // noise channel 
-		        voice[idx].nCounter-=nClocksPerSample;
-		        while (voice[idx].nCounter <= 0) {
-                    int regCnt = voice[idx].nRegister & NOISE_MASK;
-				    voice[idx].nCounter+=(regCnt?regCnt:0x400);
-			        voice[idx].nNoisePos*=-1;
-			        double nOldOut=voice[idx].nOutput;
-			        // Shift register is only kicked when the 
-			        // Noise output sign goes from negative to positive
-			        if (voice[idx].nNoisePos > 0) {
-				        int in=0;
-                        // note this is using the converter flags, not the hardware type
-				        if (!(voice[idx].nRegister&NOISE_PERIODIC)) {
-					        // white noise - actual tapped bits uncertain?
-					        if (parity(voice[idx].LFSR&nTappedBits)) {
-                                in=0x4000;
-                            }
+		for (int idx=0; idx<3; idx++) {
+            // Further Testing with the chip that SMS Power's doc covers (SN76489)
+            // 0 outputs a 1024 count tone, just like the TI, but 1 DOES output a flat line.
+            // On the TI (SN76494, I think), 1 outputs the highest pitch (count of 1)
+            // However, my 99/4 pics show THAT machine with an SN76489! 
+            // My plank TI has an SN94624 (early name? TMS9919 -> SN94624 -> SN76494 -> SN76489)
+            // And my 2.2 QI console has an SN76494!
+            // So maybe we can't say with certainty which chip is in which machine?
+            // Myths and legends:
+            // - SN76489 grows volume from 2.5v down to 0 (matches my old scopes of the 494), but SN76489A grows volume from 0 up.
+            // - SN76496 is the same as the SN7689A but adds the Audio In pin (all TI used chips have this, even the older ones)
+            // So right now, I believe there are two main versions, differing largely by the behaviour of count 0x001:
+            // Original (high frequency): TMS9919, SN94624, SN76494?
+            // New (flat line): SN76489, SN76489A, SN76496
+			nCounter[idx]-=nClocksPerSample;
+			while (nCounter[idx] <= 0) {    // TODO: should be able to do this without a loop, it would be faster (well, in the rare cases it needs to loop)!
+				nCounter[idx]+=(nRegister[idx]?nRegister[idx]:0x400);
+				nOutput[idx]*=-1.0;
+				nFade[idx]=1.0;
+			}
+			// A little check to eliminate high frequency tones
+			// If the frequency is greater than 1/2 the sample rate,
+			// then mute it (we'll do that with the nFade value.) 
+			// Noises can't get higher than audible frequencies (even with high user defined rates),
+			// so we don't need to worry about them.
+			if ((nRegister[idx] != 0) && (nRegister[idx] <= (int)(111860.0/(double)(AudioSampleRate/2)))) {
+				// this would be too high a frequency, so we'll merge it into the DAC channel (elsewhere)
+				// and kill this channel. The reason is that the high frequency ends up
+				// creating artifacts with the lower frequency output rate, and you don't
+				// get an inaudible tone but awful noise
+				nFade[idx]=0.0;
+				//nAudioIn += nVolumeTable[nVolume[idx]];	// not strictly right, the high frequency output adds some distortion. But close enough.
+				//if (nAudioIn >= 1.0) nAudioIn = 1.0;	// clip
+			}
+		}
 
-					        if (voice[idx].LFSR&0x0001) {
-						        if (voice[idx].nOutput > 0.0) {
-							        voice[idx].nOutput = -1.0;
-						        } else {
-							        voice[idx].nOutput = 1.0;
-						        }
-					        }
-				        } else {
-					        // periodic noise - tap bit 0 (again, BBC Micro)
-					        if (voice[idx].LFSR&0x0001) {
-						        in=0x4000;	// (15 bit shift)
-						        voice[idx].nOutput=1.0;
-					        } else {
-						        voice[idx].nOutput=0.0;
-					        }
-				        }
-				        voice[idx].LFSR>>=1;
-				        voice[idx].LFSR|=in;
-			        }
-			        if (nOldOut != voice[idx].nOutput) {
-				        voice[idx].nFade=1.0;
-			        }
-		        }
-            }
-            output += voice[idx].nOutput*nVolumeTable[voice[idx].nVolume]*voice[idx].nFade;
-            ++chanCount;
-        }
+		// noise channel 
+		nCounter[3]-=nClocksPerSample;
+		while (nCounter[3] <= 0) {
+			switch (nRegister[3]&0x03) {
+				case 0: nCounter[3]+=0x10; break;
+				case 1: nCounter[3]+=0x20; break;
+				case 2: nCounter[3]+=0x40; break;
+				// even when the count is zero, the noise shift still counts
+				// down, so counting down from 0 is the same as wrapping up to 0x400
+				// same is with the tone above :)
+				case 3: nCounter[3]+=(nRegister[2]?nRegister[2]:0x400); break;		// is never zero!
+			}
+			nNoisePos*=-1;
+			double nOldOut=nOutput[3];
+			// Shift register is only kicked when the 
+			// Noise output sign goes from negative to positive
+			if (nNoisePos > 0) {
+				int in=0;
+				if (nRegister[3]&0x4) {
+					// white noise - actual tapped bits uncertain?
+					// This doesn't currently look right.. need to
+					// sample a full sequence of TI white noise at
+					// a known rate and study the pattern.
+					if (parity(LFSR&nTappedBits)) in=0x4000;
+					if (LFSR&0x01) {
+						// the SMSPower documentation says it never goes negative,
+						// but (my very old) recordings say white noise does goes negative,
+						// and periodic noise doesn't. Need to sit down and record these
+						// noises properly and see what they really do. 
+						// For now I am going to swing negative to play nicely with
+						// the tone channels. 
+						// TODO: I need to verify noise vs tone on a clean system.
+						// need to test for 0 because periodic noise sets it
+						if (nOutput[3] == 0.0) {
+							nOutput[3] = 1.0;
+						} else {
+							nOutput[3]*=-1.0;
+						}
+					}
+				} else {
+					// periodic noise - tap bit 0 (again, BBC Micro)
+					// Compared against TI samples, this looks right
+					if (LFSR&0x0001) {
+						in=0x4000;	// (15 bit shift)
+						// TODO: verify periodic noise as well as white noise
+						// always positive
+						nOutput[3]=1.0;
+					} else {
+						nOutput[3]=0.0;
+					}
+				}
+				LFSR>>=1;
+				LFSR|=in;
+			}
+			if (nOldOut != nOutput[3]) {
+				nFade[3]=1.0;
+			}
+		}
 
 		// write sample
 		nSamples--;
+		double output;
 
 		// using division (single voices are quiet!)
 		// write out one sample
-		// output is now between 0.0 and chanCount, may be positive or negative
-		output/=(double)chanCount;	// you aren't supposed to do this when mixing. Sorry. :)
+		output = nOutput[0]*nVolumeTable[nVolume[0]]*nFade[0] +
+				nOutput[1]*nVolumeTable[nVolume[1]]*nFade[1] +
+				nOutput[2]*nVolumeTable[nVolume[2]]*nFade[2] +
+				nOutput[3]*nVolumeTable[nVolume[3]]*nFade[3];
+		// output is now between 0.0 and 4.0, may be positive or negative
+		output/=4.0;	// you aren't supposed to do this when mixing. Sorry. :)
 
 		short nSample=(short)((double)0x7fff*output); 
 		*(buf++)=nSample; 
 	}
+}
+
+void SetSoundVolumes() {
+	// set overall volume (this is not a sound chip effect, it's directly related to DirectSound)
+	// it sets the maximum volume of all channels
+	EnterCriticalSection(&csAudioBuf);
+
+	int nRange=(MIN_VOLUME*max_volume)/100;	// negative
+	if (NULL != soundbuf) {
+		rampVolume(soundbuf, MIN_VOLUME - nRange);
+	}
+
+	LeaveCriticalSection(&csAudioBuf);
 }
 
 void MuteAudio() {
@@ -418,10 +449,12 @@ void rampVolume(LPDIRECTSOUNDBUFFER ds, long newVol) {
     }
 }
 
-void UpdateSoundBuf(LPDIRECTSOUNDBUFFER soundbuf, void (*sound_update)(short *,int), StreamData *pDat) {
+void UpdateSoundBuf(LPDIRECTSOUNDBUFFER soundbuf, void (*sound_update)(short *,double,int), StreamData *pDat) {
 	DWORD iRead, iWrite;
 	short *ptr1, *ptr2;
 	DWORD len1, len2;
+	static char *pRecordBuffer = NULL;
+	static int nRecordBufferSize = 0;
 
 	EnterCriticalSection(&csAudioBuf);
 
@@ -469,10 +502,10 @@ void UpdateSoundBuf(LPDIRECTSOUNDBUFFER soundbuf, void (*sound_update)(short *,i
 	while (nWriteAhead < pDat->nJitterFrames) {
 		if (SUCCEEDED(soundbuf->Lock(pDat->nLastWrite, CalculatedAudioBufferSize/(hzRate), (void**)&ptr1, &len1, (void**)&ptr2, &len2, 0))) {
 			if (len1 > 0) {
-				sound_update(ptr1, len1/2);		// divide by 2 for 16 bit samples
+				sound_update(ptr1, 0, len1/2);		// divide by 2 for 16 bit samples
 			}
 			if (len2 > 0) {
-				sound_update(ptr2, len2/2);		// divide by 2 for 16 bit samples
+				sound_update(ptr2, 0, len2/2);		// divide by 2 for 16 bit samples
 			}
 
 			// carry on
@@ -484,7 +517,6 @@ void UpdateSoundBuf(LPDIRECTSOUNDBUFFER soundbuf, void (*sound_update)(short *,i
 				pDat->nLastWrite-=CalculatedAudioBufferSize;
 			}
 		} else {
-			printf("Failed to lock sound buffer!");
 			break;
 		}
 		nWriteAhead++;
@@ -492,3 +524,4 @@ void UpdateSoundBuf(LPDIRECTSOUNDBUFFER soundbuf, void (*sound_update)(short *,i
 
 	LeaveCriticalSection(&csAudioBuf);
 }
+

@@ -1613,6 +1613,10 @@ int main(int argc, char *argv[])
         }
     }
 
+    // word align the tables so the TI can pull a word at a time
+    if (outputPos&1) {
+        outputBuffer[outputPos++]=0;
+    }
 
     // write out the tables - the stream table is first
     outputBuffer[STREAMTABLE]   = outputPos/256; 

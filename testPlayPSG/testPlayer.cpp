@@ -40,6 +40,8 @@ bool testay = false;
 bool testpsg = false;
 
 // heatmap statistics - gives an average bytes per decode (ignoring frames with no decode)
+// sadly these don't import well into the compressor, where they'd arguably be easier to see,
+// because it doesn't test the packed file by rows, but by stream.
 int thisHeatMap;
 int totalHeatMap;
 int cntHeatMap;
@@ -476,7 +478,7 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
                                 // look up frequency table
                                 curFreq[1] = tonetable(buf, toneoffset, y);
                             } else {
-                                curFreq[0] = 1;
+                                curFreq[1] = 1;
                             }
                         }
                     }
@@ -492,7 +494,7 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
                                     curFreq[3] = curFreq[2];
                                 }
                             } else {
-                                curFreq[0] = 1;
+                                curFreq[2] = 1;
                             }
                         }
                     }

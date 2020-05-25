@@ -1,0 +1,12 @@
+Except as required by other licenses, all code in this VGMComp2 is hereby released to the Public Domain.
+
+The original author disclaims all responsibility and all liability for this software, in return, you
+are free to use it for any purpose your greedy little paws desire. ;)
+
+But, if you care to give me a thanks in your production, "Tursi" will do. ;)
+
+Current Exceptions:
+
+    Players/PCAY and the resulting PCAY.exe are required to be licensed as GPL version 2, because GPL trumps all.
+    You'll find the required "COPYING" file in that folder. This was because I didn't want to write an AY chip emulator.
+
