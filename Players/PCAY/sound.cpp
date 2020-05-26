@@ -70,7 +70,7 @@ int nNoisePos=1;						// whether noise is positive or negative (white noise only
 unsigned short LFSR=0x4000;				// noise shifter (only 15 bit)
 int nRegister[4]={0,0,0,0};				// frequency registers
 int nVolume[4]={0,0,0,0};				// volume attenuation
-double nFade[4]={1.0,1.0,1.0,1.0};		// emulates the voltage drift back to 0 with FADECLKTICK (TODO: what does this mean with a non-zero center?)
+double nFade[4]={1.0,1.0,1.0,1.0};		// emulates the voltage drift back to 0 with FADECLKTICK
 										// we should test this against an external chip with a clean circuit.
 int max_volume;
 
@@ -293,7 +293,7 @@ void sound_update(short *buf, double nAudioIn, int nSamples) {
             // Original (high frequency): TMS9919, SN94624, SN76494?
             // New (flat line): SN76489, SN76489A, SN76496
 			nCounter[idx]-=nClocksPerSample;
-			while (nCounter[idx] <= 0) {    // TODO: should be able to do this without a loop, it would be faster (well, in the rare cases it needs to loop)!
+			while (nCounter[idx] <= 0) {    // should be able to do this without a loop, it would be faster (well, in the rare cases it needs to loop)!
 				nCounter[idx]+=(nRegister[idx]?nRegister[idx]:0x400);
 				nOutput[idx]*=-1.0;
 				nFade[idx]=1.0;
@@ -423,9 +423,8 @@ void rampVolume(LPDIRECTSOUNDBUFFER ds, long newVol) {
     // and seems to resolve the shutdown click. It does slow things a bit.
     // The main click is caused by the DAC, so, I've got to do a little extra ramp
     // when the system first starts up just for that. That one we'll do live.
-    // TODO: still not convinced of this, causes a flutter when it fades out.
     // Also causes a delay in processing, times every channel involved...
-    const long step = (DSBVOLUME_MAX-DSBVOLUME_MIN);    // todo: normally divide this by number of steps, with it set to one step it's doing pretty much nothing
+    const long step = (DSBVOLUME_MAX-DSBVOLUME_MIN);    // normally divide this by number of steps, with it set to one step it's doing pretty much nothing
     long vol = newVol;
     
     if (NULL == ds) return;

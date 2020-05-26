@@ -7,10 +7,6 @@
 // projects, they differ only by the preprocessor options and they
 // share files! If you change one, you change them both! :)
 
-// TODO: AY not successfully tested yet because I did not yet write
-// "Prepare4AY". Testing with a PSG SBF produced audio that seemed
-// to resemble the source, so it's possibly working.
-
 // Due to the AY code I pulled in, this player is forced to be
 // licensed under GPL. This does NOT apply to the rest of the software
 // suite, which is not linked with that code in any way, and remains

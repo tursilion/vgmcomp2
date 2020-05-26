@@ -1298,7 +1298,7 @@ bool compressStream(int song, int st) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Compression Tool - v20200507\n\n");
+	printf("VGMComp2 Compression Tool - v20200525\n\n");
 
     // parse arguments
     int nextarg = -1;
@@ -1315,7 +1315,7 @@ int main(int argc, char *argv[])
                 debug = true;
             } else if (argv[idx][1] == 'v') {
                 verbose= true;
-            } else if (0 == strcmp(argv[idx], "-psg")) {
+            } else if (0 == strcmp(argv[idx], "-sn")) {
                 isPSG=true;
                 noiseMask = NOISE_MASK;
                 toneMask = TONE_MASK;
@@ -1386,13 +1386,13 @@ int main(int argc, char *argv[])
 
     if ((strlen(szFileOut)==0)||((isAY==false)&&(isPSG==false))) {
         if ((isAY==false)&&(isPSG==false)) {
-            printf("* You must specify -ay or -psg for output type\n");
+            printf("* You must specify -ay or -sn for output type\n");
         }
-        printf("vgmcomp2 [-d] [-dd] [-v] [-minrun s,e] [-alwaysrle] [-norle] [-norle16] [-norle24] [-norle32] [-nofwd] [-nobwd] <-ay|-psg> <filenamein1.psg> [<filenamein2.psg>...] <filenameout.sbf>\n");
+        printf("vgmcomp2 [-d] [-dd] [-v] [-minrun s,e] [-alwaysrle] [-norle] [-norle16] [-norle24] [-norle32] [-nofwd] [-nobwd] <-ay|-sn> <filenamein1.psg> [<filenamein2.psg>...] <filenameout.sbf>\n");
         printf("\nProvides a compressed (sound compressed format) file from\n");
         printf("an input file containing either PSG or AY-3-8910 data\n");
         printf("Except for the noise handling, the output is the same.\n");
-        printf("Specify either -ay for the AY-3-8910 data or -psg for PSG data\n");
+        printf("Specify either -ay for the AY-3-8910 data or -sn for PSG data\n");
         printf("Then input file(s) and lastly output filename.\n");
         printf("\n-d - add extra parser debug output\n");
         printf("-dd - add extra compressor debug output (does not include -d)\n");

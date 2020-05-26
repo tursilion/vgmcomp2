@@ -1,8 +1,6 @@
 // helper code to let the PC write to the sound chip
 // this is included directly in CPlayer.c
 
-// TODO: add AY support so we can test that too
-
 // now our sound chip access...
 #ifdef USE_SN_PSG
 #include "sound.h"
@@ -70,8 +68,6 @@ void writeSound(int c) {
 			oldFreq[nChan]|=c&0x0f;
 		} else {
 			// latch clear - data to whatever is latched
-			// TODO: re-verify this on hardware, it doesn't agree with the SMS Power doc
-			// as far as the volume and noise goes!
 			if (latch_byte&0x10) {
 				// volume register
 				setvol(nChan, c&0x0f);

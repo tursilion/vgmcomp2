@@ -11,7 +11,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-// TODO: ayemu_ay_t - hide all private data, allocate it in init function.
+// ayemu_ay_t - hide all private data, allocate it in init function.
 typedef unsigned char ayemu_ay_reg_frame_t[14];
 
 /** Types of stereo.

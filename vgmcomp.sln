@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27004.2009
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testPlayer", "testPlayPSG\testPlayPSG.vcxproj", "{D147FE48-6FCE-4D40-A4B7-2015F928603D}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testPlayer", "testPlayer\testPlayPSG.vcxproj", "{D147FE48-6FCE-4D40-A4B7-2015F928603D}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vgm_psg2psg", "vgm_psg2psg\vgm_psg2psg.vcxproj", "{E8E19087-1527-41CA-AAD0-53680DDE5B11}"
 EndProject
@@ -11,7 +11,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vgm_ay2psg", "vgm_ay2psg\vg
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vgm_id", "vgmid\vgm_id.vcxproj", "{3EFFE07D-25B0-4CD6-9584-D726B08D2300}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prepare4PSG", "prepare4PSG\prepare4PSG.vcxproj", "{DD7CA84E-4602-4AC3-BEF5-74BCCD7451D2}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prepare4SN", "prepare4SN\prepare4PSG.vcxproj", "{DD7CA84E-4602-4AC3-BEF5-74BCCD7451D2}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vgm_gb2psg", "vgm_gb2psg\vgm_gb2psg.vcxproj", "{C3F09F97-FA65-4547-BE59-6C6AF2B5D04A}"
 EndProject
@@ -43,6 +43,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LICENSE", "LICENSE", "{8F2A
 	ProjectSection(SolutionItems) = preProject
 		PublicDomain.txt = PublicDomain.txt
 	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prepare4AY", "prepare4AY\prepare4AY.vcxproj", "{066D0D1B-F97E-424E-910A-58E8D5587935}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -140,6 +142,14 @@ Global
 		{01263202-227D-4316-8459-25D35EFCD16E}.Release|Win32.Build.0 = Release|Win32
 		{01263202-227D-4316-8459-25D35EFCD16E}.Release|x64.ActiveCfg = Release|x64
 		{01263202-227D-4316-8459-25D35EFCD16E}.Release|x64.Build.0 = Release|x64
+		{066D0D1B-F97E-424E-910A-58E8D5587935}.Debug|Win32.ActiveCfg = Debug|Win32
+		{066D0D1B-F97E-424E-910A-58E8D5587935}.Debug|Win32.Build.0 = Debug|Win32
+		{066D0D1B-F97E-424E-910A-58E8D5587935}.Debug|x64.ActiveCfg = Debug|x64
+		{066D0D1B-F97E-424E-910A-58E8D5587935}.Debug|x64.Build.0 = Debug|x64
+		{066D0D1B-F97E-424E-910A-58E8D5587935}.Release|Win32.ActiveCfg = Release|Win32
+		{066D0D1B-F97E-424E-910A-58E8D5587935}.Release|Win32.Build.0 = Release|Win32
+		{066D0D1B-F97E-424E-910A-58E8D5587935}.Release|x64.ActiveCfg = Release|x64
+		{066D0D1B-F97E-424E-910A-58E8D5587935}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
