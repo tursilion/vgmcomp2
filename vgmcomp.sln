@@ -46,6 +46,17 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LICENSE", "LICENSE", "{8F2A
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prepare4AY", "prepare4AY\prepare4AY.vcxproj", "{066D0D1B-F97E-424E-910A-58E8D5587935}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISN", "TISN", "{280179E3-2613-41F5-A99B-0BE8B51CB232}"
+	ProjectSection(SolutionItems) = preProject
+		CPlayerTI.c = CPlayerTI.c
+		Players\TISN\crt0_ea5.asm = Players\TISN\crt0_ea5.asm
+		Players\TISN\Makefile = Players\TISN\Makefile
+		Readme.txt = Readme.txt
+		Players\TISN\sil_nes.c = Players\TISN\sil_nes.c
+		Players\TISN\sil_nes.vgz.sbf = Players\TISN\sil_nes.vgz.sbf
+		Players\TISN\tisnplay.c = Players\TISN\tisnplay.c
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -159,6 +170,7 @@ Global
 		{522A08F5-16EF-408B-A701-B78561777CB6} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 		{E20C76E4-3B50-4905-91AD-15736D64ED57} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 		{01263202-227D-4316-8459-25D35EFCD16E} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
+		{280179E3-2613-41F5-A99B-0BE8B51CB232} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

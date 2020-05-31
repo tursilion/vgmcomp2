@@ -39,7 +39,6 @@
 // of the register to write to, the second is the byte to write. See
 // the CPlayerXX.c files for examples.
 
-#include <stdlib.h>
 #include "CPlayer.h"
 
 #if !defined(USE_SN_PSG) && !defined(USE_AY_PSG)

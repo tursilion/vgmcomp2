@@ -1,4 +1,5 @@
 // vgmcomp2.cpp : Defines the entry point for the console application.
+// vgmcomp2.cpp : Defines the entry point for the console application.
 //
 // 9 Channels:
 // Tone1	Vol1	Tone2	Vol2	Tone3	Vol3	Noise	Vol4	Timing
@@ -14,7 +15,6 @@
 // 1 extra SLA on the Z80 (2 cycles) and that's worth avoiding the confusion. So the 
 // data is the same - high nibble is count, low nibble is mixer command, partially:
 // - This means ####CBA0 - the mixer needs 00CBA000 - so shift left twice then AND #$38
-
 
 #include "stdafx.h"
 #include <stdio.h>
@@ -91,6 +91,7 @@ bool isPSG=false, isAY=false;
 bool verbose = false;
 bool debug = false;
 bool debug2 = false;
+bool doDeepDive = false;
 int noiseMask, toneMask;
 int minRun = 0;
 int minRunMin = 0;
@@ -1311,7 +1312,7 @@ int main(int argc, char *argv[])
             } else if ((argv[idx][1] == 'd')&&(argv[idx][2] == 'd')) {
                 // secret: "-dd" for encoding debug. You still need "-d" for the test debug
                 debug2 = true;
-            } else if (argv[idx][1] == 'd') {
+            } else if ((argv[idx][1] == 'd') && (argv[idx][2] == '\0')) {
                 debug = true;
             } else if (argv[idx][1] == 'v') {
                 verbose= true;
@@ -1346,7 +1347,7 @@ int main(int argc, char *argv[])
                     printf("MinRunMax must be larger than MinRunMin, got %d,%d\n", minRunMin, minRunMax);
                     return 1;
                 }
-                if (minRunMax >= MAXRUN) {
+                if (minRunMax > MAXRUN) {
                     printf("MinRunMax must be less than %d\n", MAXRUN);
                     return 1;
                 }
@@ -1365,6 +1366,8 @@ int main(int argc, char *argv[])
             } else if (0 == strcmp(argv[idx], "-nobwd")) {
                 noBwdSearch = true;
                 noFwdSearch = true; // no point searching forward if a back search will never find it
+            } else if (0 == strcmp(argv[idx], "-deepdive")) {
+                doDeepDive = true;  // secret option that tries most switches on each stream - very slow
             } else {
                 printf("Unknown switch '%s'\n", argv[idx]);
             }
@@ -1405,7 +1408,7 @@ int main(int argc, char *argv[])
         printf("-norle24 - disable 24-bit RLE encoding\n");
         printf("-norle32 - disable 32-bit RLE encoding\n");
         printf("-nofwd - disable forward searching\n");
-        printf("-nobwd - disable backward searching (unlikely to be useful)\n");
+        printf("-nobwd - disable backward searching (implies nofwd, unlikely to be useful)\n");
         return 1;
     }
 
@@ -1559,39 +1562,81 @@ int main(int argc, char *argv[])
             // were saved doing this, so gonna say worth it. Minruns /might/ also help
             // order matter less (based on just one test, mind you)
             int bestRun = 0;
+            int bestDive = 0;
             int bestSize = 65536;
 
-            for (minRun = minRunMin; minRun < minRunMax; ++minRun) {
-                minRunData[minRun].cntBacks.reset();
-                minRunData[minRun].cntFwds.reset();
-                minRunData[minRun].cntInlines.reset();
-                minRunData[minRun].cntRLE32s.reset();
-                minRunData[minRun].cntRLE24s.reset();
-                minRunData[minRun].cntRLE16s.reset();
-                minRunData[minRun].cntRLEs.reset();
-
-                outputPos = songs[song].streamOffset[st];
-
-                if (!compressStream(song, st)) {
-                    return 1;
+            // experimental deep dive code - tries all the likely combinations of switches
+            // this takes a really long time and frankly doesn't help much. It only saves
+            // 178 bytes on my 680 rock title (from 32136 to 31958). So... hidden switch. ;)
+            for (int deepdive = 0; deepdive<0x40; ++deepdive) {
+                if (doDeepDive) {
+                    if (deepdive&0x01) noRLE = true; else noRLE = false;
+                    if (deepdive&0x02) noRLE16 = true; else noRLE16 = false;
+                    if (deepdive&0x04) noRLE24 = true; else noRLE24 = false;
+                    if (deepdive&0x08) noRLE32 = true; else noRLE32 = false;
+                    if (deepdive&0x10) noFwdSearch = true; else noFwdSearch = false;
+                    if (deepdive&0x20) noBwdSearch = true; else noBwdSearch = false;
+                    if (noBwdSearch == true && noFwdSearch == false) continue;
+                    if (verbose) {
+                        printf("\rSBF packing song %d, stream %d, dive %d...", song, st, deepdive);
+                    }
+                    if (debug2) {
+                        printf("DEEP DIVE: %d noRLE:%d noRLE16:%d noRLE24:%d noRLE32:%d noFwd:%d noBwd:%d\n", deepdive,
+                            noRLE, noRLE16, noRLE24, noRLE32, noFwdSearch, noBwdSearch);
+                    }
+                } else {
+                    // jump right to last loop, don't touch options
+                    deepdive = 0x3f;
                 }
 
-                if (debug2) {
-                    printf("[%d] got size %d", minRun, outputPos-songs[song].streamOffset[st]);
+                for (minRun = minRunMin; minRun < minRunMax; ++minRun) {
+                    minRunData[minRun].cntBacks.reset();
+                    minRunData[minRun].cntFwds.reset();
+                    minRunData[minRun].cntInlines.reset();
+                    minRunData[minRun].cntRLE32s.reset();
+                    minRunData[minRun].cntRLE24s.reset();
+                    minRunData[minRun].cntRLE16s.reset();
+                    minRunData[minRun].cntRLEs.reset();
+
+                    outputPos = songs[song].streamOffset[st];
+
+                    if (!compressStream(song, st)) {
+                        return 1;
+                    }
+
+                    if (debug2) {
+                        printf("[%d] got size %d", minRun, outputPos-songs[song].streamOffset[st]);
+                    }
+
+                    if (outputPos-songs[song].streamOffset[st] < bestSize) {
+                        if (debug2) printf(" (BEST!)");
+                        bestSize = outputPos-songs[song].streamOffset[st];
+                        bestRun = minRun;
+                        bestDive = deepdive;
+                        memcpy(bestRunBuffer, &outputBuffer[songs[song].streamOffset[st]], bestSize);
+                    }
+
+                    if (debug2) printf("\n");
                 }
 
-                if (outputPos-songs[song].streamOffset[st] < bestSize) {
-                    if (debug2) printf(" (BEST!)");
-                    bestSize = outputPos-songs[song].streamOffset[st];
-                    bestRun = minRun;
-                    memcpy(bestRunBuffer, &outputBuffer[songs[song].streamOffset[st]], bestSize);
-                }
-
-                if (debug2) printf("\n");
-            }
+            }// deep dive
 
             // reload the best one...
-            if (verbose) printf("%4d bytes at minrun %d\n", bestSize, bestRun);
+            if (verbose) {
+                printf("%4d bytes at minrun %d\n", bestSize, bestRun);
+                if (doDeepDive) {
+                    // okay to change these, they will be changed again before use
+                    if (bestDive&0x01) noRLE = true; else noRLE = false;
+                    if (bestDive&0x02) noRLE16 = true; else noRLE16 = false;
+                    if (bestDive&0x04) noRLE24 = true; else noRLE24 = false;
+                    if (bestDive&0x08) noRLE32 = true; else noRLE32 = false;
+                    if (bestDive&0x10) noFwdSearch = true; else noFwdSearch = false;
+                    if (bestDive&0x20) noBwdSearch = true; else noBwdSearch = false;
+                    printf("  BEST DIVE: %d noRLE:%d noRLE16:%d noRLE24:%d noRLE32:%d noFwd:%d noBwd:%d\n", 
+                        bestDive, noRLE, noRLE16, noRLE24, noRLE32, noFwdSearch, noBwdSearch);
+                }
+            }
+
             memcpy(&outputBuffer[songs[song].streamOffset[st]], bestRunBuffer, bestSize);
             outputPos = songs[song].streamOffset[st] + bestSize;
             // update totals
@@ -1711,7 +1756,8 @@ int main(int argc, char *argv[])
     printf("\n%d songs (%f seconds) compressed to %d bytes (%f bytes/second)\n",
            currentSong, totalTime, outputPos, int(outputPos / totalTime * 1000 + 0.5) / 1000.0);
 
-    if (verbose) {
+    // deepdive blows these stats away cause we don't keep all the run data across every combination
+    if ((verbose) && (!doDeepDive)) {
         printf("  %d RLE encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLEs.cnt, minRunData[MAXRUN].cntRLEs.avg(3));
         printf("  %d RLE16 encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLE16s.cnt, minRunData[MAXRUN].cntRLE16s.avg(2));
         printf("  %d RLE24 encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLE24s.cnt, minRunData[MAXRUN].cntRLE24s.avg(2));
