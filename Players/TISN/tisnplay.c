@@ -30,6 +30,15 @@ int main() {
     set_graphics(VDP_MODE1_SPRMAG);
     VDP_SET_REGISTER(VDP_REG_COL,COLOR_LTBLUE);
 
+#if 1
+    // see what's broken
+    PlayerUnitTest();
+    for (;;) {
+        kscan(5);
+        if (KSCAN_KEY == 32) break;
+    }
+#endif
+
     // set interrupt hook
     VDP_INT_HOOK = wrapInt;
     // turn off unused console interrupt flags (just saves a little CPU time)

@@ -23,6 +23,9 @@
 // For this Windows port only, I'm forcing the C files to compile as C++
 #include "..\CPlayer\CPlayer.h"
 
+// if you want to run unit tests
+extern void PlayerUnitTest();
+
 // -----------------------------------------
 // Sound emulation, not needed on a machine with a real sound chip
 // -----------------------------------------
@@ -52,6 +55,8 @@ unsigned char buf[64*1024]; // maximum legal size
 // main code - all the interface is in here
 // -----------------------------------------
 int main(int argc, char *argv[]) {
+//  PlayerUnitTest();
+
     if (argc<2) {
         printf("Example SBF player for Windows. Pass in the name of an SBF file\n");
 #ifdef USE_SN_PSG

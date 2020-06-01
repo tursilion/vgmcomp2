@@ -28,6 +28,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CPlayer", "CPlayer", "{009F
 		Players\CPlayer\CPlayer.c = Players\CPlayer\CPlayer.c
 		Players\CPlayer\CPlayer.h = Players\CPlayer\CPlayer.h
 		Players\CPlayer\CPlayerCommon.c = Players\CPlayer\CPlayerCommon.c
+		Players\CPlayer\CPlayerTest.c = Players\CPlayer\CPlayerTest.c
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Archive", "Archive", "{522A08F5-16EF-408B-A701-B78561777CB6}"
@@ -48,7 +49,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prepare4AY", "prepare4AY\pr
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISN", "TISN", "{280179E3-2613-41F5-A99B-0BE8B51CB232}"
 	ProjectSection(SolutionItems) = preProject
-		CPlayerTI.c = CPlayerTI.c
+		Players\TISN\CPlayerCommonHandEdit.asm = Players\TISN\CPlayerCommonHandEdit.asm
+		Players\TISN\CPlayerTI.c = Players\TISN\CPlayerTI.c
+		Players\TISN\CPlayerTIHandEdit.asm = Players\TISN\CPlayerTIHandEdit.asm
 		Players\TISN\crt0_ea5.asm = Players\TISN\crt0_ea5.asm
 		Players\TISN\Makefile = Players\TISN\Makefile
 		Players\TISN\Readme.txt = Players\TISN\Readme.txt

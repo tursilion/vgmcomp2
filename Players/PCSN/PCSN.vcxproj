@@ -23,6 +23,9 @@
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsCpp</CompileAs>
     </ClCompile>
+    <ClCompile Include="..\CPlayer\CPlayerTest.c">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileAsCpp</CompileAs>
+    </ClCompile>
     <ClCompile Include="..\PCAY\CPlayerPC.cpp" />
     <ClCompile Include="..\PCAY\PC.cpp" />
     <ClCompile Include="..\PCAY\sound.cpp" />

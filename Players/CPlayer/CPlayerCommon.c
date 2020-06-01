@@ -15,8 +15,10 @@
 // Normally inline, but if you need to split up your
 // output date (say, for banking or split memory), you
 // can do the work here.
-static inline uint8 getBufferByte(uint8 *buf, uint16 adr) {
-    return buf[adr];
+// (buf is passed in just in case it's useful to have the base)
+static inline uint8 getBufferByte(uint8 *buf, uint8 *adr) {
+    (void)buf;
+    return *adr;
 }
 
 static uint8 getDatInline(STREAM *str, uint8 *buf) {
@@ -70,15 +72,17 @@ uint8 getCompressedByte(STREAM *str, uint8 *buf) {
     case TYPEBACKREF:  // long back reference
     case TYPEBACKREF2:
         {
+            int temp;
             str->curType = getDatInline;
             x1 = getBufferByte(buf, str->mainPtr);
             x2 = getBufferByte(buf, str->mainPtr+1);
-            str->curPtr = x1*256 + x2;
+            temp = x1*256 + x2;
             // check for end of stream
-            if (str->curPtr == 0) {
+            if (temp == 0) {
                 str->mainPtr = 0;
                 return 0;
             }
+            str->curPtr = buf + temp;
             str->mainPtr += 2;
             str->curBytes = (x&0x3f) + 4;
         }

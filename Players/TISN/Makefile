@@ -31,8 +31,9 @@ OBJECT_LIST_EA5=\
 OBJECT_LIST=\
   sil_nes.o \
   tisnplay.o \
-  CPlayerTI.o \
-  ../CPlayer/CPlayerCommon.o
+  CPlayerTIHandEdit.o \
+  CPlayerCommonHandEdit.o \
+  ../CPlayer/CPlayerTest.o
 
 # List of all files needed in executable
 PREREQUISITES=\
@@ -55,10 +56,14 @@ split:
 
 # Recipe to clean all compiled objects
 .phony clean:
-	rm *.o
-	rm *.elf
-	rm *.map
-	rm *.bin
+	-rm *.o
+	-rm *.i
+	-rm *.s
+	-rm *.lst
+	-rm *.elf
+	-rm *.map
+	-rm *.bin
+	-rm ../CPlayer/CPlayerCommon.o
 
 # Recipe to compile all assembly files
 %.o: %.asm

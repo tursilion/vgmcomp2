@@ -34,8 +34,8 @@ typedef unsigned int uWordSize; // most efficient word size, 8 bits or more unsi
 // structure for unpacking a stream of data
 typedef struct STRTYPE STREAM;
 struct STRTYPE {
-    uint16 mainPtr;      // the main index in the decompression. If 0, we are done.
-    uint16 curPtr;       // where are are currently getting data from
+    uint8 *curPtr;       // where are are currently getting data from
+    uint8 *mainPtr;      // the main index in the decompression. If 0, we are done.
     uint8 (*curType)(STREAM*, uint8*);    // function pointer to get data for the type
     uWordSize curBytes;   // current bytes left
     // post compression data

@@ -19,20 +19,20 @@ but it's still usable from assembly language. The sample player calls it from th
 demonstrate this. The main issue is that you now need to give it the workspace at >8300 and set a
 stack pointer in R15 with enough space below to execute.
 
-MEMORY USAGE:                                   OLD VERSION
+MEMORY USAGE:                                   V1              HandTuned1
     Song data storage: 110 bytes                124 bytes
     Stack usage: 16 bytes                         0 bytes
     Workspace: 32 bytes - but optional           32 bytes
 
     Total: 158 bytes                            156 bytes
 
-    Code: 1330 bytes                            608 bytes
+    Code: 1348 bytes                            608 bytes       1218 bytes
 
 CPU USAGE:
     Over the course of my test song:
-        MIN:  2,070 cycles                       1,200
-        MAX: 12,898 cycles                      10,000
-        AVG:  5,619 cycles                       2,500
+        MIN:  2,070 cycles                       1,200           2,038
+        MAX: 12,898 cycles                      10,000          10,276
+        AVG:  5,619 cycles                       2,500           5,073
 
 So, it's probably still worth doing a more optimized assembly build. We can likely attribute the cycle count 
 directly to the increase in code size - roughly doubled.

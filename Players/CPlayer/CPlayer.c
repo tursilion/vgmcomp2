@@ -76,7 +76,7 @@ uint16 songNote[4];
 uWordSize songActive;
 
 // this holds onto the currently playing song pointer
-static uint8* workBuf;
+uint8* workBuf;
 
 // local stream data
 // 4 tone, 4 vol, 1 time
@@ -122,7 +122,7 @@ void StartSong(unsigned char *buf, uWordSize sbfsong) {
 
     // load the stream pointers
     for (int idx=0; idx<9; ++idx) {
-        strDat[idx].mainPtr = buf[streamoffset+idx*2]*256+buf[streamoffset+idx*2+1];
+        strDat[idx].mainPtr = buf[streamoffset+idx*2]*256+buf[streamoffset+idx*2+1]+buf;
         strDat[idx].curPtr = 0;
         strDat[idx].curBytes = 0;
         strDat[idx].curType = getDatZero;
