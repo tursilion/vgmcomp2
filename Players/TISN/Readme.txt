@@ -19,20 +19,27 @@ but it's still usable from assembly language. The sample player calls it from th
 demonstrate this. The main issue is that you now need to give it the workspace at >8300 and set a
 stack pointer in R15 with enough space below to execute.
 
-MEMORY USAGE:                                   V1              HandTuned1
-    Song data storage: 110 bytes                124 bytes
-    Stack usage: 16 bytes                         0 bytes
-    Workspace: 32 bytes - but optional           32 bytes
+MEMORY USAGE (C):                                V1              HandTuned
+    Song data storage: 88 bytes                 124 bytes        90 bytes
+    Stack usage: 16 bytes                         0 bytes         0 bytes
+    Workspace: 32 bytes - but optional           32 bytes         0 bytes (*)
 
-    Total: 158 bytes                            156 bytes
+    Total: 136 bytes                            156 bytes        90 bytes
 
-    Code: 1348 bytes                            608 bytes       1218 bytes
+    Code: 1409 bytes                            608 bytes       952 bytes
 
 CPU USAGE:
-    Over the course of my test song:
-        MIN:  2,070 cycles                       1,200           2,038
-        MAX: 12,898 cycles                      10,000          10,276
-        AVG:  5,619 cycles                       2,500           5,073
+    Over the course of my test song:          (v1 approx)
+        MIN:  2,198 cycles                       1,034           1,534
+        MAX: 17,310 cycles                      13,362           8,924
+        AVG:  6,208 cycles                       4,707           4,221
+
+(* - no /separate/ workspace is required anymore, but it will completely eat your existing workspace.
+However, depending on your application, this may be okay. For instance, the demo player is full GCC
+and yet GCC did not need to save any registers to call it. It's up to you now if you need it.)
+
+Approx 190.8 cycles per scanline. C code can be made slightly faster by defining uWordSize as unsigned int, but 
+this costs 30-40 bytes more in RAM usage.
 
 So, it's probably still worth doing a more optimized assembly build. We can likely attribute the cycle count 
 directly to the increase in code size - roughly doubled.

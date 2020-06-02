@@ -31,16 +31,19 @@ OBJECT_LIST_EA5=\
 OBJECT_LIST=\
   sil_nes.o \
   tisnplay.o \
-  CPlayerTIHandEdit.o \
   CPlayerCommonHandEdit.o \
+  CPlayerTIHandEdit.o \
   ../CPlayer/CPlayerTest.o
+
+#  CPlayerTI.o \
+#  ../CPlayer/CPlayerCommon.o \
 
 # List of all files needed in executable
 PREREQUISITES=\
   $(OBJECT_LIST_EA5) $(OBJECT_LIST)
   
 all: tisnplay
-	#/mnt/d/work/classic99paste/release/classic99paste -reset xx15DSK0.TISNPLAY\\n
+	/mnt/d/work/classic99paste/release/classic99paste.exe -reset xx25DSK0.TISNPLAY\\n
 
 # Recipe to compile the executable
 tisnplay: $(PREREQUISITES)
@@ -64,6 +67,7 @@ split:
 	-rm *.map
 	-rm *.bin
 	-rm ../CPlayer/CPlayerCommon.o
+	-rm ../CPlayer/CPlayerTest.o
 
 # Recipe to compile all assembly files
 %.o: %.asm

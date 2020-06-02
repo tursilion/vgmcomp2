@@ -5,7 +5,55 @@
 	pseg
 	ref workBuf
 
-DAT000 DATA 0
+* we sometimes need to directly access the LSB of some registers - addresses here
+* Note this assumes a workspace of >8300 and that it can pretty much completely
+* wipe it out. If you need to preserve your own registers, use a different workspace.
+R3LSB EQU >8307
+
+*****************************************************************************
+* in the original design for this code, the player used a workspace of
+* >8320 and left the C workspace of >8300 alone. However, it looks
+* like we can get away with abusing the system and sharing the workspace.
+* If your assembly code needs to preserve registers, you can probably
+* share your separate workspace with StartSong and StopSong and then
+* just switch to >8300 for SongLoop only.
+
+* do note that with this density, some of the gcc preserved registers
+* are destroyed - particularly r8 is a frame pointer (--omit-frame-pointer?),
+* though I haven't seen it used, r9 is supposed to be preserved (not sure why),
+* and r13-r15 are supposed to be preserved in case blwp was used (again, I don't
+* think GCC generates blwp sequences). Of course, if you are using from asm,
+* then you know what you need and what to do with.
+
+* TLDR: if you share one workspace, then you can assume everything gets used
+* when you call SongLoop. If you split the workspaces, here are the separate
+* usages.
+
+* register usage for interface functions (StartSong and StopSong)
+* R0 =                      R8 = 
+* R1 = arg1,scratch,return  R9 = 
+* R2 = arg2,scratch         R10= stack pointer (if used from C, not touched)
+* R3 = scratch              R11= return address
+* R4 = scratch              R12= 
+* R5 =                      R13= 
+* R6 =                      R14= 
+* R7 =                      R15= 
+
+* register usage for SongLoop and getCompressedByte
+* R0 =                      R8 = SongLoop scratch
+* R1 = arg1,scratch,return  R9 = SongLoop scratch 
+* R2 = arg2,scratch         R10= stack pointer (if used from C, not touched)
+* R3 = scratch              R11= return address
+* R4 = scratch              R12= SongLoop scratch
+* R5 = scratch              R13= SongLoop scratch
+* R6 = scratch              R14= SongLoop scratch
+* R7 = SongLoop scratch     R15= SongLoop scratch
+
+*****************************************************************************
+
+* some useful data
+    def DAT0001
+DAT0001 DATA >0001
 JMPTAB DATA L24,L24,L25,L26,L30_B,L28,L29,L29
 ADRINLINE DATA getDatInline
 ADRRLE16  DATA getDatRLE16
@@ -103,11 +151,11 @@ getDatRLE24
 * uint8 getCompressedByte(STREAM *str, uint8 *buf)
 * r1 = str (and curptr is offset 0), buf is unused and not provided
 * mainptr is offset 2, curType is 4, curBytes is 6
-	def	getCompressedByte
+	def	getCompressedByte,getDatZero
 getCompressedByte
-	c @6(r1),@DAT000	    * compare curBytes to 0
+	cb @6(r1),@DAT0001	    * compare curBytes to 0
 	jeq  L22			    * jump if yes (most common case is fallthrough)
-	dec  @>6(r1)		    * curBytes > 0 - decrement it
+    sb @DAT0001+1,@>6(r1)   * curBytes > 0 - decrement it
 	mov  @>4(r1),r3	        * get curType pointer
 	b    *r3			    * call it (it will return)
 
@@ -127,7 +175,7 @@ L24
 	mov  r5,*r1             * set curPtr to mainPtr after fetch
 	andi r3,>3F 			* get count from command (fixes MSB too!)
 *	inc  r3					* add minimum size of 1 (but dont do this, because we will fetch the first byte)
-	mov  r3,@>6(r1)	    	* store to curbytes
+	movb @R3LSB,@>6(r1)    	* store to curbytes
 	a    r3,r5				* add length of string to address
 	mov  r5,@>2(r1) 		* store back to mainPtr (note that we got the 1 we dropped from curbytes for free from the postinc)
 	movb r6,r1              * return value
@@ -143,7 +191,7 @@ L30_B
 	inct r3					* add minimum size of 2
 	a    r3,r3				* double the count (cause 2 each cycle)
 	dec  r3                 * were going to take one now
-	mov  r3,@>6(r1)         * write out curBytes
+	movb @R3LSB,@>6(r1)     * write out curBytes
 	movb r6,r1              * return value
 	b    *r11
 	
@@ -158,7 +206,7 @@ L28
 	a    r4,r3				* x2
 	a    r4,r3				* x3
 	ai   r3,5				* add 6 (minimum 2, x3), minus the one we are taking
-	mov  r3,@>6(r1)		    * write to curBytes
+	movb @R3LSB,@>6(r1)     * write to curBytes
 	movb r6,r1              * return value
 	b    *r11
 
@@ -172,7 +220,7 @@ L26
 	inct r3					* add default count of 2
 	sla  r3,>2				* multiply by 4
 	dec  r3                 * minus the one we are taking
-	mov  r3,@>6(r1)		    * save curBytes
+	movb @R3LSB,@>6(r1)     * save curBytes
 	movb r6,r1              * return value
 	b    *r11
 
@@ -184,11 +232,10 @@ L25
 	mov  r5,@>2(r1) 		* save mainPtr
 	andi r3,>1F		    	* get command count
 	inct r3  				* add default of 3, minus the one we are taking
-	mov  r3,@>6(r1)		    * save curBytes
+	movb @R3LSB,@>6(r1)	    * save curBytes
 	movb r6,r1              * return value
 	b    *r11
 
-    def L29
 L29
 	mov @ADRINLINE,@4(r1)	* BACKREF uses inline - only type that can end a stream
 	movb @1(r5),r4			* get lsb - may be misaligned so cant use MOV
@@ -205,12 +252,15 @@ L29
 	mov  r5,@>2(r1)	    	* save mainPtr
 	andi r3,>3F			    * mask out just the count bits (fixes MSB)
 	ai   r3,>3				* add minimum of 4 (minus one cause we are taking one)
-	mov  r3,@>6(r1)		    * save curBytes
+	movb @R3LSB,@>6(r1)	    * save curBytes
 	movb r6,r1              * return value
 	b    *r11
 
 L39
 	clr  @>2(r1)		    * zero out mainPtr
+
+* while part of getCompressedByte, this is also all we need for getDatZero
+getDatZero
 	clr  r1					* zero out return
 	b    *r11				* back to caller
 	.size	getCompressedByte, .-getCompressedByte

@@ -16,7 +16,7 @@
 typedef int int16;              // must be 16 bit or larger, signed is okay
 typedef unsigned int uint16;    // must be 16 bit or larger, unsigned
 typedef unsigned char uint8;    // must be 8 bit unsigned
-typedef unsigned int uWordSize; // most efficient word size, 8 bits or more unsigned
+typedef unsigned char uWordSize;// most efficient word size, 8 bits or more unsigned
 #elif defined(BUILD_COLECO)
 typedef int int16;              // must be 16 bit or larger, signed is okay
 typedef unsigned int uint16;    // must be 16 bit or larger, unsigned
@@ -78,8 +78,36 @@ extern uint8 songVol[4];
 // (if it matters to your software, that is)
 extern uint16 songNote[4];
 
+#if 0
+// use this version for everything EXCEPT interfacing to the TI asm
+// version, which changes the size of only songActive
+
 // this flag contains 1 if playing, zero if stopped
 // you can also stop (or pause!) a song by setting it to zero
 extern uWordSize songActive;
 
+// regardless of size, we define bits for songActive per 8-bits
+#define SONGACTIVEACTIVE 0x01
+#define SONGACTIVEMUTE1  0x80
+#define SONGACTIVEMUTE2  0x40
+#define SONGACTIVEMUTE3  0x20
+#define SONGACTIVEMUTE4  0x10
+
+#else
+
+// use this version only for the TI assembly version
+
+// this flag contains 1 if playing, zero if stopped
+// you can also stop (or pause!) a song by setting it to zero
+extern uint16 songActive;
+
+// regardless of size, we define bits for songActive per 8-bits
+#define SONGACTIVEACTIVE 0x0001
+#define SONGACTIVEMUTE1  0x8000
+#define SONGACTIVEMUTE2  0x4000
+#define SONGACTIVEMUTE3  0x2000
+#define SONGACTIVEMUTE4  0x1000
+
 #endif
+
+#endif  // file include

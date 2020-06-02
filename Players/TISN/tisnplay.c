@@ -8,22 +8,57 @@
 extern const unsigned char mysong[];
 
 // to be called from the user interrupt hook
-// Note when we are calling from the user interrupt, it's not
-// safe to use the C registers, unless we tell GCC here to save
-// ALL of them (which is pretty expensive and uses at least
-// as much memory off the stack as a separate WS would).
-// However, if you poll and call SongLoop from your main code,
-// the GCC will take care of the register usage for you.
+// Note that this call, since it shares the workspace with C,
+// will blow away ALL the registers except R0 and R10, so make
+// sure you only call it from a tightly controlled area where
+// there's no state to preserve, or likewise only enable
+// interrupts in such a condition. If you don't know, then
+// use the inline version that tags the variables as trashed,
+// and GCC will figure out what needs to be saved. 
+// Naturally, if you are using the slower C version and not
+// the hand-editted versions, then you don't need to worry
+// about that, GCC takes care of the registers.
+
+#if 0
+// Option 1: Use the C version of SongLoop from the interrupt hook
+// this version can be used to call the C version of SongLoop from the
+// user interrupt if your code is running C. To use this, just
+// add "VDP_INT_HOOK = wrapInt;" to your code, and use either "vdpwaitvint()"
+// or "VDP_INT_POLL" in your main loop to make it fire. Note this version
+// uses a second workspace at >8320 to preserve the C workspace.
 void wrapInt() {
     __asm__(
-        "mov @>8314,@>8334\n\t" // move C stack pointer (r10) to new workspace stack pointer
-        "lwpi >8320\n\t"        // new workspace at >8320
+        "mov @0x8314,@0x8334\n\t" // move C stack pointer (r10) to new workspace stack pointer
+        "lwpi 0x8320\n\t"        // new workspace at >8320
+
         "bl @SongLoop\n\t"      // call the player
-        "lwpi >83e0\n\t"        // back to GPLWS
+
+        "lwpi 0x83e0\n\t"        // back to GPLWS
         "b *r11"                // back to interrupt
     );  // don't need to tell C about any clobbered registers, its our workspace
 }
-
+#elif 0
+// Option 2: call SongLoop directly from your main loop.
+// No setup needed. Poll for vblank any way you like (I recommend VDP_WAIT_VBLANK_CRU)
+// and then just call SongLoop() once per frame.
+// This is the safest way for C code to call the C version
+#define CALL_PLAYER SongLoop()
+#elif 1
+// Option 3: use the hand tuned asm code directly with register preservation
+// This version tags all the GCC registers except 12-15 as clobbered, and GCC
+// will have to decide whether to save them based on your code.
+// Note it DOES clobber 12-15, I just don't think they need to be preserved.
+// If I'm wrong, please do add them. Determine vblank any way you like
+// (I recommend VDP_WAIT_VBLANK_CRU), and then include this define "CALL_PLAYER;"
+// This is probably the safest for the hand-tuned code
+#define CALL_PLAYER \
+    __asm__(                                                        \
+        "bl @SongLoop"                                              \
+        : /* no outputs */                                          \
+        : /* no arguments */                                        \
+        : "r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","cc"   \
+        )
+#endif
 
 int main() {
     // set screen
@@ -37,10 +72,9 @@ int main() {
         kscan(5);
         if (KSCAN_KEY == 32) break;
     }
+    vdpmemset(gImage, ' ', 768);
 #endif
 
-    // set interrupt hook
-    VDP_INT_HOOK = wrapInt;
     // turn off unused console interrupt flags (just saves a little CPU time)
     VDP_INT_CTRL = VDP_INT_CTRL_DISABLE_SPRITES | VDP_INT_CTRL_DISABLE_SOUND;
 
@@ -57,6 +91,7 @@ int main() {
     // now play it - no looping (songActive printed though)
     for (;;) {
         vdpwaitvint();      // wait for an interrupt with ints enabled - console clears it
+        CALL_PLAYER;
 
         // output some proof we're running
         // note faster_hexprint doesn't update (or use!) the cursor position
