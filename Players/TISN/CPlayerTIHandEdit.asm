@@ -1,6 +1,7 @@
 * TODO:
 * - see if we can put the timestream/voices into a loop to save some code space, should be easier now
-* - convert Silius title into a SN VGM so we can run it through the old compressor and get real stats (or choose a new title)
+* - study Silius title - it's almost 2k smaller on the old one. Why? Where is the gain?
+    If we can merge that gain with this tool, then we'll have it nailed.
 
 
 * code that is specific to a single instance of the player

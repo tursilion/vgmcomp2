@@ -304,7 +304,7 @@ void SongLoop() {
                     // (just luck that stream 7 goes to reg 7)
                     WRITE_BYTE_TO_SOUND_CHIP(songActive, 7, (x<<2)&0x3C);
                 } else {
-                    WRITE_BYTE_TO_SOUND_CHIP(songActive, 1, str+4, x);
+                    WRITE_BYTE_TO_SOUND_CHIP(songActive, str+4, x);
                 }
                 songVol[str-4] = x | flag;
 #endif

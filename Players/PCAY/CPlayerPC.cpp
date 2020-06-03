@@ -86,7 +86,8 @@ void writeSound(int c) {
 }
 
 // provide the WRITE_BYTE_TO_SOUND_CHIP macro
-#define WRITE_BYTE_TO_SOUND_CHIP(x) writeSound(x)
+// not doing the muting for this test player
+#define WRITE_BYTE_TO_SOUND_CHIP(mutes,chan,x) writeSound(x)
 
 #endif
 
@@ -100,7 +101,8 @@ void writeSound(int reg, int c) {
     ayemu_set_regs (&psg, regs);
 }
 
-#define WRITE_BYTE_TO_SOUND_CHIP(reg,x) writeSound(reg,x)
+// not doing the muting for this test player
+#define WRITE_BYTE_TO_SOUND_CHIP(mutes,reg,x) writeSound(reg,x)
 
 // wrapper function for the Classic99 audio driver
 void ay_update(short *buf, double nAudioIn, int nSamples) {

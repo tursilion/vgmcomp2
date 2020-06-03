@@ -29,10 +29,11 @@ MEMORY USAGE (C):                                V1              HandTuned
     Code: 1409 bytes                            608 bytes       952 bytes
 
 CPU USAGE:
-    Over the course of my test song:          (v1 approx)
-        MIN:  2,198 cycles                       1,034           1,534
-        MAX: 17,310 cycles                      13,362           8,924
-        AVG:  6,208 cycles                       4,707           4,221
+    Over the course of my test song (Silius title):          
+        MIN:  2,198 cycles                         938             1,534
+        MAX: 17,310 cycles                       9,722             8,924
+        AVG:  6,208 cycles                       3,989             4,221
+  Scanlines:  11-90 (avg 32)                  5-51 (avg 21)     8-47 (avg 22)
 
 (* - no /separate/ workspace is required anymore, but it will completely eat your existing workspace.
 However, depending on your application, this may be okay. For instance, the demo player is full GCC
