@@ -199,86 +199,86 @@ Address of section .data set to 0x2080
 .plt
  *(.plt)
 
-.text           0x000000000000a000     0x305c
+.text           0x000000000000a000     0x306e
  *(.text .stub .text.* .gnu.linkonce.t.*)
  .text          0x000000000000a000       0x3c crt0_ea5.o
                 0x000000000000a000                _start
                 0x000000000000a032                _init_data
  .text          0x000000000000a03c     0x1cd8 sil_nes.o
                 0x000000000000a03c                mysong
- .text          0x000000000000bd14      0x1d2 tisnplay.o
+ .text          0x000000000000bd14      0x1f0 tisnplay.o
                 0x000000000000bd14                main
- .text          0x000000000000bee6      0x17c CPlayerCommonHandEdit.o
-                0x000000000000bf0a                getDatRLE
-                0x000000000000bee6                DAT0001
-                0x000000000000bf4a                getCompressedByte
-                0x000000000000bf02                getDatInline
-                0x000000000000bf36                getDatRLE24
-                0x000000000000bf24                getDatRLE16
-                0x000000000000bf10                getDatRLE32
-                0x000000000000c05e                getDatZero
- .text          0x000000000000c062      0x23c CPlayerTIHandEdit.o
-                0x000000000000c0e2                SongLoop
-                0x000000000000c29a                muteMap
-                0x000000000000c064                StartSong
-                0x000000000000c0be                StopSong
- .text          0x000000000000c29e      0x32d ../CPlayer/CPlayerTest.o
-                0x000000000000c2e2                runTest
-                0x000000000000c4c4                PlayerUnitTest
- *fill*         0x000000000000c5cb        0x1 00000000
- .text          0x000000000000c5cc       0xde ../../../libti99/libti99.a(vdp_setgraphics.o)
-                0x000000000000c5cc                set_graphics_raw
-                0x000000000000c68c                set_graphics
- .text          0x000000000000c6aa       0x16 ../../../libti99/libti99.a(kscan.o)
-                0x000000000000c6aa                kscan
- .text          0x000000000000c6c0        0x0 ../../../libti99/libti99.a(vdp_setmode.o)
- .text          0x000000000000c6c0       0x2a ../../../libti99/libti99.a(vdp_memset.o)
-                0x000000000000c6c0                vdpmemset
- .text          0x000000000000c6ea       0x30 ../../../libti99/libti99.a(vdp_sprite.o)
-                0x000000000000c6ea                sprite
- .text          0x000000000000c71a       0x1c ../../../libti99/libti99.a(vdp_waitvint.o)
-                0x000000000000c71a                vdpwaitvint
- .text          0x000000000000c736       0x16 ../../../libti99/libti99.a(vdp_fasterhexprint.o)
-                0x000000000000c736                faster_hexprint
- .text          0x000000000000c74c       0x1c ../../../libti99/libti99.a(vdp_char.o)
-                0x000000000000c74c                vdpchar_default
- .text          0x000000000000c768       0x40 ../../../libti99/libti99.a(vdp_vchar.o)
-                0x000000000000c768                vchar
- .text          0x000000000000c7a8      0x252 ../../../libti99/libti99.a(vdp_printf.o)
-                0x000000000000c7a8                printf
- .text          0x000000000000c9fa       0x52 ../../../libti99/libti99.a(vdp_putchar.o)
-                0x000000000000c9fa                putchar
- .text          0x000000000000ca4c      0x108 ../../../libti99/libti99.a(vdp_scrnscroll.o)
-                0x000000000000ca4c                scrn_scroll_default
- .text          0x000000000000cb54        0x0 ../../../libti99/libti99.a(vdp_textdefs.o)
- .text          0x000000000000cb54      0x200 ../../../libti99/libti99.a(vdp_byte2hex.o)
-                0x000000000000cb54                byte2hex
- .text          0x000000000000cd54       0x6a ../../../libti99/libti99.a(str_uint2str.o)
-                0x000000000000cd54                uint2str
- .text          0x000000000000cdbe       0x22 ../../../libti99/libti99.a(str_strlen.o)
-                0x000000000000cdbe                strlen
- .text          0x000000000000cde0       0xbe ../../../libti99/libti99.a(str_int2str.o)
-                0x000000000000cde0                int2str
- .text          0x000000000000ce9e       0x5a ../../../libti99/libti99.a(vdp_hexprint.o)
-                0x000000000000ce9e                hexprint
- .text          0x000000000000cef8       0x26 ../../../libti99/libti99.a(vdp_memread.o)
-                0x000000000000cef8                vdpmemread
- .text          0x000000000000cf1e       0x2c ../../../libti99/libti99.a(vdp_memcpy.o)
-                0x000000000000cf1e                vdpmemcpy
- .text          0x000000000000cf4a       0x88 ../../../libti99/libti99.a(conio_bgcolor.o)
-                0x000000000000cfce                reverse
-                0x000000000000cfae                bordercolor
-                0x000000000000cf4a                bgcolor
-                0x000000000000cf7a                textcolor
- .text          0x000000000000cfd2       0x8a ../../../libti99/libti99.a(vdp_putstring.o)
-                0x000000000000cfd2                putstring
+ .text          0x000000000000bf04      0x17c CPlayerCommonHandEdit.o
+                0x000000000000bf28                getDatRLE
+                0x000000000000bf04                DAT0001
+                0x000000000000bf68                getCompressedByte
+                0x000000000000bf20                getDatInline
+                0x000000000000bf54                getDatRLE24
+                0x000000000000bf42                getDatRLE16
+                0x000000000000bf2e                getDatRLE32
+                0x000000000000c07c                getDatZero
+ .text          0x000000000000c080      0x230 CPlayerTIHandEdit.o
+                0x000000000000c102                SongLoop
+                0x000000000000c2ac                muteMap
+                0x000000000000c082                StartSong
+                0x000000000000c0dc                StopSong
+ .text          0x000000000000c2b0      0x32d ../CPlayer/CPlayerTest.o
+                0x000000000000c2f4                runTest
+                0x000000000000c4d6                PlayerUnitTest
+ *fill*         0x000000000000c5dd        0x1 00000000
+ .text          0x000000000000c5de       0xde ../../../libti99/libti99.a(vdp_setgraphics.o)
+                0x000000000000c5de                set_graphics_raw
+                0x000000000000c69e                set_graphics
+ .text          0x000000000000c6bc       0x16 ../../../libti99/libti99.a(kscan.o)
+                0x000000000000c6bc                kscan
+ .text          0x000000000000c6d2        0x0 ../../../libti99/libti99.a(vdp_setmode.o)
+ .text          0x000000000000c6d2       0x2a ../../../libti99/libti99.a(vdp_memset.o)
+                0x000000000000c6d2                vdpmemset
+ .text          0x000000000000c6fc       0x30 ../../../libti99/libti99.a(vdp_sprite.o)
+                0x000000000000c6fc                sprite
+ .text          0x000000000000c72c       0x1c ../../../libti99/libti99.a(vdp_waitvint.o)
+                0x000000000000c72c                vdpwaitvint
+ .text          0x000000000000c748       0x16 ../../../libti99/libti99.a(vdp_fasterhexprint.o)
+                0x000000000000c748                faster_hexprint
+ .text          0x000000000000c75e       0x1c ../../../libti99/libti99.a(vdp_char.o)
+                0x000000000000c75e                vdpchar_default
+ .text          0x000000000000c77a       0x40 ../../../libti99/libti99.a(vdp_vchar.o)
+                0x000000000000c77a                vchar
+ .text          0x000000000000c7ba      0x252 ../../../libti99/libti99.a(vdp_printf.o)
+                0x000000000000c7ba                printf
+ .text          0x000000000000ca0c       0x52 ../../../libti99/libti99.a(vdp_putchar.o)
+                0x000000000000ca0c                putchar
+ .text          0x000000000000ca5e      0x108 ../../../libti99/libti99.a(vdp_scrnscroll.o)
+                0x000000000000ca5e                scrn_scroll_default
+ .text          0x000000000000cb66        0x0 ../../../libti99/libti99.a(vdp_textdefs.o)
+ .text          0x000000000000cb66      0x200 ../../../libti99/libti99.a(vdp_byte2hex.o)
+                0x000000000000cb66                byte2hex
+ .text          0x000000000000cd66       0x6a ../../../libti99/libti99.a(str_uint2str.o)
+                0x000000000000cd66                uint2str
+ .text          0x000000000000cdd0       0x22 ../../../libti99/libti99.a(str_strlen.o)
+                0x000000000000cdd0                strlen
+ .text          0x000000000000cdf2       0xbe ../../../libti99/libti99.a(str_int2str.o)
+                0x000000000000cdf2                int2str
+ .text          0x000000000000ceb0       0x5a ../../../libti99/libti99.a(vdp_hexprint.o)
+                0x000000000000ceb0                hexprint
+ .text          0x000000000000cf0a       0x26 ../../../libti99/libti99.a(vdp_memread.o)
+                0x000000000000cf0a                vdpmemread
+ .text          0x000000000000cf30       0x2c ../../../libti99/libti99.a(vdp_memcpy.o)
+                0x000000000000cf30                vdpmemcpy
+ .text          0x000000000000cf5c       0x88 ../../../libti99/libti99.a(conio_bgcolor.o)
+                0x000000000000cfe0                reverse
+                0x000000000000cfc0                bordercolor
+                0x000000000000cf5c                bgcolor
+                0x000000000000cf8c                textcolor
+ .text          0x000000000000cfe4       0x8a ../../../libti99/libti99.a(vdp_putstring.o)
+                0x000000000000cfe4                putstring
  *(.gnu.warning)
 
 .fini
  *(.fini)
-                0x000000000000d05c                PROVIDE (__etext, .)
-                0x000000000000d05c                PROVIDE (_etext, .)
-                0x000000000000d05c                PROVIDE (etext, .)
+                0x000000000000d06e                PROVIDE (__etext, .)
+                0x000000000000d06e                PROVIDE (_etext, .)
+                0x000000000000d06e                PROVIDE (etext, .)
 
 .rodata
  *(.rodata .rodata.* .gnu.linkonce.r.*)
@@ -300,7 +300,7 @@ Address of section .data set to 0x2080
 
 .gcc_except_table
  *(.gcc_except_table .gcc_except_table.*)
-                0x000000000001a25c                . = (ALIGN (0x200) + (. & 0xffffffffffffffff))
+                0x000000000001a26e                . = (ALIGN (0x200) + (. & 0xffffffffffffffff))
 
 .eh_frame
  *(.eh_frame)
@@ -315,22 +315,22 @@ Address of section .data set to 0x2080
  *(.tbss .tbss.* .gnu.linkonce.tb.*)
  *(.tcommon)
 
-.preinit_array  0x000000000001a25c        0x0
-                0x000000000001a25c                PROVIDE (__preinit_array_start, .)
+.preinit_array  0x000000000001a26e        0x0
+                0x000000000001a26e                PROVIDE (__preinit_array_start, .)
  *(.preinit_array)
-                0x000000000001a25c                PROVIDE (__preinit_array_end, .)
+                0x000000000001a26e                PROVIDE (__preinit_array_end, .)
 
-.init_array     0x000000000001a25c        0x0
-                0x000000000001a25c                PROVIDE (__init_array_start, .)
+.init_array     0x000000000001a26e        0x0
+                0x000000000001a26e                PROVIDE (__init_array_start, .)
  *(SORT(.init_array.*))
  *(.init_array)
-                0x000000000001a25c                PROVIDE (__init_array_end, .)
+                0x000000000001a26e                PROVIDE (__init_array_end, .)
 
-.fini_array     0x000000000001a25c        0x0
-                0x000000000001a25c                PROVIDE (__fini_array_start, .)
+.fini_array     0x000000000001a26e        0x0
+                0x000000000001a26e                PROVIDE (__fini_array_start, .)
  *(.fini_array)
  *(SORT(.fini_array.*))
-                0x000000000001a25c                PROVIDE (__fini_array_end, .)
+                0x000000000001a26e                PROVIDE (__fini_array_end, .)
 
 .ctors
  *crtbegin.o(.ctors)
@@ -418,47 +418,47 @@ Address of section .data set to 0x2080
  .bss           0x000000000000208c        0x0 sil_nes.o
  .bss           0x000000000000208c        0x0 tisnplay.o
  .bss           0x000000000000208c        0x0 CPlayerCommonHandEdit.o
- .bss           0x000000000000208c       0x5a CPlayerTIHandEdit.o
+ .bss           0x000000000000208c       0x58 CPlayerTIHandEdit.o
                 0x00000000000020d8                songNote
-                0x00000000000020e0                songActive
-                0x00000000000020e4                retSave
+                0x00000000000020e2                retSave
                 0x00000000000020d4                songVol
                 0x000000000000208c                strDat
-                0x00000000000020e2                workBuf
- .bss           0x00000000000020e6        0x8 ../CPlayer/CPlayerTest.o
-                0x00000000000020e6                test
- .bss           0x00000000000020ee        0x0 ../../../libti99/libti99.a(vdp_setgraphics.o)
- .bss           0x00000000000020ee        0x0 ../../../libti99/libti99.a(kscan.o)
- .bss           0x00000000000020ee        0x4 ../../../libti99/libti99.a(vdp_setmode.o)
-                0x00000000000020ee                gImage
-                0x00000000000020f0                gSpritePat
- .bss           0x00000000000020f2        0x0 ../../../libti99/libti99.a(vdp_memset.o)
- .bss           0x00000000000020f2        0x0 ../../../libti99/libti99.a(vdp_sprite.o)
- .bss           0x00000000000020f2        0x1 ../../../libti99/libti99.a(vdp_waitvint.o)
-                0x00000000000020f2                gSaveIntCnt
- .bss           0x00000000000020f3        0x0 ../../../libti99/libti99.a(vdp_fasterhexprint.o)
- .bss           0x00000000000020f3        0x0 ../../../libti99/libti99.a(vdp_char.o)
- .bss           0x00000000000020f3        0x0 ../../../libti99/libti99.a(vdp_vchar.o)
- .bss           0x00000000000020f3        0x0 ../../../libti99/libti99.a(vdp_printf.o)
- .bss           0x00000000000020f3        0x0 ../../../libti99/libti99.a(vdp_putchar.o)
- .bss           0x00000000000020f3        0x0 ../../../libti99/libti99.a(vdp_scrnscroll.o)
- *fill*         0x00000000000020f3        0x1 00
- .bss           0x00000000000020f4        0x8 ../../../libti99/libti99.a(vdp_textdefs.o)
-                0x00000000000020f4                nTextRow
-                0x00000000000020f6                nTextEnd
-                0x00000000000020fa                nTextFlags
-                0x00000000000020f8                nTextPos
- .bss           0x00000000000020fc        0x0 ../../../libti99/libti99.a(vdp_byte2hex.o)
- .bss           0x00000000000020fc        0x8 ../../../libti99/libti99.a(str_uint2str.o)
- .bss           0x0000000000002104        0x0 ../../../libti99/libti99.a(str_strlen.o)
- .bss           0x0000000000002104        0x8 ../../../libti99/libti99.a(str_int2str.o)
- .bss           0x000000000000210c        0x0 ../../../libti99/libti99.a(vdp_hexprint.o)
- .bss           0x000000000000210c        0x0 ../../../libti99/libti99.a(vdp_memread.o)
- .bss           0x000000000000210c        0x0 ../../../libti99/libti99.a(vdp_memcpy.o)
- .bss           0x000000000000210c        0x0 ../../../libti99/libti99.a(conio_bgcolor.o)
- .bss           0x000000000000210c        0x0 ../../../libti99/libti99.a(vdp_putstring.o)
+                0x00000000000020e0                workBuf
+ .bss           0x00000000000020e4        0x8 ../CPlayer/CPlayerTest.o
+                0x00000000000020e4                test
+ .bss           0x00000000000020ec        0x0 ../../../libti99/libti99.a(vdp_setgraphics.o)
+ .bss           0x00000000000020ec        0x0 ../../../libti99/libti99.a(kscan.o)
+ .bss           0x00000000000020ec        0x4 ../../../libti99/libti99.a(vdp_setmode.o)
+                0x00000000000020ec                gImage
+                0x00000000000020ee                gSpritePat
+ .bss           0x00000000000020f0        0x0 ../../../libti99/libti99.a(vdp_memset.o)
+ .bss           0x00000000000020f0        0x0 ../../../libti99/libti99.a(vdp_sprite.o)
+ .bss           0x00000000000020f0        0x1 ../../../libti99/libti99.a(vdp_waitvint.o)
+                0x00000000000020f0                gSaveIntCnt
+ .bss           0x00000000000020f1        0x0 ../../../libti99/libti99.a(vdp_fasterhexprint.o)
+ .bss           0x00000000000020f1        0x0 ../../../libti99/libti99.a(vdp_char.o)
+ .bss           0x00000000000020f1        0x0 ../../../libti99/libti99.a(vdp_vchar.o)
+ .bss           0x00000000000020f1        0x0 ../../../libti99/libti99.a(vdp_printf.o)
+ .bss           0x00000000000020f1        0x0 ../../../libti99/libti99.a(vdp_putchar.o)
+ .bss           0x00000000000020f1        0x0 ../../../libti99/libti99.a(vdp_scrnscroll.o)
+ *fill*         0x00000000000020f1        0x1 00
+ .bss           0x00000000000020f2        0x8 ../../../libti99/libti99.a(vdp_textdefs.o)
+                0x00000000000020f2                nTextRow
+                0x00000000000020f4                nTextEnd
+                0x00000000000020f8                nTextFlags
+                0x00000000000020f6                nTextPos
+ .bss           0x00000000000020fa        0x0 ../../../libti99/libti99.a(vdp_byte2hex.o)
+ .bss           0x00000000000020fa        0x8 ../../../libti99/libti99.a(str_uint2str.o)
+ .bss           0x0000000000002102        0x0 ../../../libti99/libti99.a(str_strlen.o)
+ .bss           0x0000000000002102        0x8 ../../../libti99/libti99.a(str_int2str.o)
+ .bss           0x000000000000210a        0x0 ../../../libti99/libti99.a(vdp_hexprint.o)
+ .bss           0x000000000000210a        0x0 ../../../libti99/libti99.a(vdp_memread.o)
+ .bss           0x000000000000210a        0x0 ../../../libti99/libti99.a(vdp_memcpy.o)
+ .bss           0x000000000000210a        0x0 ../../../libti99/libti99.a(conio_bgcolor.o)
+ .bss           0x000000000000210a        0x0 ../../../libti99/libti99.a(vdp_putstring.o)
  *(COMMON)
                 0x000000000000210c                . = ALIGN ((. != 0x0)?0x4:0x1)
+ *fill*         0x000000000000210a        0x2 00
                 0x000000000000210c                . = ALIGN (0x4)
                 0x000000000000210c                . = ALIGN (0x4)
                 0x000000000000210c                _end = .

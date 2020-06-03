@@ -43,7 +43,7 @@ PREREQUISITES=\
   $(OBJECT_LIST_EA5) $(OBJECT_LIST)
   
 all: tisnplay
-	/mnt/d/work/classic99paste/release/classic99paste.exe -reset xx25DSK0.TISNPLAY\\n
+	-/mnt/d/work/classic99paste/release/classic99paste.exe -reset xx25DSK0.TISNPLAY\\n
 
 # Recipe to compile the executable
 tisnplay: $(PREREQUISITES)

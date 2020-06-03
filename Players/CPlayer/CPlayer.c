@@ -37,6 +37,8 @@
 // three arguments: songActive (for mutes), channel (for mutes), byte
 // the SN PSG, channel is 1-4 (no zero), and for the AY channel is
 // the register number (0-10). See the CPlayerXX.c files for examples.
+// TODO: an optimization might be to group the two tone and the volume
+// writes under only one test against muted channel.
 
 #include "CPlayer.h"
 
@@ -54,7 +56,6 @@
 #define SongLoop  MAKE_FN_NAME(SongLoop)
 #define songVol   MAKE_FN_NAME(songVol)
 #define songNote  MAKE_FN_NAME(songNote)
-#define songActive  MAKE_FN_NAME(songActive)
 #endif
 
 // this array contains the current volume of each voice
@@ -66,13 +67,10 @@
 uint8 songVol[4];
 
 // this array contains the current note on each voice
-// sound chip specific
+// sound chip specific. Noise channel contains data
+// in the MSB, and the LSB is used for songActive
+// and mute flags.
 uint16 songNote[4];
-
-// this flag contains 1 if playing, zero if stopped
-// you can also stop (or pause!) a song by setting it to zero
-// it goes to zero when the timestream and all volume streams run out
-uWordSize songActive;
 
 // this holds onto the currently playing song pointer
 uint8* workBuf;
@@ -129,16 +127,16 @@ void StartSong(unsigned char *buf, uWordSize sbfsong) {
         songNote[idx] = 1;
         songVol[idx] = 0;
     }
-
-    workBuf = buf;
+	// fix noise tone so LSB is set up for song active
     // note that we also clear the mute flags, on purpose!
-    songActive = SONGACTIVEACTIVE;
+    songNote[3] = 0x0100 | SONGACTIVEACTIVE;
+    workBuf = buf;
 }
 
 // Call this to stop the current song
 void StopSong() {
     // also clears the mute bits
-    songActive = 0;
+    songNote[3] &= 0xff00;
 }
 
 // this needs to be called 60 times per second by your system
@@ -152,7 +150,7 @@ void SongLoop() {
     uWordSize str;
     uWordSize outSongActive;
 
-    if (!(songActive&SONGACTIVEACTIVE)) return;
+    if (!(songNote[3]&SONGACTIVEACTIVE)) return;
 
     // assume false unless something needs processing
     outSongActive = false;
@@ -187,12 +185,12 @@ void SongLoop() {
                         }
 #ifdef USE_SN_PSG
                         songNote[0] |= 0x8000;
-                        WRITE_BYTE_TO_SOUND_CHIP(songActive, 1, songNote[0]>>8);
-                        WRITE_BYTE_TO_SOUND_CHIP(songActive, 1, songNote[0]&0xff);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 1, songNote[0]>>8);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 1, songNote[0]&0xff);
 #endif
 #ifdef USE_AY_PSG
-                        WRITE_BYTE_TO_SOUND_CHIP(songActive, 1, songNote[0]>>8);
-                        WRITE_BYTE_TO_SOUND_CHIP(songActive, 0, songNote[0]&0xff);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 1, songNote[0]>>8);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 0, songNote[0]&0xff);
                         songNote[0] |= 0x8000;
 #endif
                     }
@@ -214,12 +212,12 @@ void SongLoop() {
                         }
 #ifdef USE_SN_PSG
                         songNote[1] |= 0xa000;
-                        WRITE_BYTE_TO_SOUND_CHIP(songActive, 2, songNote[1]>>8);
-                        WRITE_BYTE_TO_SOUND_CHIP(songActive, 2, songNote[1]&0xff);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 2, songNote[1]>>8);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 2, songNote[1]&0xff);
 #endif
 #ifdef USE_AY_PSG
-                        WRITE_BYTE_TO_SOUND_CHIP(songActive, 3, songNote[1]>>8);
-                        WRITE_BYTE_TO_SOUND_CHIP(songActive, 2, songNote[1]&0xff);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 3, songNote[1]>>8);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 2, songNote[1]&0xff);
                         songNote[1] |= 0xa000;
 #endif
                     }
@@ -241,12 +239,12 @@ void SongLoop() {
                         }
 #ifdef USE_SN_PSG
                         songNote[2] |= 0xc000;
-                        WRITE_BYTE_TO_SOUND_CHIP(songActive, 3, songNote[2]>>8);
-                        WRITE_BYTE_TO_SOUND_CHIP(songActive, 3, songNote[2]&0xff);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 3, songNote[2]>>8);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 3, songNote[2]&0xff);
 #endif
 #ifdef USE_AY_PSG
-                        WRITE_BYTE_TO_SOUND_CHIP(songActive, 5, songNote[2]>>8);
-                        WRITE_BYTE_TO_SOUND_CHIP(songActive, 4, songNote[2]&0xff);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 5, songNote[2]>>8);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 4, songNote[2]&0xff);
                         songNote[2] |= 0xc000;
 #endif
                     }
@@ -260,13 +258,15 @@ void SongLoop() {
                             // PSG - store command in frequency
                             // we set the command bits to indicate trigger
                             y |= 0xe0;
-                            WRITE_BYTE_TO_SOUND_CHIP(songActive, 4, y);
-                            songNote[3] = y;
+                            WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 4, y);
+                            // update the MSB only
+                            songNote[3] = (songNote[3]&0xff) | (y<<8);
 #endif
 #ifdef USE_AY_PSG
                             // AY - frequency is frequency (still fits in a byte, but 5 bits!)
-                            WRITE_BYTE_TO_SOUND_CHIP(songActive, 6, y);
-                            songNote[3] = y | 0xE0;
+                            WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 6, y);
+                            // update the MSB only
+                            songNote[3] = (songNote[3]&0xff) | ((y | 0xE0)<<8);
 #endif
                         }   // no 'else' case on purpose, there's no usefully silent noise!
                     }
@@ -294,7 +294,7 @@ void SongLoop() {
                 }
 #ifdef USE_SN_PSG
                 x |= flag;
-                WRITE_BYTE_TO_SOUND_CHIP(songActive, str-3, x);
+                WRITE_BYTE_TO_SOUND_CHIP(songNote[3], str-3, x);
                 songVol[str-4] = x;
 #endif
 #ifdef USE_AY_PSG
@@ -302,9 +302,9 @@ void SongLoop() {
                     // special case - write to mixer
                     // bits go to noise mixer, all tones active
                     // (just luck that stream 7 goes to reg 7)
-                    WRITE_BYTE_TO_SOUND_CHIP(songActive, 7, (x<<2)&0x3C);
+                    WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 7, (x<<2)&0x3C);
                 } else {
-                    WRITE_BYTE_TO_SOUND_CHIP(songActive, str+4, x);
+                    WRITE_BYTE_TO_SOUND_CHIP(songNote[3], str+4, x);
                 }
                 songVol[str-4] = x | flag;
 #endif
@@ -314,6 +314,6 @@ void SongLoop() {
     }
 
     if (!outSongActive) {
-        songActive = 0;     // clear the active bit AND clear all mutes
+        songNote[3] &= 0xff00;     // clear the active bit AND clear all mutes
     }
 }

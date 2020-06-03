@@ -20,13 +20,13 @@ demonstrate this. The main issue is that you now need to give it the workspace a
 stack pointer in R15 with enough space below to execute.
 
 MEMORY USAGE (C):                                V1              HandTuned
-    Song data storage: 88 bytes                 124 bytes        90 bytes
+    Song data storage: 88 bytes                 124 bytes        88 bytes
     Stack usage: 16 bytes                         0 bytes         0 bytes
     Workspace: 32 bytes - but optional           32 bytes         0 bytes (*)
 
-    Total: 136 bytes                            156 bytes        90 bytes
+    Total: 136 bytes                            156 bytes        88 bytes
 
-    Code: 1409 bytes                            608 bytes       952 bytes
+    Code: 1409 bytes                            608 bytes       940 bytes
 
 CPU USAGE:
     Over the course of my test song (Silius title):          

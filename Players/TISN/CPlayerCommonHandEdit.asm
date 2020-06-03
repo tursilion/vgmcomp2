@@ -40,7 +40,7 @@ R3LSB EQU >8307
 * R7 =                      R15= 
 
 * register usage for SongLoop and getCompressedByte
-* R0 =                      R8 = SongLoop scratch
+* R0 = SongLoop scratch     R8 = SongLoop scratch
 * R1 = arg1,scratch,return  R9 = SongLoop scratch 
 * R2 = arg2,scratch         R10= stack pointer (if used from C, not touched)
 * R3 = scratch              R11= return address
@@ -61,7 +61,7 @@ ADRRLE24  DATA getDatRLE24
 ADRRLE32  DATA getDatRLE32
 ADRRLE    DATA getDatRLE
 	
-* uint8 getDatInline(STREAM *str, uint8 *buf)
+* uint8 getDatInline(STREAM *str)
 * just pull a string of bytes
 * r1 = str (and curptr is offset 0), buf not needed
 	even
@@ -75,7 +75,7 @@ gdi2
 	.size	getDatInline, .-getDatInline
 
 
-* uint8 getDatRLE(STREAM *str, uint8 *buf)
+* uint8 getDatRLE(STREAM *str)
 * pull the single byte - no increment
 * r1 = str (and curptr is offset 0), buf not needed
 	even
@@ -86,7 +86,7 @@ getDatRLE
 	b    *r11
 	.size	getDatRLE, .-getDatRLE
 
-* uint8 getDatRLE32(STREAM *str, uint8 *buf)
+* uint8 getDatRLE32(STREAM *str)
 * pull the last four bytes over and over
 * mainPtr is assumed already incremented
 * r1 = str (and curptr is offset 0), buf not needed
@@ -105,7 +105,7 @@ getDatRLE32
 	b *r11
 	.size	getDatRLE32, .-getDatRLE32
 	
-* uint8 getDatRLE16(STREAM *str, uint8 *buf)
+* uint8 getDatRLE16(STREAM *str)
 * pull the last two bytes over and over
 * mainPtr is assumed already incremented
 * r1 = str (and curptr is offset 0), buf not needed
@@ -125,7 +125,7 @@ getDatRLE16
 	.size	getDatRLE16, .-getDatRLE16
 
 
-* uint8 getDatRLE24(STREAM *str, uint8 *buf)
+* uint8 getDatRLE24(STREAM *str)
 * pull the last three bytes over and over
 * mainPtr is assumed already incremented
 * r1 = str (and curptr is offset 0), buf not needed

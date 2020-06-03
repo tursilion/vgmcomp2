@@ -79,7 +79,7 @@ int main() {
     VDP_INT_CTRL = VDP_INT_CTRL_DISABLE_SPRITES | VDP_INT_CTRL_DISABLE_SOUND;
 
     // set up the sprites (noise doesn't need one)
-    for (int idx=0; idx<3; ++idx) {
+    for (int idx=0; idx<4; ++idx) {
         sprite(idx, '1'+idx, COLOR_DKBLUE+idx, 21*8, idx*64+16);
     }
     // reterminate the sprite list - sprite leaves the VDP address in the right place
@@ -88,7 +88,7 @@ int main() {
     // start the song
     StartSong((unsigned char*)mysong, 0);
 
-    // now play it - no looping (songActive printed though)
+    // now play it - space to loop
     for (;;) {
         vdpwaitvint();      // wait for an interrupt with ints enabled - console clears it
         CALL_PLAYER;
@@ -112,10 +112,15 @@ int main() {
         for (int idx=0; idx<4; ++idx) {
             int row = songNote[idx];
 
-            // turn note into a sprite altitude
-            // *2/9 is the same as /4.5
-            row = ((((row&0x0f00)>>8)|((row&0x00ff)<<4))*2) / 9;
-            vdpchar(gSprite+(idx<<2), row);    // first value in each sprite is row
+			if (idx != 3) {
+				// turn note into a sprite altitude
+				// *2/9 is the same as /4.5
+				row = ((((row&0x0f00)>>8)|((row&0x00ff)<<4))*2) / 9;
+			} else {
+			    // noise is just 0-15
+			    row = ((row&0x0f00)>>8)*11;
+			}
+			vdpchar(gSprite+(idx<<2), row);    // first value in each sprite is row
 
             // draw a bargraph over the volume
             row = songVol[idx]&0xf;
@@ -123,7 +128,7 @@ int main() {
             vchar(row+7, (idx<<3)+6, 43, 15-row);
         }
 
-        if (!songActive) {
+        if (!(songNote[3]&SONGACTIVEACTIVE)) {
             VDP_SET_REGISTER(VDP_REG_COL,COLOR_LTGREEN);
             kscan(5);
             if (KSCAN_KEY == ' ') {

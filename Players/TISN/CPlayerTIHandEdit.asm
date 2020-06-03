@@ -1,7 +1,10 @@
 * TODO:
 * - see if we can put the timestream/voices into a loop to save some code space, should be easier now
+* - can we use one mute test to include the tone and volume writes both?
 * - study Silius title - it's almost 2k smaller on the old one. Why? Where is the gain?
-    If we can merge that gain with this tool, then we'll have it nailed.
+*   If we can merge that gain with this tool, then we'll have it nailed.
+* - Hey, could we put SongActive in the LSB of the noise channel? Its otherwise unused. Means it
+*   needs to be a byte again, but I doubt it helped that much. Saves 2 bytes!
 
 
 * code that is specific to a single instance of the player
@@ -16,9 +19,7 @@ DATFFFE data 0xfffe
 * Note this assumes that this code uses a workspace of >8300
 R3LSB EQU >8307
 
-* note usage of songActive differs some from the C version,its 16 bits
-* but active is the least significant bit, and the mutes are in the
-* most significant byte
+* SongActive is stored in the LSB of the noise channel
 
 	pseg
 
@@ -51,16 +52,16 @@ L4
 	ci   r2,strDat+78   * check if we did the last (9th) one (9*8=72,+6 offset = 78. I dont know why GCC used an offset,but no biggie)
 	jne  L4             * loop around if not done
 
-	li   r2,>1          * set all four notes to >0001
+	li   r2,>1          * set all three notes to >0001
 	mov  r2,@songNote
 	mov  r2,@songNote+2
 	mov  r2,@songNote+4
-	mov  r2,@songNote+6
     clr @songVol        * zero songVol 0 and 1
     clr @songVol+2      * zero songVol 2 and 3
 
 	mov  r1,@workBuf    * store the song pointer in the global
-	mov  r2,@songActive  * set the songActive bit (r2 is still >0001 from above)
+	li   r2,>0101       * init value for noise with songActive bit set
+	mov  r2,@songNote+6 * set the noise channel note and bit
 	b    *r11
 	.size	StartSong,.-StartSong
 
@@ -68,7 +69,7 @@ L4
 	def	StopSong
 	even
 StopSong
-    clr  @songActive    * zero all bits in songActive
+    movb @DAT0001,@songNote+7	* zero all bits in songActive
 	b    *r11
 	.size	StopSong,.-StopSong
 
@@ -101,8 +102,8 @@ JMP_1
 SongLoop
     mov  r11,@retSave       * save the return address
 
-	mov  @songActive,r1     * get songActive
-    szc  @DATFFFE,r1        * zero everything but the active bit
+	movb @songNote+7,r1     * get songActive into r1 MSB
+    szcb @DATFFFE+1,r1      * zero everything but the active bit
 	jeq  JMP_0              * if clear, back to caller (normal case drops through faster)
 	mov  @strDat+66,r1      * timestream mainPtr
 	jeq  JMP_1              * skip to volumes if its empty
@@ -155,7 +156,7 @@ L35
 L29
 	socb r14,r1             * merge in the command bits
 
-	mov  @songActive,r2     * get songActive
+	movb @songNote+7,r2     * get songActive into R2 MSB
 	szcb *r12,r2            * mask off the zeros (mutes are in the MSB)
 	jne  L30                * if the bit was set, skip the write (we still want the rest!)
 	movb r1,@>8400          * write to the sound chip
@@ -167,7 +168,7 @@ L30
 L31
     mov  r7,r7              * end of loop - check if outSongActive was set
     jne  L33                * skip if not zero
-    clr  @songActive        * turn off the active bit and the mutes
+    movb @DAT0001,@songNote+7	* turn off the active bit and the mutes
 
 L33
     mov  @retSave,r11       * back to caller
@@ -180,16 +181,14 @@ L13
 	bl   *r13               * getCompressedByte
 	movb r1,r9              * make a copy
 	mov  @strDat+66,r1      * check timestream mainptr to see if it was zeroed
-	jne  JMP_3
-	b    @L12               * skip ahead if it was zero
-JMP_3
+    jeq L12					* skip ahead if it was zero
+
 	movb r9,r12             * data byte in R12
 	andi r12,>F00           * get framesleft
 	movb r12,@strDat+71     * save in timestream framesLeft
     sla  r9,1               * test msb
-    jnc JMP_4               * not set, skip
-	b    @L37               * otherwise was set, go process 0x80
-JMP_4
+	joc L37					* otherwise was set, go process 0x80
+
 L15
     sla  r9,1               * test (technically) >40
 	jnc  L18                * not set, so skip
@@ -209,7 +208,7 @@ JMP_5
 
 L20
 	mov  r2,@songNote+2     * save the result in songNote
-	mov  @songActive,r1     * get songActive
+	movb @songNote+7,r1     * get songActive
 	andi r1,>4000           * check for mute
 	jne  L18                * jump ahead if muted
 	movb r2,@>8400          * move command byte to sound chip
@@ -235,7 +234,7 @@ JMP_6
 
 L23
 	mov  r2,@songNote+4     * save the result in songNote
-	mov  @songActive,r1     * get songActive
+	movb @songNote+7,r1     * get songActive
 	andi r1,>2000           * test for mute
 	jne  L21                * jump if muted
 	movb r2,@>8400          * MSB
@@ -253,14 +252,13 @@ L21
 	jeq  L24                * jump if so
 
 	ori  r1,>E000           * no tone table here, just OR in the command bits
-	mov  @songActive,r2     * get songActive for mutes
+	movb @songNote+7,r2     * get songActive
 	andi r2,>1000           * test bit
 	jne  L25                * jump if muted
 	movb r1,@>8400          * else just write it to the sound chip
 
 L25
-*	srl  r1,8               * make byte a word (waste of time.... its just for stats, user can deal with the MSB)
-	mov  r1,@songNote+6     * save it in the songNote
+	movb r1,@songNote+6     * save byte only in the songNote
 L24
 	seto r7                 * flag outSongActive as true
 	b    @L14               * go work on the volumes
@@ -271,10 +269,8 @@ L12
 
 L37
 	mov  @strDat+2,r1       * timestream voice 0 - get mainPtr
-	jne  JMP_7
-	b    @L15               * skip back to channel 2 if zero
+	jeq L15                 * skip back to channel 2 if zero
 
-JMP_7
 	li   r1,strDat          * get curPtr
 	bl   *r13               * call getCompressedByte
 	mov  @strDat+2,r2       * check mainPtr again
@@ -289,12 +285,10 @@ L16
 
 L17
 	mov  r2,@songNote       * store value in songNote
-	mov  @songActive,r1     * get songActive for mutes
+	movb @songNote+7,r1     * get songActive
 	andi r1,>8000           * check mute
-	jeq  JMP_8
-	b    @L15               * skip back to channel 2 if muted (no more to do here)
+	jne L15                 * skip back to channel 2 if muted (no more to do here)
 
-JMP_8
 	movb r2,@>8400          * MSB
 	swpb r2                 * swap
 	movb r2,@>8400          * LSB
@@ -327,11 +321,6 @@ songVol
 	def songNote
 songNote
 	bss 8
-
-	even
-	def songActive
-songActive
-	bss 2
 
 	even
 	def workBuf
