@@ -18,19 +18,19 @@ demonstrate this. The main issue is that you now need to give it the workspace a
 stack pointer in R15 with enough space below to execute (only the C version needs stack).
 
 MEMORY USAGE (C):                                V1              HandTuned
-    Song data storage: 88 bytes                 124 bytes        88 bytes
+    Song data storage: 88 bytes                 124 bytes        90 bytes
     Stack usage: 16 bytes                         0 bytes         0 bytes
     Workspace: 32 bytes - but optional           32 bytes         0 bytes (*)
 
-    Total: 136 bytes                            156 bytes        88 bytes
+    Total: 136 bytes                            156 bytes        90 bytes
 
     Code: 1409 bytes                            608 bytes       780 bytes
 
 CPU USAGE:
-    Over the course of my test song (Silius title):          
-        MIN:  2,198 cycles                         938             1,536
-        MAX: 17,310 cycles                       9,722             9,308
-        AVG:  6,208 cycles                       3,989             4,107
+    Over the course of my test song (Silius title):                             (Preliminary - one of the cmds is broken)
+        MIN:  2,198 cycles                         938             1,536        1274
+        MAX: 17,310 cycles                       9,722             9,308        9088
+        AVG:  6,208 cycles                       3,989             4,107        4027
   Scanlines:  11-90 (avg 32)                  5-51 (avg 21)     8-49 (avg 22)
 
   (190.8 cycles per scanline)

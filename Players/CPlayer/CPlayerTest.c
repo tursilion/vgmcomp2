@@ -13,6 +13,26 @@ extern uint8 getCompressedByte(STREAM *str, uint8 *buf);
 extern uint8* workBuf;
 STREAM test;
 
+extern unsigned int cntInline,cntRle,cntRle16,cntRle24,cntRle32,cntBack;
+
+// enable this if you are using the hand-rolled assembly
+#if 1
+uint8 __attribute__ ((noinline)) getCompressedByteWrap(STREAM *str, uint8 *buf) {
+    __asm__(                                                        \
+        "mov r1,r15\n\t"                                            \
+        "dect r10\n\t"                                              \
+        "mov r11,*r10\n\t"                                          \
+        "bl @getCompressedByte\n\t"                                 \
+        "mov *r10+,r11\n"                                           \
+        : /* no outputs */                                          \
+        : /* no arguments */                                        \
+        : "r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r15","cc"   \
+        );
+}
+#else
+#define getCompressedByteWrap getCompressedByte
+#endif
+
 // there are 8 stream types to test
  
 // inline1 - 8 bytes
@@ -56,7 +76,7 @@ void runTest(const char *name, const unsigned char *buf, const char *tst) {
 
     flag = 1;
     while (test.mainPtr) {
-        x = getCompressedByte(&test, (uint8*)buf);
+        x = getCompressedByteWrap(&test, (uint8*)buf);
         if (flag) {
             printf("%s\n%2d: ", name, test.curBytes+1);
             flag = 0;
@@ -79,6 +99,8 @@ void runTest(const char *name, const unsigned char *buf, const char *tst) {
 }
 
 void PlayerUnitTest() {
+    cntInline=cntRle=cntRle16=cntRle24=cntRle32=cntBack=0;
+
     runTest("Inline(8)", inline1, "12345678");
     runTest("Inline2(33)", inline2, "123456789098765432101234567890987");
     runTest("RLE(8)", rle, "11111111");

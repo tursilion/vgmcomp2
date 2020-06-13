@@ -56,9 +56,16 @@ void wrapInt() {
         "bl @SongLoop"                                              \
         : /* no outputs */                                          \
         : /* no arguments */                                        \
-        : "r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","cc"   \
+        : "r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","cc"   \
         )
 #endif
+
+extern unsigned int cntInline,cntRle,cntRle16,cntRle24,cntRle32,cntBack;
+
+inline void faster_hexprint2(int x) {
+    faster_hexprint(x>>8);
+    faster_hexprint(x&0xff);
+}
 
 int main() {
     // set screen
@@ -93,6 +100,21 @@ int main() {
         vdpwaitvint();      // wait for an interrupt with ints enabled - console clears it
         CALL_PLAYER;
 
+#if 1
+        VDP_SET_ADDRESS_WRITE(gImage);
+        faster_hexprint2(cntInline);
+        VDPWD=' ';
+        faster_hexprint2(cntRle);
+        VDPWD=' ';
+        faster_hexprint2(cntRle16);
+        VDPWD=' ';
+        faster_hexprint2(cntRle24);
+        VDPWD=' ';
+        faster_hexprint2(cntRle32);
+        VDPWD=' ';
+        faster_hexprint2(cntBack);
+#endif
+
         // output some proof we're running
         // note faster_hexprint doesn't update (or use!) the cursor position
         VDP_SET_ADDRESS_WRITE(VDP_SCREEN_POS(23,0)+gImage);
@@ -101,8 +123,7 @@ int main() {
         for (int idx=0; idx<4; ++idx) {
             int row = songNote[idx];
             // print note and volume data
-            faster_hexprint(row>>8);
-            faster_hexprint(row&0xff);
+            faster_hexprint2(row);
             VDPWD = ' ';
             faster_hexprint(songVol[idx]);
             VDPWD = ' ';

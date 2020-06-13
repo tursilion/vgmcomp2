@@ -10,6 +10,11 @@
 * you need a separate build for sfx (CPlayerCommon is shared)
 * Public Domain
 
+* we sometimes need to directly access the LSB of some registers - addresses here
+* Note this assumes a workspace of >8300 and that it can pretty much completely
+* wipe it out. If you need to preserve your own registers, use a different workspace.
+R2LSB EQU >8305
+
     pseg
 
     ref DAT0001
@@ -72,23 +77,24 @@ StopSong
 	.size	StopSong,.-StopSong
 
 * this needs to be called 60 times per second by your system
-* if this function can be interrupted,dont manipulate songActive
+* if this function can be interrupted, dont manipulate songActive
 * in any function that can do so, or your change will be lost.
 * to be called with BL so return on R11, which we save in retSave.
 * By replacing GCC regs 3-6 with 12,0,7,8, and knowing that we dont need to
 * preserve or restore ANY registers on entry, we can do away with
-* the stack usage completely. (We do honor R10, the C stack.)
+* the stack usage completely. (We do preserve R10, the C stack.)
 	def	SongLoop
 	even
 
 SongLoop
+    coc  @DAT0001,r1        * check the songActive active bit
+	jne  RETHOME2           * if clear, back to caller (normal case drops through faster)
+
+* load some default values for the whole call
     mov  r11,@retSave       * save the return address
-	li   r13,getCompressedByte  * new timestream byte - store address of getCompressedByte
+	li   r13,getCompressedByte  * store address of getCompressedByte
     li   r8,>8400           * address of the sound chip
 
-	movb @songActive,r1     * get songActive byte into r1 MSB (Noise LSB: 1234 xxxA  - 1-4 mutes, A=active)
-    szcb @DATFFFE+1,r1      * zero everything but the active bit
-	jeq  RETHOME            * if clear, back to caller (normal case drops through faster)
 	mov  @strDat+66,r1      * timestream mainPtr
 	jne  HASTIMESTR         * keep working if we still have a timestream
 
@@ -159,23 +165,23 @@ VMUTED
 VLOOPDONE
     mov  r7,r7              * end of loop - check if outSongActive was set
     jne  RETHOME            * skip if not zero
-    movb @DAT0001,@songActive	* turn off the active bit and the mutes
+    movb @DAT0001,@songActive	* turn off the active bit and the mutes (this BYTE writes a >00)
 
 RETHOME
     mov  @retSave,r11       * back to caller
+RETHOME2
 	b    *r11
 
 * handle new timestream event
 DOTIMESTR
-	li   r1,strDat+64       * timestream curPtr
+	li   r15,strDat+64      * timestream curPtr
 	bl   *r13               * getCompressedByte
 	movb r1,r9              * make a copy
-	mov  @strDat+66,r1      * check timestream mainptr to see if it was zeroed
+	mov  @strDat+66,r12     * check timestream mainptr to see if it was zeroed
     jeq  NOTIMESTR  		* skip ahead if it was zero
 
-	movb r9,r12             * data byte in R12
-	andi r12,>F00           * get framesleft
-	movb r12,@strDat+71     * save in timestream framesLeft
+	andi r1,>F00            * get framesleft
+	movb r1,@strDat+71      * save in timestream framesLeft
 
 	li r15,strDat			* start with stream 0, curPtr
 	li r0,songNote			* output pointer for songNote
@@ -210,8 +216,7 @@ WRTONE1
 	sla  r12,1              * check songActive - carry is mute
 	joc  CKTONE2            * jump over if muted
 	movb r2,*r8             * move command byte to sound chip
-	swpb r2                 * other byte
-	movb r2,*r8             * move other byte to sound chip
+	movb @R2LSB,*r8         * move other byte to sound chip
 	
 CKTONE2
 	ai r15,>8				* next curPtr
