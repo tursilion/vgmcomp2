@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
     // fake a 60hz play until finished
     // Rather than a loop, on many systems you
     // can call SongLoop from your vertical blank interrupt
-    while (songActive) {
+    while (songNote[3]&SONGACTIVEACTIVE) {
         // process the song - call every frame
         SongLoop();
 

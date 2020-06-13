@@ -40,12 +40,12 @@ R3LSB EQU >8307
 * R7 =                      R15= 
 
 * register usage for SongLoop and getCompressedByte
-* R0 = SongLoop scratch     R8 = SongLoop scratch
+* R0 = SongLoop scratch     R8 = SongLoop address of sound chip
 * R1 = arg1,scratch,return  R9 = SongLoop scratch 
 * R2 = arg2,scratch         R10= stack pointer (if used from C, not touched)
 * R3 = scratch              R11= return address
 * R4 = scratch              R12= SongLoop scratch
-* R5 = scratch              R13= SongLoop scratch
+* R5 = scratch              R13= SongLoop address of getCompressedByte
 * R6 = scratch              R14= SongLoop scratch
 * R7 = SongLoop scratch     R15= SongLoop scratch
 

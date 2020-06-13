@@ -14,7 +14,7 @@ extern uint8* workBuf;
 STREAM test;
 
 // there are 8 stream types to test
-
+ 
 // inline1 - 8 bytes
 static const unsigned char inline1[] = 
     { 0x07, '1','2','3','4','5','6','7','8', 0xc0,0x00,0x00 };

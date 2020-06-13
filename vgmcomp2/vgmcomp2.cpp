@@ -774,6 +774,25 @@ int stringSearch(int *str, int strLen, int *buf, int bufLen, int &bestLen, int b
         score = 0;
         bool update = false;
 
+#if 1
+        // We don't need to loop here, we just need to know how many ints match
+        // so now the code is right and my files are too big, wtf... ;)
+        {
+            int cnt = 0;
+            while ((cnt < tmpLen) && (str[cnt] == buf[x+cnt])) ++cnt;
+            --cnt;  // we're one too far
+            if (cnt > 3) {
+                bestLen = cnt;
+                update = true;
+                if (cnt > bestBwd) {
+                    score += cnt-bestBwd;
+                }
+            }
+        }
+#else
+        // this one had a bug, too.. it compared cnt /bytes/, which is only 1/4 of the ints found
+        // the places where it caused a benefit then were luck, as it included 3 times as
+        // many values as actually matched...
         for (int cnt = tmpLen-1; cnt >= 4; --cnt) {
             if (0 == memcmp(str, &buf[x], cnt)) {   // matching ints to ints, with byte padding, should always work
                 bestLen = cnt;
@@ -784,6 +803,7 @@ int stringSearch(int *str, int strLen, int *buf, int bufLen, int &bestLen, int b
                 break;
             }
         }
+#endif
 
         if (update) {
             bestScore = score;
@@ -833,7 +853,7 @@ int memorySearch(int *str, int strLen, unsigned char *buf, int bufLen, int &best
 
 // actually compress a single stream into the output buffer
 // outputBuffer[64*1024] and outputPos
-bool compressStream(int song, int st) {
+bool compressStream(int song, int st, int minstep) {
     int *str = songs[song].outStream[st];
     int cnt = songs[song].streamCnt[st];
 
@@ -851,7 +871,8 @@ bool compressStream(int song, int st) {
     while (cnt > 0) {
         if (verbose) {
             if (dbg++ % 100 == 0) {
-                printf("  %5d rows (%2d passes) remain...      \b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b", cnt, minRunMax-minRun);
+                printf("  %5d rows (%2d passes) remain...      \b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b", 
+                    cnt, minRunMax-minRun+(minstep < 500?minRunMax-minRunMin : 0));
             }
         }
 
@@ -946,8 +967,11 @@ bool compressStream(int song, int st) {
         if (!noFwdSearch) {
             // note that we include the region INSIDE the current string, just in case!
             // We only score runs longer than the best backwards ref, since the backref
-            // would win those anyway.
-            int off = thisLen > 8 ? 8: thisLen;
+            // would win those anyway. minstep varies between '4' and '999' (which will
+            // keep the whole string), cause despite my best efforts it is proven that
+            // sometimes searching inside the string is better, sometimes keeping it all
+            // is better, and it's all too interdependent to not just try both.
+            int off = thisLen > minstep ? minstep: thisLen;
             fwdSearch = stringSearch(str, thisLen, str+off, cnt-off, bestFwd, bestBwd);
             if (bestFwd < 4+minRun) {
                 fwdSearch = 0;
@@ -1044,6 +1068,7 @@ bool compressStream(int song, int st) {
         }
 
         if (debug2) {
+            // print the decision making data
             printf("[%d] Search: %3d BestBwd: %3d BestFwd: %3d%s FwdSearch: %5d RLE: %3d RLE16: %3d RLE24: %3d  RLE32: %3d Decided: ", 
                 minRun, thisLen, bestBwd, bestFwd, fakeFwd?"*":" ", fwdSearch,
                 rleRun, rle16Run, rle24Run, rle32Run);
@@ -1243,6 +1268,7 @@ bool compressStream(int song, int st) {
                 if (debug2) printf("\n");
 
                 // remember this one - store size BEFORE we subtract 1
+
                 lastWasFwd = true;
                 lastFwdPos = outputPos;
                 lastFwdSize = bestFwd;
@@ -1589,34 +1615,36 @@ int main(int argc, char *argv[])
                     deepdive = 0x3f;
                 }
 
-                for (minRun = minRunMin; minRun < minRunMax; ++minRun) {
-                    minRunData[minRun].cntBacks.reset();
-                    minRunData[minRun].cntFwds.reset();
-                    minRunData[minRun].cntInlines.reset();
-                    minRunData[minRun].cntRLE32s.reset();
-                    minRunData[minRun].cntRLE24s.reset();
-                    minRunData[minRun].cntRLE16s.reset();
-                    minRunData[minRun].cntRLEs.reset();
+                for (int stepLen = 4; stepLen < 1000;  stepLen+=994) {
+                    for (minRun = minRunMin; minRun < minRunMax; ++minRun) {
+                        minRunData[minRun].cntBacks.reset();
+                        minRunData[minRun].cntFwds.reset();
+                        minRunData[minRun].cntInlines.reset();
+                        minRunData[minRun].cntRLE32s.reset();
+                        minRunData[minRun].cntRLE24s.reset();
+                        minRunData[minRun].cntRLE16s.reset();
+                        minRunData[minRun].cntRLEs.reset();
 
-                    outputPos = songs[song].streamOffset[st];
+                        outputPos = songs[song].streamOffset[st];
 
-                    if (!compressStream(song, st)) {
-                        return 1;
+                        if (!compressStream(song, st, stepLen)) {
+                            return 1;
+                        }
+
+                        if (debug2) {
+                            printf("[%d] got size %d (Mode %d)", minRun, outputPos-songs[song].streamOffset[st], stepLen < 500 ? 1:2);
+                        }
+
+                        if (outputPos-songs[song].streamOffset[st] < bestSize) {
+                            if (debug2) printf(" (BEST!)");
+                            bestSize = outputPos-songs[song].streamOffset[st];
+                            bestRun = minRun;
+                            bestDive = deepdive;
+                            memcpy(bestRunBuffer, &outputBuffer[songs[song].streamOffset[st]], bestSize);
+                        }
+
+                        if (debug2) printf("\n");
                     }
-
-                    if (debug2) {
-                        printf("[%d] got size %d", minRun, outputPos-songs[song].streamOffset[st]);
-                    }
-
-                    if (outputPos-songs[song].streamOffset[st] < bestSize) {
-                        if (debug2) printf(" (BEST!)");
-                        bestSize = outputPos-songs[song].streamOffset[st];
-                        bestRun = minRun;
-                        bestDive = deepdive;
-                        memcpy(bestRunBuffer, &outputBuffer[songs[song].streamOffset[st]], bestSize);
-                    }
-
-                    if (debug2) printf("\n");
                 }
 
             }// deep dive
@@ -1648,7 +1676,7 @@ int main(int argc, char *argv[])
             minRunData[MAXRUN].cntRLE16s += minRunData[bestRun].cntRLE16s;
             minRunData[MAXRUN].cntRLEs += minRunData[bestRun].cntRLEs;
 #else
-            if (!compressStream(song, st)) {
+            if (!compressStream(song, st, 4)) {
                 return 1;
             }
             if (verbose) {
