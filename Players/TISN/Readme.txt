@@ -24,21 +24,22 @@ MEMORY USAGE (C):                                V1              HandTuned
 
     Total: 136 bytes                            156 bytes        88 bytes
 
-    Code: 1409 bytes                            608 bytes       940 bytes
+    Code: 1409 bytes                            608 bytes       780 bytes
 
 CPU USAGE:
     Over the course of my test song (Silius title):          
-        MIN:  2,198 cycles                         938             1,464
-        MAX: 17,310 cycles                       9,722             9,706
-        AVG:  6,208 cycles                       3,989             4,059
-  Scanlines:  11-90 (avg 32)                  5-51 (avg 21)     8-47 (avg 22)
+        MIN:  2,198 cycles                         938             1,536
+        MAX: 17,310 cycles                       9,722             9,308
+        AVG:  6,208 cycles                       3,989             4,107
+  Scanlines:  11-90 (avg 32)                  5-51 (avg 21)     8-49 (avg 22)
+
+  (190.8 cycles per scanline)
 
 (* - no /separate/ workspace is required anymore, but it will completely eat your existing workspace.
 However, depending on your application, this may be okay. For instance, the demo player is full GCC
 and yet GCC did not need to save any registers to call it. It's up to you now if you need it.)
 
-Approx 190.8 cycles per scanline. C code can be made slightly faster by defining uWordSize as unsigned int, but 
-this costs 30-40 bytes more in RAM usage.
+C code can be made slightly faster by defining uWordSize as unsigned int, but this costs 30-40 bytes more in RAM usage.
 
 .. but, it's working! So now it's just refinement... (and getting the sound effect demo version done...)
 

@@ -1,6 +1,4 @@
 * TODO:
-* - see if we can put the timestream/voices into a loop to save some code space, should be easier now
-* - can we use one mute test to include the tone and volume writes both?
 * - study Silius title - its almost 2k smaller on the old one. Why? Where is the gain?
 *   If we can merge that gain with this tool, then well have it nailed.
 * - Mutes: this player (music) will /check/ the bits for mute. SFX will /set/ the bits for mute.
@@ -73,18 +71,6 @@ StopSong
 	b    *r11
 	.size	StopSong,.-StopSong
 
-* called by SongLoop to look up note frequencies
-* R1 MSB has note index, R2 gets return
-ToneTable
-	mov  @workBuf,r12       * get address of song
-	srl  r1,8               * make note into word
-	a    r1,r1              * multiply by 2 to make index
-    mov  @2(r12),r2         * get offset of tone table (word aligned)
-	a    r2,r1              * add offset of tone (word aligned)
-	a    r12,r1             * add address of song (word aligned)
-    mov  *r1,r2             * get the tone (note: C version does a bunch of masking! We assume tone table has MS nibble zeroed)
-    b    *r11
-
 * this needs to be called 60 times per second by your system
 * if this function can be interrupted,dont manipulate songActive
 * in any function that can do so, or your change will be lost.
@@ -131,9 +117,9 @@ VLOOPDEC
 
 VLOOPSHIFT
     sla r12,1               * if we come here, we still needed to shift
+	inc  r0                 * next songVol pointer
 
 VLOOPNEXT
-	inc  r0                 * next songVol pointer
 	ai   r15,>8             * next curPtr
 	ai   r14,>2000          * next command nibble
     joc  VLOOPDONE          * that was the last one
@@ -167,7 +153,7 @@ VLOADVOL
 	movb r1,*r8             * write to the sound chip
 
 VMUTED
-	movb r1,*r0             * write the byte to songVol as well
+	movb r1,*r0+            * write the byte to songVol as well, and increment
     jmp VLOOPNEXT           * next loop
 
 VLOOPDONE
@@ -190,109 +176,74 @@ DOTIMESTR
 	movb r9,r12             * data byte in R12
 	andi r12,>F00           * get framesleft
 	movb r12,@strDat+71     * save in timestream framesLeft
-    sla  r9,1               * test msb
-	joc  DOTONE0			* otherwise was set, go process 0x80
+
+	li r15,strDat			* start with stream 0, curPtr
+	li r0,songNote			* output pointer for songNote
+	li r14,>8000			* first command nibble
+	mov @workBuf,r7         * get song address
+	movb @songActive,r12	* get the songActive mutes
 
 CKTONE1
-    sla  r9,1               * test (technically) >40
-	jnc  CKTONE2            * not set, so skip
-	mov  @strDat+10,r1      * stream 1 mainPtr
-	jeq  CKTONE2            * if zero, skip
-	li   r1,strDat+8        * load stream 1 curPtr
+    sla  r9,1               * test the timestream bit
+	jnc  CKTONE2SHIFT       * not set, so skip with r12 shift
+	mov  @2(r15),r1         * stream mainPtr
+	jeq  CKTONE2SHIFT       * if zero, skip with r12 shift
+	mov  r15,r1				* copy curPtr to r1
 	bl   *r13               * call getCompressedByte
-	mov  @strDat+10,r2      * check stream 1 mainPtr is still set
+	mov  @2(r15),r2         * check stream mainPtr is still set
 	jne  TONETAB1
 
-	li   r2,>A100           * stream 1 ran out, load mute word
+	li   r2,>A100           * stream ran out, load mute word
 	jmp  WRTONE1            * and go set it up
 
 TONETAB1
-    bl   @ToneTable         * look up tone in r1
-	ori  r2,>A000           * OR in the command bits
+*	srl  r1,8               * make note into word
+*	sla  r1,1               * multiply by 2 to make index (cant merge the shifts can lsb must be zero)
+    srl  r1,7               * this is disgusting, but we get away with it cause of the 15-bit address lines...
+    a    @2(r7),r1          * add offset of tone table (word aligned)
+	a    r7,r1              * add address of song (word aligned)
+    mov  *r1,r2             * get the tone (note: C version does a bunch of masking! We assume tone table has MS nibble zeroed)
+    soc  r14,r2				* OR in the command bits
 
 WRTONE1
-	mov  r2,@songNote+2     * save the result in songNote
-	movb @songActive,r1     * get songActive
-	andi r1,>4000           * check for mute
-	jne  CKTONE2            * jump ahead if muted
+	mov  r2,*r0+            * save the result in songNote and increment
+	sla  r12,1              * check songActive - carry is mute
+	joc  CKTONE2            * jump over if muted
 	movb r2,*r8             * move command byte to sound chip
 	swpb r2                 * other byte
 	movb r2,*r8             * move other byte to sound chip
-
+	
 CKTONE2
-    sla  r9,1               * test (technically) >20
-	jnc  CKNOISE            * not set, so skip
-	mov  @strDat+18,r1      * stream 2 mainptr
-	jeq  CKNOISE            * if zero, skip
-	li   r1,strDat+16       * stream 2 curPtr
-	bl   *r13               * call getCompressedByte
-	mov  @strDat+18,r2      * check if mainPtr still set
-	jne  TONETAB2
-
-	li   r2,>C100           * stream 2 ran out, load mute word
-	jmp  WRTONE2            * and go set it up
-
-TONETAB2
-    bl   @ToneTable         * look up frequency in r1
-	ori  r2,>C000           * OR in the command bits
-
-WRTONE2
-	mov  r2,@songNote+4     * save the result in songNote
-	movb @songActive,r1     * get songActive
-	andi r1,>2000           * test for mute
-	jne  CKNOISE            * jump if muted
-	movb r2,*r8             * MSB
-	swpb r2                 * swap
-	movb r2,*r8             * LSB
+	ai r15,>8				* next curPtr
+	ai r14,>2000			* next command nibble
+	ci r14,>e000            * did we reach noise?
+	jne CKTONE1             * no, do the next one
 
 CKNOISE
     sla  r9,1               * test (technically) >10 (noise)
-	jnc  DONETONE           * not set, so jump
-	mov  @strDat+26,r1      * stream 3 mainPtr
-	jeq  DONETONE           * jump if zero
-	li   r1,strDat+24       * stream 3 curPtr
+	jnc  DONETONEACT        * not set, so jump
+	mov  @2(r15),r1         * stream 3 mainPtr
+	jeq  DONETONEACT        * jump if zero
+	mov  r15,r1             * copy curPtr to r1
 	bl   *r13               * getCompressedByte
-	mov  @strDat+26,r2      * check if mainPtr was zeroed
-	jeq  DONETONE           * jump if so
+	mov  @2(r15),r2         * check if mainPtr was zeroed
+	jeq  DONETONEACT        * jump if so
 
-	ori  r1,>E000           * no tone table here, just OR in the command bits
-	movb @songActive,r2     * get songActive
-	andi r2,>1000           * test bit
-	jne  NOISEMUTE          * jump if muted
+    soc  r14,r1				* no tone table here, just OR in the command bits
+	sla  r12,1              * check songActive - carry is mute
+	joc  NOISEMUTE
 	movb r1,*r8             * else just write it to the sound chip
 
 NOISEMUTE
-	movb r1,@songNote+6     * save byte only in the songNote
+	movb r1,*r0             * save byte only in the songNote, no need to increment
 
 DONETONE
-	b    @DONETONEACT       * go work on the volumes with outSongActive set
+	jmp  DONETONEACT        * go work on the volumes with outSongActive set
 
-DOTONE0
-	mov  @strDat+2,r1       * timestream voice 0 - get mainPtr
-	jeq CKTONE1             * skip back to channel 1 if zero
-
-	li   r1,strDat          * get curPtr
-	bl   *r13               * call getCompressedByte
-	mov  @strDat+2,r2       * check mainPtr again
-	jne  TONETAB0           * not zeroed, jump down and load it
-
-	li   r2,>8100           * stream 0 ran out, load mute word
-	jmp  WRTONE0            * and go set it up
-
-TONETAB0
-    bl   @ToneTable         * lookup frequency in R1
-	ori  r2,>8000           * OR in command bits
-
-WRTONE0
-	mov  r2,@songNote       * store value in songNote
-	movb @songActive,r1     * get songActive
-	andi r1,>8000           * check mute
-	jne CKTONE1             * skip back to channel 1 if muted (no more to do here)
-
-	movb r2,*r8             * MSB
-	swpb r2                 * swap
-	movb r2,*r8             * LSB
-	b    @CKTONE1           * go work on channel 1
+CKTONE2SHIFT
+	sla r12,1               * shift just to stay in sync
+	inct r0					* next SongNote
+	jmp CKTONE2
 
 	.size	SongLoop,.-SongLoop
 
