@@ -17,12 +17,13 @@ R2LSB EQU >8305
 
     pseg
 
-    ref DAT0001
 DATFFFE data 0xfffe
 
 * we sometimes need to directly access the LSB of some registers - addresses here
 * Note this assumes that this code uses a workspace of >8300
 R3LSB EQU >8307
+R6LSB EQU >830D
+
 * SongActive is stored in the LSB of the noise channel
 songActive EQU songNote+7
 
@@ -72,7 +73,7 @@ STARTLP
 	def	StopSong
 	even
 StopSong
-    movb @DAT0001,@songActive	* zero all bits in songActive
+    movb @R6LSB,@songActive	 * zero all bits in songActive
 	b    *r11
 	.size	StopSong,.-StopSong
 
@@ -87,13 +88,15 @@ StopSong
 	even
 
 SongLoop
-    coc  @DAT0001,r1        * check the songActive active bit
-	jne  RETHOME2           * if clear, back to caller (normal case drops through faster)
+    movb @songActive,r1     * need to check if its active
+    andi r1,>0100           * isolate the bit
+	jeq  RETHOME2           * if clear, back to caller (normal case drops through faster)
 
 * load some default values for the whole call
     mov  r11,@retSave       * save the return address
 	li   r13,getCompressedByte  * store address of getCompressedByte
     li   r8,>8400           * address of the sound chip
+    li   r6,>0100           * 1 in a byte for byte math
 
 	mov  @strDat+66,r1      * timestream mainPtr
 	jne  HASTIMESTR         * keep working if we still have a timestream
@@ -118,7 +121,7 @@ VOLLOOP
 	jmp  VLOOPEND           * jump to bottom of loop
 
 VLOOPDEC
-    sb @DAT0001+1,@7(r15)   * decrement frames left
+    sb r6,@7(r15)           * decrement frames left
 	seto r7                 * set outSongActive to true for later
 
 VLOOPSHIFT
@@ -136,7 +139,6 @@ VLOOPEND
 	movb @7(r15),r1         * check framesLeft
 	jne  VLOOPDEC           * if not zero, go decrement it, then next loop (will shift r12)
 
-	mov  r15,r1             * get curPtr into r1
 	bl   *r13               * and call getCompressedByte
 	mov  @2(r15),r2         * check mainPtr again (might have been zeroed!)
 	jne  VNEWVOL            * didnt end, go load it
@@ -165,7 +167,7 @@ VMUTED
 VLOOPDONE
     mov  r7,r7              * end of loop - check if outSongActive was set
     jne  RETHOME            * skip if not zero
-    movb @DAT0001,@songActive	* turn off the active bit and the mutes (this BYTE writes a >00)
+    movb @R6LSB,@songActive	 * turn off the active bit and the mutes (this BYTE writes a >00)
 
 RETHOME
     mov  @retSave,r11       * back to caller
@@ -194,7 +196,6 @@ CKTONE1
 	jnc  CKTONE2SHIFT       * not set, so skip with r12 shift
 	mov  @2(r15),r1         * stream mainPtr
 	jeq  CKTONE2SHIFT       * if zero, skip with r12 shift
-	mov  r15,r1				* copy curPtr to r1
 	bl   *r13               * call getCompressedByte
 	mov  @2(r15),r2         * check stream mainPtr is still set
 	jne  TONETAB1
@@ -229,7 +230,6 @@ CKNOISE
 	jnc  DONETONEACT        * not set, so jump
 	mov  @2(r15),r1         * stream 3 mainPtr
 	jeq  DONETONEACT        * jump if zero
-	mov  r15,r1             * copy curPtr to r1
 	bl   *r13               * getCompressedByte
 	mov  @2(r15),r2         * check if mainPtr was zeroed
 	jeq  DONETONEACT        * jump if so
@@ -252,7 +252,10 @@ CKTONE2SHIFT
 
 	.size	SongLoop,.-SongLoop
 
-	dseg
+* this data is in a special section so that you can relocate it at will
+* in the makefile (ie: to put it in scratchpad). If you do nothing,
+* it will be placed after the bss section (normally in low RAM)
+    .section songDat
 
 	even
     def strDat

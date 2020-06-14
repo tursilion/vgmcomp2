@@ -6,18 +6,19 @@
 * Public Domain
 
     dseg
-    def cntInline,cntRle,cntRle16,cntRle24,cntRle32,cntBack
-cntInline bss 2
-cntRle bss 2
-cntRle16 bss 2
-cntRle24 bss 2
-cntRle32 bss 2
-cntBack bss 2
+    even
 
-* a buffer to speed up RLE16. If we can think of a fast way to
-* rotate 32 bits, we can expand this buffer for RLE24 and RLE32, too
-    def RLEBUF
-RLEBUF bss 2
+* enable this and you can track how many of each datatype is hit
+* you will have to search through the file for "cnt", there is
+* one hit for each. Also, your program will need to manually
+* zero them at the start.
+*    def cntInline,cntRle,cntRle16,cntRle24,cntRle32,cntBack
+*cntInline bss 2
+*cntRle bss 2
+*cntRle16 bss 2
+*cntRle24 bss 2
+*cntRle32 bss 2
+*cntBack bss 2
 
 	pseg
 	ref workBuf
@@ -37,8 +38,8 @@ R3LSB EQU >8307
 
 * do note that with this density, some of the gcc preserved registers
 * are destroyed - particularly r8 is a frame pointer (--omit-frame-pointer?),
-* though I haven't seen it used, r9 is supposed to be preserved (not sure why),
-* and r13-r15 are supposed to be preserved in case blwp was used (again, I don't
+* though I havent seen it used, r9 is supposed to be preserved (not sure why),
+* and r13-r15 are supposed to be preserved in case blwp was used (again, I dont
 * think GCC generates blwp sequences). Of course, if you are using from asm,
 * then you know what you need and what to do with.
 
@@ -57,21 +58,19 @@ R3LSB EQU >8307
 * R7 =                      R15= 
 
 * register usage for SongLoop and getCompressedByte
-* R0 = SongLoop scratch     R8 = SongLoop address of sound chip
-* R1 = arg1,scratch,return  R9 = SongLoop scratch 
-* R2 = arg2,scratch         R10= stack pointer (if used from C, not touched)
+* R0 = SongLoop scratch     R8 = address of sound chip
+* R1 = scratch,return       R9 = SongLoop scratch 
+* R2 = scratch              R10= stack pointer (if used from C, not touched)
 * R3 = scratch              R11= return address
 * R4 = scratch              R12= SongLoop scratch
-* R5 = scratch              R13= SongLoop address of getCompressedByte
-* R6 = scratch              R14= SongLoop scratch
-* R7 = SongLoop scratch     R15= SongLoop scratch, getCompressedByte arg1
+* R5 = scratch              R13= address of getCompressedByte
+* R6 = contains >0100       R14= SongLoop scratch
+* R7 = SongLoop scratch     R15= getCompressedByte arg1, SongLoop scratch
 
 *****************************************************************************
 
 * some useful data
     def getDatInline,getDatRLE16,getDatRLE24,getDatRLE32,getDatRLE
-    def DAT0001
-DAT0001 DATA >0001
 JMPTAB DATA L24,L24,L25,L26,L30_B,L28,L29,L29
 ADRINLINE DATA getDatInline
 ADRRLE16  DATA getDatRLE16
@@ -127,14 +126,20 @@ getDatRLE32
 	
 * uint8 getDatRLE16(STREAM *str)
 * pull the last two bytes over and over
-* uses RLEBUF to accelerate, so needs to be loaded!
-* curPtr and mainPtr are not used
+* mainPtr is assumed already incremented
+* r15 = str (and curptr is offset 0), buf not needed
 * return in r1
+* mainptr is offset 2
 	even
     def getDatRLE16
 getDatRLE16
-    movb @RLEBUF,r1     * fetch data
-    swpb @RLEBUF        * swap it for next call
+	mov *r15,r2			* fetch curptr
+	c r2,@>2(r15)		* compare curptr against mainptr
+	jne gdi2			* increment r15 and fetch from r2
+
+	dect r2 			* subtract 2
+    movb *r2+,r1        * get the byte and increment
+	mov r2,*r15			* write it back
 	b *r11
 	.size	getDatRLE16, .-getDatRLE16
 
@@ -164,13 +169,14 @@ getDatRLE24
 * cnt is row count, and maxbytes is used for scaling, max size of data
 * uint8 getCompressedByte(STREAM *str, uint8 *buf)
 * r15 = str (and curptr is offset 0), buf is unused and not provided
+* r6 /must/ contain >0100 on entry
 * mainptr is offset 2, curType is 4, curBytes is 6
 	def	getCompressedByte,getDatZero
 
 getCompressedByte
-	cb @6(r15),@DAT0001	    * compare curBytes to 0
+	movb @6(r15),r3 	    * compare curBytes to 0
 	jeq  L22			    * jump if yes (most common case is fallthrough)
-    sb @DAT0001+1,@>6(r15)  * curBytes > 0 - decrement it
+    sb   r6,@>6(r15)        * curBytes > 0 - decrement it
 	mov  @>4(r15),r3        * get curType pointer
 	b    *r3			    * call it (it will return)
 
@@ -186,7 +192,7 @@ L22
 	
 L24
 	mov @ADRINLINE,@4(r15)	* set curType (Inline)
-    inc @cntInline
+*   inc @cntInline
 	movb *r5+,r1            * get the byte - we know theres at least one!
 	mov  r5,*r15            * set curPtr to mainPtr after fetch
 	andi r3,>3F 			* get count from command (fixes MSB too!)
@@ -198,21 +204,21 @@ L24
 
 L30_B
 	mov @ADRRLE16,@4(r15)	* set curType (RLE16)
-    inc @cntRle16
-    movb *r5+,r1            * get that first byte
-    movb r1,@RLEBUF+1       * save it, preswapped, for next time
-    movb *r5+,@RLEBUF       * save the second byte, preswapped
-	mov  r5,@>2(r15)	    * write mainPtr back
-	andi r3,>1F			    * get count from command (fixes MSB too!)
-	inct r3					* add minimum size of 2
-	a    r3,r3				* double the count (cause 2 each cycle)
-	dec  r3                 * were going to take one now
-	movb @R3LSB,@>6(r15)    * write out curBytes
+*   inc @cntRle16
+	movb *r5+,r1            * get the byte - we know theres at least one!
+	mov  r5,*r15            * set curPtr to mainPtr after fetch
+	inc r5  				* add cost of 2 to mainPtr, minus 1 for the fetch above
+	mov  r5,@>2(r15)    	* store mainPtr
+	andi r3,>1F			    * get command count (fixes MSB)
+	inct r3					* add default count of 2
+	sla  r3,>1				* multiply by 2
+	dec  r3                 * minus the one we are taking
+	movb @R3LSB,@>6(r15)    * save curBytes
 	b    *r11
 	
 L28
 	mov @ADRRLE24,@4(r15)	* set curType (RLE24)
-    inc @cntRle24
+*   inc @cntRle24
 	movb *r5+,r1            * get the byte - we know theres at least one!
 	mov  r5,*r15            * set curPtr to mainPtr after fetch
 	ai   r5,>2				* add cost of 3 to mainPtr, minus 1 for the fetch above
@@ -227,7 +233,7 @@ L28
 
 L26
 	mov @ADRRLE32,@4(r15)	* set curType (RLE32)
-    inc @cntRle32
+*   inc @cntRle32
 	movb *r5+,r1            * get the byte - we know theres at least one!
 	mov  r5,*r15            * set curPtr to mainPtr after fetch
 	ai   r5,>3				* add cost of 4 to mainPtr, minus 1 for the fetch above
@@ -241,8 +247,8 @@ L26
 
 L25
 	mov @ADRRLE,@4(r15)		* set curType (RLE)
-    inc @cntRle
-	mov  r5,*r15            * set curPtr to mainPtr (this is where we'll pull from)
+*   inc @cntRle
+	mov  r5,*r15            * set curPtr to mainPtr (this is where well pull from)
 	movb *r5+,r1            * get the byte - we know theres at least one! Increment past it for mainPtr.
 	mov  r5,@>2(r15) 		* save mainPtr
 	andi r3,>1F		    	* get command count
@@ -252,7 +258,7 @@ L25
 
 L29
 	mov @ADRINLINE,@4(r15)	* BACKREF uses inline - only type that can end a stream
-    inc @cntBack
+*   inc @cntBack
 	movb @1(r5),r4			* get lsb - may be misaligned so cant use MOV
 	swpb r4
 	movb *r5,r4				* get msb

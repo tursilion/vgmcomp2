@@ -17,21 +17,21 @@ but it's still usable from assembly language. The sample player calls it from th
 demonstrate this. The main issue is that you now need to give it the workspace at >8300 and set a
 stack pointer in R15 with enough space below to execute (only the C version needs stack).
 
-MEMORY USAGE (C):                                V1              HandTuned
-    Song data storage: 88 bytes                 124 bytes        90 bytes
+MEMORY USAGE (C):                                V1              HandTuned      songDat in Scratchpad
+    Song data storage: 88 bytes                 124 bytes        88 bytes
     Stack usage: 16 bytes                         0 bytes         0 bytes
     Workspace: 32 bytes - but optional           32 bytes         0 bytes (*)
 
-    Total: 136 bytes                            156 bytes        90 bytes
+    Total: 136 bytes                            156 bytes        88 bytes
 
-    Code: 1409 bytes                            608 bytes       780 bytes
+    Code: 1409 bytes                            608 bytes       776 bytes
 
 CPU USAGE:
-    Over the course of my test song (Silius title):                             (Preliminary - one of the cmds is broken)
-        MIN:  2,198 cycles                         938             1,536        1274
-        MAX: 17,310 cycles                       9,722             9,308        9088
-        AVG:  6,208 cycles                       3,989             4,107        4027
-  Scanlines:  11-90 (avg 32)                  5-51 (avg 21)     8-49 (avg 22)
+    Over the course of my test song (Silius title):
+        MIN:  2,198 cycles                         938             1,480
+        MAX: 17,310 cycles                       9,722             8,842
+        AVG:  6,208 cycles                       3,989             3,887
+  Scanlines:  11-90 (avg 32)                  5-51 (avg 21)     8-46 (avg 20)
 
   (190.8 cycles per scanline)
 
@@ -39,10 +39,13 @@ CPU USAGE:
 However, depending on your application, this may be okay. For instance, the demo player is full GCC
 and yet GCC did not need to save any registers to call it. It's up to you now if you need it.)
 
+You can improve assembly performance SLIGHTLY by moving the song data into the scratchpad - add
+this to the linker line: --section-start songDat=8320
+This will use 88 bytes of scratchpad starting at >8320, but the average performance gain is only 
+around 200 cycles, and is probably not worth the cost. Still, if the scratchpad is there doing
+nothing anyway... ;)
+
 C code can be made slightly faster by defining uWordSize as unsigned int, but this costs 30-40 bytes more in RAM usage.
 
 .. but, it's working! So now it's just refinement... (and getting the sound effect demo version done...)
-
-
-
 

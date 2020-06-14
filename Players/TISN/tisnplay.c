@@ -60,7 +60,10 @@ void wrapInt() {
         )
 #endif
 
+#if 0
+// requires CPlayerCommonHandEdit.asm to be built with these counters
 extern unsigned int cntInline,cntRle,cntRle16,cntRle24,cntRle32,cntBack;
+#endif
 
 inline void faster_hexprint2(int x) {
     faster_hexprint(x>>8);
@@ -71,6 +74,11 @@ int main() {
     // set screen
     set_graphics(VDP_MODE1_SPRMAG);
     VDP_SET_REGISTER(VDP_REG_COL,COLOR_LTBLUE);
+
+#if 0
+    // requires CPlayerCommonHandEdit.asm to be built with these counters
+    cntInline=cntRle=cntRle16=cntRle24=cntRle32=cntBack=0;
+#endif
 
 #if 1
     // see what's broken
@@ -99,21 +107,6 @@ int main() {
     for (;;) {
         vdpwaitvint();      // wait for an interrupt with ints enabled - console clears it
         CALL_PLAYER;
-
-#if 1
-        VDP_SET_ADDRESS_WRITE(gImage);
-        faster_hexprint2(cntInline);
-        VDPWD=' ';
-        faster_hexprint2(cntRle);
-        VDPWD=' ';
-        faster_hexprint2(cntRle16);
-        VDPWD=' ';
-        faster_hexprint2(cntRle24);
-        VDPWD=' ';
-        faster_hexprint2(cntRle32);
-        VDPWD=' ';
-        faster_hexprint2(cntBack);
-#endif
 
         // output some proof we're running
         // note faster_hexprint doesn't update (or use!) the cursor position
@@ -157,6 +150,23 @@ int main() {
                 VDP_SET_REGISTER(VDP_REG_COL,COLOR_LTBLUE);
             }
         }
+
+#if 0
+        // requires CPlayerCommonHandEdit.asm to be built with these counters
+        VDP_SET_ADDRESS_WRITE(gImage);
+        faster_hexprint2(cntInline);
+        VDPWD=' ';
+        faster_hexprint2(cntRle);
+        VDPWD=' ';
+        faster_hexprint2(cntRle16);
+        VDPWD=' ';
+        faster_hexprint2(cntRle24);
+        VDPWD=' ';
+        faster_hexprint2(cntRle32);
+        VDPWD=' ';
+        faster_hexprint2(cntBack);
+#endif
+
     }
 
     return 0;
