@@ -17,8 +17,6 @@ R2LSB EQU >8305
 
     pseg
 
-DATFFFE data 0xfffe
-
 * we sometimes need to directly access the LSB of some registers - addresses here
 * Note this assumes that this code uses a workspace of >8300
 R3LSB EQU >8307
@@ -106,9 +104,8 @@ NOTIMESTR
     jmp  VOLLOOP            * go work on volumes
 
 HASTIMESTR
-	movb @strDat+71,r1      * get timestream frames left byte
-	jeq  DOTIMESTR          * if its zero, jump over volumes to get a new byte
-	ab @DATFFFE,@strDat+71  * otherwise, subtract one from frames left
+    sb r6,@strDat+71        * decrement the timestream frames left
+    jnc  DOTIMESTR          * if it was zero, jump over volumes to get a new byte
 DONETONEACT
 	seto r7                 * set outSongActive to true for later testing
 
@@ -121,7 +118,6 @@ VOLLOOP
 	jmp  VLOOPEND           * jump to bottom of loop
 
 VLOOPDEC
-    sb r6,@7(r15)           * decrement frames left
 	seto r7                 * set outSongActive to true for later
 
 VLOOPSHIFT
@@ -136,11 +132,11 @@ VLOOPNEXT
 VLOOPEND
 	mov  @2(r15),r1         * check if mainPtr is valid
 	jeq  VLOOPSHIFT         * if not, execute next loop after shifting r12
-	movb @7(r15),r1         * check framesLeft
-	jne  VLOOPDEC           * if not zero, go decrement it, then next loop (will shift r12)
+    sb r6,@7(r15)           * decrement frames left
+    joc VLOOPDEC            * was not yet zero, next loop (will shift r12)
 
 	bl   *r13               * and call getCompressedByte
-	mov  @2(r15),r2         * check mainPtr again (might have been zeroed!)
+	mov  r2,r2              * check if stream was ended
 	jne  VNEWVOL            * didnt end, go load it
 
 	li   r1,>F00            * volume stream ended, load fixed volume >0f
@@ -178,10 +174,10 @@ RETHOME2
 DOTIMESTR
 	li   r15,strDat+64      * timestream curPtr
 	bl   *r13               * getCompressedByte
-	movb r1,r9              * make a copy
-	mov  @strDat+66,r12     * check timestream mainptr to see if it was zeroed
+    mov  r2,r2              * check if stream was ended
     jeq  NOTIMESTR  		* skip ahead if it was zero
 
+	movb r1,r9              * make a copy
 	andi r1,>F00            * get framesleft
 	movb r1,@strDat+71      * save in timestream framesLeft
 
@@ -197,7 +193,7 @@ CKTONE1
 	mov  @2(r15),r1         * stream mainPtr
 	jeq  CKTONE2SHIFT       * if zero, skip with r12 shift
 	bl   *r13               * call getCompressedByte
-	mov  @2(r15),r2         * check stream mainPtr is still set
+	mov  r2,r2              * check if stream was ended
 	jne  TONETAB1
 
 	li   r2,>A100           * stream ran out, load mute word
@@ -231,7 +227,7 @@ CKNOISE
 	mov  @2(r15),r1         * stream 3 mainPtr
 	jeq  DONETONEACT        * jump if zero
 	bl   *r13               * getCompressedByte
-	mov  @2(r15),r2         * check if mainPtr was zeroed
+	mov  r2,r2              * check if stream was ended
 	jeq  DONETONEACT        * jump if so
 
     soc  r14,r1				* no tone table here, just OR in the command bits

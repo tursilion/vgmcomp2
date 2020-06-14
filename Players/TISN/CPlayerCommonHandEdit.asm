@@ -81,7 +81,7 @@ ADRRLE    DATA getDatRLE
 * uint8 getDatInline(STREAM *str)
 * just pull a string of bytes
 * r15 = str (and curptr is offset 0), buf not needed
-* return in r1
+* return in r1, r2 must be non-zero
 	even
     def getDatInline
 getDatInline
@@ -89,27 +89,27 @@ getDatInline
 gdi2	
 	inc *r15		* inc curptr
 	movb *r2,r1		* get byte
-	b    *r11
+	b    *r11       * r2 must be non-zero
 	.size	getDatInline, .-getDatInline
 
 
 * uint8 getDatRLE(STREAM *str)
 * pull the single byte - no increment
 * r15 = str (and curptr is offset 0), buf not needed
-* return in r1
+* return in r1, r2 must be non-zero
 	even
     def getDatRLE
 getDatRLE
-	mov  *r15,r1	* get curptr (no increment)
-	movb *r1,r1	    * get byte
-	b    *r11
+	mov  *r15,r2	* get curptr (no increment)
+	movb *r2,r1	    * get byte
+	b    *r11       * r2 must be non-zero
 	.size	getDatRLE, .-getDatRLE
 
 * uint8 getDatRLE32(STREAM *str)
 * pull the last four bytes over and over
 * mainPtr is assumed already incremented
 * r15 = str (and curptr is offset 0), buf not needed
-* return in r1
+* return in r1, r2 must be non-zero
 * mainptr is offset 2
 	even
     def getDatRLE32
@@ -121,14 +121,14 @@ getDatRLE32
 	ai r2,>fffc			* subtract 4
     movb *r2+,r1        * get the byte and increment
 	mov r2,*r15			* write it back
-	b *r11
+	b *r11              * r2 must be non-zero
 	.size	getDatRLE32, .-getDatRLE32
 	
 * uint8 getDatRLE16(STREAM *str)
 * pull the last two bytes over and over
 * mainPtr is assumed already incremented
 * r15 = str (and curptr is offset 0), buf not needed
-* return in r1
+* return in r1, r2 must be non-zero
 * mainptr is offset 2
 	even
     def getDatRLE16
@@ -140,7 +140,7 @@ getDatRLE16
 	dect r2 			* subtract 2
     movb *r2+,r1        * get the byte and increment
 	mov r2,*r15			* write it back
-	b *r11
+	b *r11              * r2 must be non-zero
 	.size	getDatRLE16, .-getDatRLE16
 
 
@@ -148,7 +148,7 @@ getDatRLE16
 * pull the last three bytes over and over
 * mainPtr is assumed already incremented
 * r15 = str (and curptr is offset 0), buf not needed
-* return in r1
+* return in r1, r2 must be non-zero
 * mainptr is offset 2
 	even
 	def	getDatRLE24
@@ -160,7 +160,7 @@ getDatRLE24
 	ai r2,>FFFD			* subtract 3
     movb *r2+,r1        * fetch the byte and increment
 	mov r2,*r15			* write it back
-	b *r11
+	b *r11              * r2 must be non-zero
 	.size	getDatRLE24, .-getDatRLE24
 	even
 
@@ -170,14 +170,15 @@ getDatRLE24
 * uint8 getCompressedByte(STREAM *str, uint8 *buf)
 * r15 = str (and curptr is offset 0), buf is unused and not provided
 * r6 /must/ contain >0100 on entry
+* r2 will be zeroed if timestream was ended
 * mainptr is offset 2, curType is 4, curBytes is 6
 	def	getCompressedByte,getDatZero
 
 getCompressedByte
-	movb @6(r15),r3 	    * compare curBytes to 0
-	jeq  L22			    * jump if yes (most common case is fallthrough)
-    sb   r6,@>6(r15)        * curBytes > 0 - decrement it
-	mov  @>4(r15),r3        * get curType pointer
+	sb   r6,@>6(r15)        * decrement curBytes
+    jnc  L22                * if it was zero, we need a new one
+
+	mov  @>4(r15),r3        * else get curType pointer
 	b    *r3			    * call it (it will return)
 
 L22
@@ -187,8 +188,8 @@ L22
 	mov  r3,r4			    * make a copy (MSB is still garbage)
 	andi r4,>e0			    * get command bits only (fixes MSB)
     srl r4,4                * get them down to a word index (value*2)
-    mov @JMPTAB(r4),r4      * get address to jump to
-	b *r4       		    * jump to the correct setup function (r3 has original cmd, r5 has mainptr)
+    mov @JMPTAB(r4),r2      * get address to jump to
+	b *r2       		    * jump to the correct setup function (r3 has original cmd, r5 has mainptr)
 	
 L24
 	mov @ADRINLINE,@4(r15)	* set curType (Inline)
@@ -200,7 +201,7 @@ L24
 	movb @R3LSB,@>6(r15)   	* store to curbytes
 	a    r3,r5				* add length of string to address
 	mov  r5,@>2(r15)		* store back to mainPtr (note that we got the 1 we dropped from curbytes for free from the postinc)
-	b    *r11
+	b    *r11               * r2 must be non-zero (contains setup function)
 
 L30_B
 	mov @ADRRLE16,@4(r15)	* set curType (RLE16)
@@ -214,7 +215,7 @@ L30_B
 	sla  r3,>1				* multiply by 2
 	dec  r3                 * minus the one we are taking
 	movb @R3LSB,@>6(r15)    * save curBytes
-	b    *r11
+	b    *r11               * r2 must be non-zero (contains setup function)
 	
 L28
 	mov @ADRRLE24,@4(r15)	* set curType (RLE24)
@@ -229,7 +230,7 @@ L28
 	a    r4,r3				* x3
 	ai   r3,5				* add 6 (minimum 2, x3), minus the one we are taking
 	movb @R3LSB,@>6(r15)    * write to curBytes
-	b    *r11
+	b    *r11               * r2 must be non-zero (contains setup function)
 
 L26
 	mov @ADRRLE32,@4(r15)	* set curType (RLE32)
@@ -243,7 +244,7 @@ L26
 	sla  r3,>2				* multiply by 4
 	dec  r3                 * minus the one we are taking
 	movb @R3LSB,@>6(r15)    * save curBytes
-	b    *r11
+	b    *r11               * r2 must be non-zero (contains setup function)
 
 L25
 	mov @ADRRLE,@4(r15)		* set curType (RLE)
@@ -254,7 +255,7 @@ L25
 	andi r3,>1F		    	* get command count
 	inct r3  				* add default of 3, minus the one we are taking
 	movb @R3LSB,@>6(r15)    * save curBytes
-	b    *r11
+	b    *r11               * r2 must be non-zero (contains setup function)
 
 L29
 	mov @ADRINLINE,@4(r15)	* BACKREF uses inline - only type that can end a stream
@@ -273,13 +274,14 @@ L29
 	andi r3,>3F			    * mask out just the count bits (fixes MSB)
 	ai   r3,>3				* add minimum of 4 (minus one cause we are taking one)
 	movb @R3LSB,@>6(r15)    * save curBytes
-	b    *r11
+	b    *r11               * r2 must be non-zero (contains setup function)
 
 L39
 	clr  @>2(r15)		    * zero out mainPtr
+    clr r2                  * flag a dead return
 
 * while part of getCompressedByte, this is also all we need for getDatZero
 getDatZero
 	clr  r1					* zero out return
-	b    *r11				* back to caller
+	b    *r11				* back to caller - r2 may be anything but is probably zero
 	.size	getCompressedByte, .-getCompressedByte

@@ -12,10 +12,10 @@ doesn't need to handle pointers to run SFX and Music with the same code.
 
 I'll try to provide example usage to show it working, anyway.
 
-The player is now written in C which makes it a little more directly applicable to libti99 projects,
-but it's still usable from assembly language. The sample player calls it from the interrupt hook to
-demonstrate this. The main issue is that you now need to give it the workspace at >8300 and set a
-stack pointer in R15 with enough space below to execute (only the C version needs stack).
+The player was originally based on the C code but has been extensively hand-tuned. 
+The sample player calls it from the interrupt hook to demonstrate usage from C. 
+The main issue is that you now need to give it the workspace at >8300. The C version
+also needs the stack pointer R10 set up, but that's not recommended for use.
 
 MEMORY USAGE (C):                                V1              HandTuned      songDat in Scratchpad
     Song data storage: 88 bytes                 124 bytes        88 bytes
@@ -28,10 +28,10 @@ MEMORY USAGE (C):                                V1              HandTuned      
 
 CPU USAGE:
     Over the course of my test song (Silius title):
-        MIN:  2,198 cycles                         938             1,480
-        MAX: 17,310 cycles                       9,722             8,842
-        AVG:  6,208 cycles                       3,989             3,887
-  Scanlines:  11-90 (avg 32)                  5-51 (avg 21)     8-46 (avg 20)
+        MIN:  2,198 cycles                         938             1,294
+        MAX: 17,310 cycles                       9,722             8,754
+        AVG:  6,208 cycles                       3,989             3,624
+  Scanlines:  11-90 (avg 32)                  5-51 (avg 21)     7-46 (avg 19)
 
   (190.8 cycles per scanline)
 
