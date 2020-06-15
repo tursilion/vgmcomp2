@@ -210,6 +210,8 @@ bool outputData() {
         }
 
         for (int base = 0; base < MAXCHANNELS; base += 8) {
+            // don't process if it's never been set
+            if (nWork[base+6] == -1) continue;
             // if the noise channel needs to use channel 3 for frequency...
             if (nWork[base+6]&NOISE_MAPCHAN3) {
                 // remember the flag - we do final tuning at the end if needed
@@ -223,8 +225,13 @@ bool outputData() {
                     case 0:
                     case 2:
                     case 4: // tones
-                    case 6: // noise
                         nWork[idx] = 1;     // very high pitched
+                        break;
+
+                    case 6: // noise
+                        // can't do much for noise, but we can mute it
+                        nWork[idx] = 16;    // just a legit pitch
+                        nWork[idx+1] = 0;   // mute
                         break;
 
                     case 1:
@@ -261,7 +268,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM PSG - v20200328\n");
+	printf("Import VGM PSG - v20200615\n");
 
 	if (argc < 2) {
 		printf("vgm_psg2psg [-q] [-d] [-o <n>] [-add <n>] [-notunenoise] [-noscalefreq] [-ignoreweird] <filename>\n");

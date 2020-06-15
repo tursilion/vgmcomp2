@@ -24,7 +24,7 @@ MEMORY USAGE (C):                                V1              HandTuned      
 
     Total: 136 bytes                            156 bytes        88 bytes
 
-    Code: 1409 bytes                            608 bytes       776 bytes
+    Code: 1409 bytes                            608 bytes       740 bytes
 
 CPU USAGE:
     Over the course of my test song (Silius title):

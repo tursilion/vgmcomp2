@@ -93,8 +93,8 @@ bool debug = false;
 bool debug2 = false;
 bool doDeepDive = false;
 int noiseMask, toneMask;
-int minRun = 0;
-int minRunMin = 0;
+int minRun = 1;
+int minRunMin = 1;
 int minRunMax = 8;
 bool noRLE = false;
 bool noRLE16 = false;
@@ -774,7 +774,6 @@ int stringSearch(int *str, int strLen, int *buf, int bufLen, int &bestLen, int b
         score = 0;
         bool update = false;
 
-#if 1
         // We don't need to loop here, we just need to know how many ints match
         // so now the code is right and my files are too big, wtf... ;)
         {
@@ -789,21 +788,6 @@ int stringSearch(int *str, int strLen, int *buf, int bufLen, int &bestLen, int b
                 }
             }
         }
-#else
-        // this one had a bug, too.. it compared cnt /bytes/, which is only 1/4 of the ints found
-        // the places where it caused a benefit then were luck, as it included 3 times as
-        // many values as actually matched...
-        for (int cnt = tmpLen-1; cnt >= 4; --cnt) {
-            if (0 == memcmp(str, &buf[x], cnt)) {   // matching ints to ints, with byte padding, should always work
-                bestLen = cnt;
-                update = true;
-                if (cnt > bestBwd) {
-                    score += cnt-bestBwd;
-                }
-                break;
-            }
-        }
-#endif
 
         if (update) {
             bestScore = score;
@@ -908,6 +892,7 @@ bool compressStream(int song, int st, int minstep) {
 
         // Find the ending point of this string (must be at least 1 byte, 0-63 means 1-64, or stop at first matching RLE)
         int thisLen = (cnt < 68 ? cnt : 68);        // maximum possible run - cnt is rows remaining in data
+        int fakeLen = thisLen;                      // used for fakeFwd
 
         // determine if there are any good overlaps inside this string
         // and stop at the first repeated data, if there are. We do this by sliding the string over itself
@@ -944,7 +929,8 @@ bool compressStream(int song, int st, int minstep) {
                 }
             }
             if (bestmatch >= 4) {
-                thisLen = bestpos;  // since we're based at 0
+                if (debug2) printf("FakeFwd length reduced from %d to %d for substring match\n", thisLen, bestpos);
+                fakeLen = bestpos;  // since we're based at 0
             }
         }
 
@@ -973,7 +959,7 @@ bool compressStream(int song, int st, int minstep) {
             // is better, and it's all too interdependent to not just try both.
             int off = thisLen > minstep ? minstep: thisLen;
             fwdSearch = stringSearch(str, thisLen, str+off, cnt-off, bestFwd, bestBwd);
-            if (bestFwd < 4+minRun) {
+            if (bestFwd < minRun) {
                 fwdSearch = 0;
                 bestFwd = 0;
             }
@@ -983,12 +969,23 @@ bool compressStream(int song, int st, int minstep) {
                 for (int stx=(sng==song?st+1:0); stx<MAXSTREAMS; ++stx) {
                     int altbest = 0;
                     int altSearch = stringSearch(str, thisLen, songs[sng].outStream[stx], songs[sng].streamCnt[stx], altbest, bestBwd);
-                    if (altbest < 4+minRun) altSearch = 0;
-                    if (altbest >= bestFwd) {
-                        bestFwd = altbest;
+                    if (altbest < minRun) {
+                        altSearch = 0;  // TODO: what does this do?
+                    } else {
+                        if (altbest >= bestFwd) {
+                            bestFwd = altbest;
+                        }
                     }
                 }
             }
+        }
+
+        // filter out to hand-tuned minimums
+//        if (bestFwd < minRun*2) {
+//            bestFwd = 0;
+//        }
+        if (bestBwd < minRun*2) {
+            bestBwd = 0;
         }
 
         // fwdSearch contains the expected bytes saved (minus the backreference costs) if we save bestFwd bytes
@@ -1000,7 +997,7 @@ bool compressStream(int song, int st, int minstep) {
         // for some level of additional slack...
         bool isBackref = false;
         bool fakeFwd = false;
-        if ((bestBwd >= 4+minRun) && (bestFwd >= 4+minRun)) {
+        if ((bestBwd >= minRun) && (bestFwd >= minRun)) {
             // if we found both, decide which one to use
             if (bestBwd >= bestFwd) {
                 // the later refs can use the same backref we found
@@ -1013,10 +1010,10 @@ bool compressStream(int song, int st, int minstep) {
                 // we should just take the backref
                 isBackref = true;
             }
-        } else if (bestBwd >= 4+minRun) {
+        } else if (bestBwd >= minRun) {
             // we have backward but no forward
             isBackref = true;
-        } else if (bestFwd < 4+minRun) {
+        } else if (bestFwd < minRun) {
             // we have nothing, not even a forward, so check for RLE to end the string
             for (int idx=1; idx<thisLen; ++idx) {
                 if (!noRLE) {
@@ -1045,7 +1042,15 @@ bool compressStream(int song, int st, int minstep) {
                 }
             }
 
-            bestFwd = thisLen;
+            // don't take more than the RLE determined
+            if (thisLen < fakeLen) {
+                if (debug2) printf("RLE potential reduced length from %d to %d\n", fakeLen, thisLen);
+                fakeLen = thisLen;
+            }
+
+            // going to do a fake fwd, but only as far as the determined string
+            bestFwd = fakeLen;
+            thisLen = fakeLen;
             fakeFwd = true;     // tells us to ignore forward for RLE test
         }
 
@@ -1069,8 +1074,8 @@ bool compressStream(int song, int st, int minstep) {
 
         if (debug2) {
             // print the decision making data
-            printf("[%d] Search: %3d BestBwd: %3d BestFwd: %3d%s FwdSearch: %5d RLE: %3d RLE16: %3d RLE24: %3d  RLE32: %3d Decided: ", 
-                minRun, thisLen, bestBwd, bestFwd, fakeFwd?"*":" ", fwdSearch,
+            printf("%d:[%d] Search: %3d BestBwd: %3d BestFwd: %3d%s FwdSearch: %5d RLE: %3d RLE16: %3d RLE24: %3d  RLE32: %3d Decided: ", 
+                st, minRun, thisLen, bestBwd, bestFwd, fakeFwd?"*":" ", fwdSearch,
                 rleRun, rle16Run, rle24Run, rle32Run);
         }
 
@@ -1325,7 +1330,7 @@ bool compressStream(int song, int st, int minstep) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Compression Tool - v20200525\n\n");
+	printf("VGMComp2 Compression Tool - v20200615\n\n");
 
     // parse arguments
     int nextarg = -1;
@@ -1365,7 +1370,11 @@ int main(int argc, char *argv[])
                     return 1;
                 }
                 if (2 != sscanf(argv[idx], "%d,%d", &minRunMin, &minRunMax)) {
-                    printf("Parse error on minrun, must be like: -minrun 0,7\n");
+                    printf("Parse error on minrun, must be like: -minrun 1,7\n");
+                    return 1;
+                }
+                if (minRunMin < 1) {
+                    printf("Minimum run must be at least 1\n");
                     return 1;
                 }
                 ++minRunMax;

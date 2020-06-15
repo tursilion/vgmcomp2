@@ -68,6 +68,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "psg2vgm", "psg2vgm\psg2vgm.vcxproj", "{B4D73B08-66FD-4BE3-8FD9-53B1193E518F}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AnalyzeStream", "AnalyzeStream\AnalyzeStream.vcxproj", "{9A7B3DFD-4F72-4D9D-9611-BB733ED64621}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -180,6 +182,14 @@ Global
 		{B4D73B08-66FD-4BE3-8FD9-53B1193E518F}.Release|Win32.Build.0 = Release|Win32
 		{B4D73B08-66FD-4BE3-8FD9-53B1193E518F}.Release|x64.ActiveCfg = Release|x64
 		{B4D73B08-66FD-4BE3-8FD9-53B1193E518F}.Release|x64.Build.0 = Release|x64
+		{9A7B3DFD-4F72-4D9D-9611-BB733ED64621}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9A7B3DFD-4F72-4D9D-9611-BB733ED64621}.Debug|Win32.Build.0 = Debug|Win32
+		{9A7B3DFD-4F72-4D9D-9611-BB733ED64621}.Debug|x64.ActiveCfg = Debug|x64
+		{9A7B3DFD-4F72-4D9D-9611-BB733ED64621}.Debug|x64.Build.0 = Debug|x64
+		{9A7B3DFD-4F72-4D9D-9611-BB733ED64621}.Release|Win32.ActiveCfg = Release|Win32
+		{9A7B3DFD-4F72-4D9D-9611-BB733ED64621}.Release|Win32.Build.0 = Release|Win32
+		{9A7B3DFD-4F72-4D9D-9611-BB733ED64621}.Release|x64.ActiveCfg = Release|x64
+		{9A7B3DFD-4F72-4D9D-9611-BB733ED64621}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

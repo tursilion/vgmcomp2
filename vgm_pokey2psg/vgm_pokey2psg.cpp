@@ -388,12 +388,33 @@ bool outputData() {
 
         for (int idx=0; idx<MAXCHANNELS; idx++) {
 		    if (nWork[idx] == -1) {         // no entry yet
-                if (idx&1) {
-                    // volume - so mute it
-                    nWork[idx] = 0;     // mute
-                } else {
-                    // tone (or noise), so high pitch it
-                    nWork[idx] = 1;     // very high pitched
+                switch(idx%16) {
+                    case 0:
+                    case 2:
+                    case 4:
+                    case 6: // tones
+                        nWork[idx] = 1;     // very high pitched
+                        break;
+
+                    case 8:
+                    case 10:
+                    case 12:
+                    case 14: // noise
+                        // can't do much for noise, but we can mute it
+                        nWork[idx] = 16;    // just a legit pitch
+                        nWork[idx+1] = 0;   // mute
+                        break;
+
+                    case 1:
+                    case 3:
+                    case 5:
+                    case 7:
+                    case 9:
+                    case 11:
+                    case 13:
+                    case 15: // volumes
+                        nWork[idx] = 0;     // mute
+                        break;
                 }
             }
             if (((idx&1)==0) && (nWork[idx] == 0)) {
@@ -422,7 +443,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM Pokey - v20200328\n");
+	printf("Import VGM Pokey - v20200615\n");
 
 	if (argc < 2) {
 		printf("vgm_pokey2psg [-q] [-d] [-o <n>] [-disableperiodic] [-ignorehighpass] [-ignoreweird] <filename>\n");

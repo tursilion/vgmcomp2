@@ -521,8 +521,13 @@ bool outputData() {
                     case 0:
                     case 2:
                     case 4: // tones
-                    case 6: // noise
                         nWork[idx] = 1;     // very high pitched
+                        break;
+
+                    case 6: // noise
+                        // can't do much for noise, but we can mute it
+                        nWork[idx] = 16;    // just a legit pitch
+                        nWork[idx+1] = 0;   // mute
                         break;
 
                     case 1:
@@ -562,7 +567,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM DMG (Gameboy) - v20200328\n");
+	printf("Import VGM DMG (Gameboy) - v20200615\n");
 
 	if (argc < 2) {
 		printf("vgm_gb2psg [-q] [-d] [-o <n>] [-add <n>] [-wavenoise|-wavenone] [-enable7bitnoise] [-ignoreweird] <filename>\n");
