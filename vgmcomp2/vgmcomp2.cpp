@@ -1521,6 +1521,7 @@ int main(int argc, char *argv[])
     if (verbose) printf("Songbank contains %d/%d notes.\n\n", noteCnt, MAXNOTES);
 
     // do the RLE pack. It's necessary because it allows us to have RLE in the post-encoded stream
+    // Confirmed this makes an important difference 99.99% of the time (okay, 99.99 is a guess... but up there)
     for (int idx=0; idx<currentSong; ++idx) {
         if (verbose) printf("RLE Packing song %d (%d rows)...\n", idx, songs[idx].outCnt);
         if (!initialRLE(&songs[idx])) {
@@ -1590,7 +1591,6 @@ int main(int argc, char *argv[])
             }
             songs[song].streamOffset[st] = outputPos;
 
-#if 1
             // it appears that the minRun changing is still worth it, and that it needs
             // to be per stream. In addition, it appears that the full range is still
             // useful, as my first test case had bests from 0 to 13 in it. Over 400 bytes
@@ -1624,6 +1624,9 @@ int main(int argc, char *argv[])
                     deepdive = 0x3f;
                 }
 
+                // this loop only tests 2 starting steps - 4 and 998 (and that's more of a dummy for 'all')
+                // the intent is '4' searches inside the string starting at 4, and 998 starts the search
+                // after the string max size (normally 63, unless we're near the end of the buffer)
                 for (int stepLen = 4; stepLen < 1000;  stepLen+=994) {
                     for (minRun = minRunMin; minRun < minRunMax; ++minRun) {
                         minRunData[minRun].cntBacks.reset();
@@ -1684,14 +1687,6 @@ int main(int argc, char *argv[])
             minRunData[MAXRUN].cntRLE24s += minRunData[bestRun].cntRLE24s;
             minRunData[MAXRUN].cntRLE16s += minRunData[bestRun].cntRLE16s;
             minRunData[MAXRUN].cntRLEs += minRunData[bestRun].cntRLEs;
-#else
-            if (!compressStream(song, st, 4)) {
-                return 1;
-            }
-            if (verbose) {
-                printf("%d bytes\n", outputPos-songs[song].streamOffset[st]);
-            }
-#endif
         }
     }
 

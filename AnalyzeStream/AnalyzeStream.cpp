@@ -83,7 +83,7 @@ bool processOld(int str) {
 
         case 0x80:  // short back reference
             size = ctrl&0x3f;
-            printf("SHORT   - %-2d bytes: ", size);
+            printf("SHORT  - %-2d bytes: ", size);
             // print first 10
             tmp = base + buf[pos];
             for (int idx=0; (idx<10)&&(idx<size); ++idx) {
@@ -98,7 +98,7 @@ bool processOld(int str) {
 
         case 0xc0:  // long back ref
             size = ctrl&0x3f;
-            printf("LONG    - %-2d bytes: ", size);
+            printf("LONG   - %-2d bytes: ", size);
             // print first 10
             tmp = buf[pos] * 256 + buf[pos+1];
             for (int idx=0; (idx<10)&&(idx<size); ++idx) {
@@ -237,6 +237,8 @@ bool processNew(int str) {
 }
 
 int main(int argc, char *argv[]) {
+	printf("VGMComp2 Stream Analysis Tool - v20200615\n\n");
+
     if (argc < 3) {
         printf("AnalyzeStream <name.sbf> <stream index (0-based)> [-old]\n");
         printf("Pass optional switch \"-old\" to analyze an old v1 stream\n");
