@@ -1,5 +1,4 @@
 // vgmcomp2.cpp : Defines the entry point for the console application.
-// vgmcomp2.cpp : Defines the entry point for the console application.
 //
 // 9 Channels:
 // Tone1	Vol1	Tone2	Vol2	Tone3	Vol3	Noise	Vol4	Timing
@@ -23,6 +22,17 @@
 
 #define NOISE_TRIGGER  0x10000              // input version of noise trigger bit
 #define NOISE_OUT_TRIGGER 0x80              // output version of noise trigger bit
+
+// this is used by enabling RUNBACKREFTEST
+// and passing the -dd switch
+int tstcase[] = {
+    1,2,3,4,5,
+    1,2,3,4,5,
+    1,2,3,4,5,
+    1,2,3,4,5,
+    1,2,3,4,5
+};
+//#define RUNBACKREFTEST
 
 // stream names - don't reorder - TONE1-3 and NOISE must be 0-3
 enum {
@@ -103,6 +113,7 @@ bool noRLE32 = false;
 bool noFwdSearch = false;
 bool noBwdSearch = false;
 bool alwaysRLE = false;
+bool checkAnyway = false;
 
 // stats for minrun loops
 #define MAXRUN 21
@@ -204,6 +215,7 @@ bool testOutputRLE(SONG *s) {
     int testCnt[MAXSTREAMS];    // we can do tones and volumes separately anyway
     bool ret = true;
     SONG *t = &testSong;
+    memset(&testSong, 0, sizeof(testSong));
 
     // prepare the arrays
     for (int idx=0; idx<MAXSTREAMS; ++idx) {
@@ -320,7 +332,7 @@ bool testOutputRLE(SONG *s) {
 
     // and test it - VERIFY PHASE 1 means this whole RLE test
     for (int idx=0; idx<TIMESTREAM; ++idx) {
-        if (testCnt[idx] != s->outCnt+1) {   // +1 for the ending beats.. I hope ;)
+        if (testCnt[idx] != s->outCnt+1) {  // Why do I need a plus one here?
             printf("VERIFY PHASE 1 - Failed on song length - got %d rows on %s %d, song was %d rows\n", 
                    testCnt[idx], idx<VOL1?"channel":"volume", idx, s->outCnt);
             ret = false;
@@ -355,6 +367,7 @@ bool testOutputSBF(SONG *s, int songidx) {
     // tool it's okay, but if you pull it out you need to check the buffer size.
     bool ret = true;
     SONG *t = &testSong;
+    memset(&testSong, 0, sizeof(testSong));
 
     // first, look up each stream offset
     int noteOffset = outputBuffer[NOTETABLE]*256 + outputBuffer[NOTETABLE+1];
@@ -478,7 +491,10 @@ bool testOutputSBF(SONG *s, int songidx) {
             printf("VERIFY PHASE 2 - failed on stream %d length, got 0x%X vs desired 0x%X\n",
                     st, t->streamCnt[st], s->streamCnt[st]);
             ret = false;
-        } else {
+        }
+        
+        if ((ret)||(checkAnyway)) {
+            if (!ret) printf("... checking anyway (may crash!)...\n");
             // check each row
             for (int idx = 0; idx<t->streamCnt[st]; ++idx) {
                 if (t->outStream[st][idx] != s->outStream[st][idx]) {
@@ -566,14 +582,6 @@ bool initialRLE(SONG *s) {
     if (s->streamCnt[TONE3] == 0) s->outStream[TIMESTREAM][0] &= 0xdf;
     if (s->streamCnt[NOISE] == 0) s->outStream[TIMESTREAM][0] &= 0xef;
 
-#if 0
-    // Not using double-zero to mark the end - don't do this
-    s->streamCnt[TIMESTREAM]++;
-    s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]=0;
-    s->streamCnt[TIMESTREAM]++;
-    s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]=0;
-#endif
-
     // Individually RLE each volume channel (not included in the streams above)
     for (int idx=VOL1; idx<=VOL4; ++idx) {
         s->streamCnt[idx]=0;
@@ -612,10 +620,12 @@ bool initialRLE(SONG *s) {
     // if it was zero (only possible in the maximum size case), then we can delete the entry entirely
     for (int idx2=VOL1; idx2<=VOL4; ++idx2) {
         if ((s->outStream[idx2][s->streamCnt[idx2]]&0xf) == 0) {
-            s->streamCnt[idx2]--;
+            // do nothing - it's empty
+            //s->streamCnt[idx2]--;
         } else {
             s->outStream[idx2][s->streamCnt[idx2]]--;
             s->outStream[idx2][s->streamCnt[idx2]] |= (s->lastnote[idx2]<<4)&0xf0;
+            s->streamCnt[idx2]++;
         }
     }
 
@@ -633,8 +643,7 @@ bool initialRLE(SONG *s) {
     return true;
 }
 
-// return how many repeated ints exist at the passed in location, no more than cnt ints exist
-// does NOT include the first one!
+// return a score for bytes saved if we encode an RLE here (cnt is the remaining buffer size)
 int RLEsize(int *str, int cnt) {
     if (cnt < 2) return 0;
 
@@ -650,11 +659,21 @@ int RLEsize(int *str, int cnt) {
         }
     }
 
+    // plus the first
+    if (out) ++out;
+
+    // limits
+    if (out < 3) out = 0;
+    if (out > 34) out = 34;
+
+    // bytes saved - 2 bytes to encode
+    out -= 2;
+    if (out < 0) out = 0;
+
     return out;
 }
 
-// return how many repeated two-int cases exist at the passed in location, no more than cnt ints exist
-// does NOT include the first one!
+// return a score for bytes saved if we encode an RLE16 here (cnt is the remaining buffer size)
 int RLE16size(int *str, int cnt) {
     if (cnt < 4) return 0;
 
@@ -676,11 +695,24 @@ int RLE16size(int *str, int cnt) {
         cnt -= 2;
     }
 
+    // plus the first
+    if (out) ++out;
+
+    // limits
+    if (out < 2) out = 0;
+    if (out > 33) out = 33;
+
+    // scale
+    out *= 2;
+
+    // bytes saved - 3 bytes to encode
+    out -= 3;
+    if (out < 0) out = 0;
+
     return out;
 }
 
-// return how many repeated three-int cases exist at the passed in location, no more than cnt ints exist
-// does NOT include the first one!
+// return a score for bytes saved if we encode an RLE24 here (cnt is the remaining buffer size)
 int RLE24size(int *str, int cnt) {
     if (cnt < 4) return 0;
 
@@ -707,11 +739,24 @@ int RLE24size(int *str, int cnt) {
         cnt -= 3;
     }
 
+    // plus the first
+    if (out) ++out;
+
+    // limits
+    if (out < 2) out = 0;
+    if (out > 33) out = 33;
+
+    // scale
+    out *= 3;
+
+    // bytes saved - 4 bytes to encode
+    out -= 4;
+    if (out < 0) out = 0;
+
     return out;
 }
 
-// return how many repeated four-int cases exist at the passed in location, no more than cnt ints exist
-// does NOT include the first one!
+// return a score for bytes saved if we encode an RLE32 here (cnt is the remaining buffer size)
 int RLE32size(int *str, int cnt) {
     if (cnt < 4) return 0;
 
@@ -743,67 +788,80 @@ int RLE32size(int *str, int cnt) {
         cnt -= 4;
     }
 
+    // plus the first
+    if (out) ++out;
+
+    // limits
+    if (out < 2) out = 0;
+    if (out > 33) out = 33;
+
+    // scale
+    out *= 4;
+
+    // bytes saved - 5 bytes to encode
+    out -= 5;
+    if (out < 0) out = 0;
+
     return out;
 }
 
-// string search a stream for all full and partial string matches
+// string search a stream for all full and partial string matches forward
 // - the source string is str and is strLen ints long
 // - the search space is buf and is bufLen ints long
-// - bestLen holds the longest match found
-// - scores must be longer than bestBwd to be added to the total
-// - return value is the total of all matches (full and partial) found
+// - bestLen holds the longest match found and is increased as needed
+// - bestScore contains the expected number of bytes saved accumulative with this string,
+//   and can include strings shorter than bestLen!
 // Note that buf is allowed to overlap str, and we should deal with that
-int stringSearch(int *str, int strLen, int *buf, int bufLen, int &bestLen, int bestBwd) {
-    bestLen = 0;
-    int bestScore = 0;
-    int score = 0;
-
+// str MUST be part of buf for this to work
+void stringSearchFwd(int *str, int strLen, int *buf, int bufLen, int &bestLen, int &bestScore) {
+    // maximum length for an inline string is 64 bytes
     if (strLen > 64) {
         strLen = 64;
     }
 
-    // matches need to be at least 4 bytes long
+    // walk through the buffer and count how many bytes match
     for (int x=0; x<bufLen; ++x) {
         // calculate a working length
         int tmpLen = strLen;
+        // limit the search length if we are working on a substring
+        // so we don't extend into the buffer we are matchin
         if (&buf[x] < (str+strLen)) {
             tmpLen = &buf[x]-str;
         }
-        if (x+tmpLen >= bufLen) continue;
+        // handle the end of the buffer
+        if (x+tmpLen >= bufLen) tmpLen = bufLen-x;
 
-        score = 0;
-        bool update = false;
-
-        // We don't need to loop here, we just need to know how many ints match
-        // so now the code is right and my files are too big, wtf... ;)
+        // we just need to know how many ints match
         {
             int cnt = 0;
-            while ((cnt < tmpLen) && (str[cnt] == buf[x+cnt])) ++cnt;
-            --cnt;  // we're one too far
+            while ((cnt < tmpLen) && (str[cnt] == buf[x+cnt])) {
+                ++cnt;
+            }
+            
+            // when the score gets longer, we disregard the previous score as
+            // it's part of this one. But if we find a shorter match, that's
+            // an ADDITIONAL score. That works for the first part, anyway...
+            // it costs 3 to encode a backref, every time
             if (cnt > 3) {
-                bestLen = cnt;
-                update = true;
-                if (cnt > bestBwd) {
-                    score += cnt-bestBwd;
+                if (cnt > bestLen) {
+                    bestScore -= bestLen-3;
+                    if (bestScore < 0) bestScore = 0;
+                    bestLen = cnt;
                 }
+                // it costs 3 to encode a backref, every time
+                bestScore += cnt-3;
             }
         }
-
-        if (update) {
-            bestScore = score;
-        }
     }
-
-    return bestScore;
 }
 
-// string search a char memory buffer for all full and partial string matches
+// string search a char memory buffer for all full and partial string matches - used for back search
 // - the source string is str and is strLen ints long (and assumed to hold bytes in ints!)
 // - the search space is buf and is bufLen ints long (and assumed to be bytes!)
 // - bestLen holds the longest match found
 // - bestPos holds the offet (from buf) of the best match
-// - return value is the total of all matches (full and partial) found
-int memorySearch(int *str, int strLen, unsigned char *buf, int bufLen, int &bestLen, int &bestPos) {
+// - bestScore holds the best score in terms of bytes saved (separate from len due to subtractions)
+void memorySearchBack(int *str, int strLen, unsigned char *buf, int bufLen, int &bestLen, int &bestPos, int &bestScore) {
     int totalOut = 0;
     bestLen = 0;
 
@@ -812,34 +870,40 @@ int memorySearch(int *str, int strLen, unsigned char *buf, int bufLen, int &best
         strLen = 67;
     }
 
-    // matches need to be at least 4 bytes long
-    for (int cnt = 4; cnt < strLen; ++cnt) {
-        for (int x=0; x<bufLen-cnt; ++x) {
-            // matching different data types, we have to comp by hand
-            bool match = true;
-            for (int idx = 0; idx<cnt; ++idx) {
-                if ((str[idx]&0xff) != buf[idx+x]) {
-                    match = false;
-                    break;
-                }
-            }
-            if (match) {
-                bestLen = cnt;
-                bestPos = x;
-                totalOut += cnt-3;  // cost of a backreference is 3
-            }
+    // strings need to be at least 4 bytes long to be useful
+    // so starting at each position, see how many bytes match the string
+    for (int bufpos = 0; bufpos < bufLen-4; ++bufpos) {
+        int idx = 0;
+        while ((unsigned char)(str[idx]) == buf[bufpos+idx]) {
+            ++idx;
+            if ((idx>strLen)||(idx+bufpos>=bufLen)) break;
+        }
+        int score = idx-3;  // a backref costs 3
+        if (score < 0) score = 0;
+        if (score > bestScore) {
+            bestScore = score;
+            bestLen = idx;
+            bestPos = bufpos;
         }
     }
-
-    return totalOut;
 }
 
+unsigned int xxx[100000]; // should be plenty, biggest song I have is 55k total
+int xcnt=-1;
+int xtot = 0;
+int lastSt=-1;
 
 // actually compress a single stream into the output buffer
 // outputBuffer[64*1024] and outputPos
 bool compressStream(int song, int st, int minstep) {
     int *str = songs[song].outStream[st];
     int cnt = songs[song].streamCnt[st];
+
+    if (song == -1) {
+        printf("Running test case\n");
+        str = tstcase;
+        cnt = sizeof(tstcase)/4;
+    }
 
     // maximum size
     const int MAXSIZE = 63;         // 00111111
@@ -852,6 +916,37 @@ bool compressStream(int song, int st, int minstep) {
     int lastFwdPos = 0;
     int lastFwdSize = 0;
 
+    // like the old one, force a fixed minrun at the beginning for backrefs to jump into
+    if (minRun > 1) {
+        int firstSize = minRun-1;
+        if (firstSize > cnt) firstSize = cnt;
+        if (debug2) printf("Initial FWD %d bytes\n", firstSize);
+
+        // remember this one - store size BEFORE we subtract 1
+        lastWasFwd = true;
+        lastFwdPos = outputPos;
+        lastFwdSize = firstSize;
+
+        // inline string - 1 + length bytes space to encode
+        if (outputPos >= (signed)sizeof(outputBuffer)-firstSize-1) {
+            printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
+            return false;
+        }
+
+        // 1 is the smallest legal length, so map it down
+        firstSize -= 1;
+        if (firstSize > MAXSIZE) firstSize=MAXSIZE;   // that's all the bits we have
+        outputBuffer[outputPos++] = INLINEBITS | firstSize;
+        for (int idx=0; idx<=firstSize; ++idx) {
+            outputBuffer[outputPos++] = ((*(str++)) & 0xff);
+            --cnt;
+        }
+
+        // Already updated position and cnt above
+        ++minRunData[minRun].cntFwds.cnt;
+        minRunData[minRun].cntFwds.total += firstSize+1;
+    }
+
     while (cnt > 0) {
         if (verbose) {
             if (dbg++ % 100 == 0) {
@@ -860,44 +955,37 @@ bool compressStream(int song, int st, int minstep) {
             }
         }
 
-        // First, check if this is a single-byte RLE run (must be at least 3 bytes, 0-63 means 3-66 times)
+        // First, check if this is a single-byte RLE run (each function defines its own limits)
         // Forcing minRun on the RLE typically results in worse performance
+        // the various runs are rated in /bytes saved/
         int rleRun = 0;
         if (!noRLE) {
             rleRun = RLEsize(str, cnt);
-            if (rleRun < 2) rleRun = 0;
-            if (rleRun > 34) rleRun = 34;
         }
         int rle16Run = 0;
         if (!noRLE16) {
             rle16Run = RLE16size(str, cnt);
-            if (rle16Run < 1) rle16Run = 0; // isn't that obvious? ;)
-            if (rle16Run > 32) rle16Run = 32;
         }
         int rle24Run = 0;
         if (!noRLE24) {
             rle24Run = RLE24size(str, cnt);
-            if (rle24Run < 1) rle24Run = 0;
-            if (rle24Run > 32) rle24Run = 32;
         }
         int rle32Run = 0;
         if (!noRLE32) {
             rle32Run = RLE32size(str, cnt);
-            if (rle32Run < 1) rle32Run = 0;
-            if (rle32Run > 32) rle32Run = 32;
         }
 
         // then check for string matches
         // The optimization of string searches makes or breaks this algorithm.
 
-        // Find the ending point of this string (must be at least 1 byte, 0-63 means 1-64, or stop at first matching RLE)
-        int thisLen = (cnt < 68 ? cnt : 68);        // maximum possible run - cnt is rows remaining in data
-        int fakeLen = thisLen;                      // used for fakeFwd
+        // Find the ending point of this string
+        int thisLen = (cnt < 67 ? cnt : 67);        // maximum possible run for backref - cnt is rows remaining in data
+        int fakeLen = thisLen;                      // we only truncate for fakeFwd, not the search - this appears to help
 
         // determine if there are any good overlaps inside this string
         // and stop at the first repeated data, if there are. We do this by sliding the string over itself
         // and checking how many sequential matches we find.
-        // for each possible offset. Either search may benefit.
+        // for each possible offset. Confirmed useful
         if ((!noFwdSearch)||(!noBwdSearch)) {
             int match=0;
             int matchpos=0;
@@ -908,9 +996,16 @@ bool compressStream(int song, int st, int minstep) {
                 // tested checking only half the string, but that was worse
                 int testlen = (off+thisLen > cnt ? cnt : thisLen);
                 for (int tst=0; tst<testlen; ++tst) {
+                    if (off+tst >= cnt) break;  // off end of string
+                    if ((match)&&(tst >= matchpos)) {
+                        // past estimated truncation point
+                        match = 0;
+                        matchpos = 0;
+                    }                        
                     if (str[off+tst] != str[tst]) {
                         // we don't break cause we are looking for ANY substrings
-                        // but we have to clear the counters
+                        // but we have to clear the counters. We already saved
+                        // bestmatch if it was one.
                         match = 0;
                         matchpos = 0;
                     } else {
@@ -928,64 +1023,46 @@ bool compressStream(int song, int st, int minstep) {
                     }
                 }
             }
-            if (bestmatch >= 4) {
-                if (debug2) printf("FakeFwd length reduced from %d to %d for substring match\n", thisLen, bestpos);
-                fakeLen = bestpos;  // since we're based at 0
+            // minimum 4 because a backref only saves if it's more than 3 bytes long
+            // again, this is used only if we have to store a fakefwd (an inline with no
+            // decent forward matches found).
+            if ((bestmatch >= 4) && (bestpos < fakeLen)) {
+//                if (debug2) printf("FakeFwd length reduced from %d to %d for substring match\n", fakeLen, bestpos);
+                fakeLen = bestpos;
             }
         }
 
         // now we have a string at str, length of thisLen
+        int bestBwdScore = 0;
+        int bestBwdLen = 0;
+        int bestBwdPos = 0; // no need for a fwdPos because that's "here".
 
-        // Search forward and see how many times this string or any subset of it matches, save the best hit (minimum 4 bytes) AND the total
-        int bestFwd = 0;
-        int bestBwd = 0;
-        int bestBwdPos = 0;
-
-        // Search backward and see if this string or any subset matches, save the best hit (minimum 4 bytes)
-        // Don't need to save the total, it doesn't help us here.
+        // Search backward and see if this string or any subset matches, save the best score
+        // bestBwdLen, bestBwdPos and bestBwdScore will be updated a needed
         if (!noBwdSearch) {
-            memorySearch(str, thisLen, outputBuffer, outputPos, bestBwd, bestBwdPos);
+            memorySearchBack(str, thisLen, outputBuffer, outputPos, bestBwdLen, bestBwdPos, bestBwdScore);
         }
 
         // now try the forward search
-        int fwdSearch = 0;
-        bestFwd = 0;
+        // save the best hit in terms of bytes saved. of course a forward ref isn't a
+        // guarantee, but we should EXPECT it to be used later!
+        int bestFwdLen = 0;
+        int bestFwdScore = 0;
         if (!noFwdSearch) {
             // note that we include the region INSIDE the current string, just in case!
-            // We only score runs longer than the best backwards ref, since the backref
-            // would win those anyway. minstep varies between '4' and '999' (which will
+            // minstep varies between '1' and '999' (which will
             // keep the whole string), cause despite my best efforts it is proven that
             // sometimes searching inside the string is better, sometimes keeping it all
             // is better, and it's all too interdependent to not just try both.
             int off = thisLen > minstep ? minstep: thisLen;
-            fwdSearch = stringSearch(str, thisLen, str+off, cnt-off, bestFwd, bestBwd);
-            if (bestFwd < minRun) {
-                fwdSearch = 0;
-                bestFwd = 0;
-            }
+            stringSearchFwd(str, thisLen, str+off, cnt-off, bestFwdLen, bestFwdScore);
 
             // now check the remaining streams for forward refs
             for (int sng=song; sng<currentSong; ++sng) {
                 for (int stx=(sng==song?st+1:0); stx<MAXSTREAMS; ++stx) {
-                    int altbest = 0;
-                    int altSearch = stringSearch(str, thisLen, songs[sng].outStream[stx], songs[sng].streamCnt[stx], altbest, bestBwd);
-                    if (altbest < minRun) {
-                        altSearch = 0;  // TODO: what does this do?
-                    } else {
-                        if (altbest >= bestFwd) {
-                            bestFwd = altbest;
-                        }
-                    }
+                    stringSearchFwd(str, thisLen, songs[sng].outStream[stx], songs[sng].streamCnt[stx], bestFwdLen, bestFwdScore);
                 }
             }
-        }
-
-        // filter out to hand-tuned minimums
-//        if (bestFwd < minRun*2) {
-//            bestFwd = 0;
-//        }
-        if (bestBwd < minRun*2) {
-            bestBwd = 0;
         }
 
         // fwdSearch contains the expected bytes saved (minus the backreference costs) if we save bestFwd bytes
@@ -997,45 +1074,35 @@ bool compressStream(int song, int st, int minstep) {
         // for some level of additional slack...
         bool isBackref = false;
         bool fakeFwd = false;
-        if ((bestBwd >= minRun) && (bestFwd >= minRun)) {
-            // if we found both, decide which one to use
-            if (bestBwd >= bestFwd) {
-                // the later refs can use the same backref we found
-                isBackref = true;
-            } else if (fwdSearch > bestBwd*3) {     // *3 seems to be the sweet spot, hand-tuned
-                // a backref is normally the better case, so I fudge it here with hand-tuned values
-                // we are probably the best case for those later matches
-                isBackref = false;
-            } else {
-                // we should just take the backref
-                isBackref = true;
-            }
-        } else if (bestBwd >= minRun) {
-            // we have backward but no forward
+        // backref takes priority over forward ref, since a forward ref can
+        // use at least part of the same backref, and this seemed to work best
+        // even after testing various scales
+        if (bestBwdScore > 0) {
             isBackref = true;
-        } else if (bestFwd < minRun) {
+        } else if (bestFwdScore < minRun) {
             // we have nothing, not even a forward, so check for RLE to end the string
-            for (int idx=1; idx<thisLen; ++idx) {
+            // confirmed useful
+            for (int idx=1; idx<thisLen-1; ++idx) {
                 if (!noRLE) {
-                    if (RLEsize(str+idx, cnt-idx) >= 2) {
+                    if (RLEsize(str+idx, thisLen-idx) > 0) {
                         thisLen = idx;
                         break;
                     }
                 }
                 if (!noRLE16) {
-                    if (RLE16size(str+idx, cnt-idx) >= 1) {
+                    if (RLE16size(str+idx, thisLen-idx) > 0) {
                         thisLen = idx;
                         break;
                     }
                 }
                 if (!noRLE24) {
-                    if (RLE24size(str+idx, cnt-idx) >= 1) {
+                    if (RLE24size(str+idx, thisLen-idx) > 0) {
                         thisLen = idx;
                         break;
                     }
                 }
                 if (!noRLE32) {
-                    if (RLE32size(str+idx, cnt-idx) >= 1) {
+                    if (RLE32size(str+idx, thisLen-idx) > 0) {
                         thisLen = idx;
                         break;
                     }
@@ -1044,12 +1111,12 @@ bool compressStream(int song, int st, int minstep) {
 
             // don't take more than the RLE determined
             if (thisLen < fakeLen) {
-                if (debug2) printf("RLE potential reduced length from %d to %d\n", fakeLen, thisLen);
+//              if (debug2) printf("RLE potential reduced length from %d to %d\n", fakeLen, thisLen);
                 fakeLen = thisLen;
             }
 
             // going to do a fake fwd, but only as far as the determined string
-            bestFwd = fakeLen;
+            bestFwdLen = fakeLen;
             thisLen = fakeLen;
             fakeFwd = true;     // tells us to ignore forward for RLE test
         }
@@ -1060,49 +1127,49 @@ bool compressStream(int song, int st, int minstep) {
         // the string or not
         bool doRLE = alwaysRLE;
         if (isBackref) {
-            if (rleRun > bestBwd) doRLE=true;
-            if (rle16Run*2 > bestBwd) doRLE=true;
-            if (rle24Run*3 > bestBwd) doRLE=true;
-            if (rle32Run*4 > bestBwd) doRLE=true;
+            if (rleRun > bestBwdScore) doRLE=true;
+            if (rle16Run > bestBwdScore) doRLE=true;
+            if (rle24Run > bestBwdScore) doRLE=true;
+            if (rle32Run > bestBwdScore) doRLE=true;
         } else {
-            if (fakeFwd) doRLE=true;    // okay even if we don't have an RLE
-            if (rleRun > bestFwd) doRLE=true;
-            if (rle16Run*2 > bestFwd) doRLE=true;
-            if (rle24Run*3 > bestFwd) doRLE=true;
-            if (rle32Run*4 > bestFwd) doRLE=true;
+            if (fakeFwd) doRLE = true;
+            if (rleRun > bestFwdScore) doRLE=true;
+            if (rle16Run > bestFwdScore) doRLE=true;
+            if (rle24Run > bestFwdScore) doRLE=true;
+            if (rle32Run > bestFwdScore) doRLE=true;
         }
 
         if (debug2) {
             // print the decision making data
-            printf("%d:[%d] Search: %3d BestBwd: %3d BestFwd: %3d%s FwdSearch: %5d RLE: %3d RLE16: %3d RLE24: %3d  RLE32: %3d Decided: ", 
-                st, minRun, thisLen, bestBwd, bestFwd, fakeFwd?"*":" ", fwdSearch,
+            printf("%d:[%d] Search: %3d BestBwd: %3d BestFwd: %3d%s RLE: %3d RLE16: %3d RLE24: %3d  RLE32: %3d Decided: ", 
+                st, minRun, thisLen, bestBwdScore, bestFwdScore, fakeFwd?"*":" ",
                 rleRun, rle16Run, rle24Run, rle32Run);
         }
 
         if (doRLE) {
             // if we don't have an RLE (such as possible in the fakeFwd case)
             // then we'll fall out of here into ths string handler
-            if (rle16Run*2 > rleRun) {
+            if (rle16Run > rleRun) {
                 // force use of the 16-bit one instead - rare case but larger range
                 rleRun = 0;
             }
-            if (rle24Run*3 > rleRun) {
+            if (rle24Run > rleRun) {
                 // force use of the 24-bit one instead - rare case but larger range
                 rleRun = 0;
             }
-            if (rle24Run*3 > rle16Run*2) {
+            if (rle24Run > rle16Run) {
                 // force use of the 24-bit one instead - rare case but larger range
                 rle16Run = 0;
             }
-            if (rle32Run*4 > rleRun) {
+            if (rle32Run > rleRun) {
                 // force use of the 32-bit one instead - rare case but larger range
                 rleRun = 0;
             }
-            if (rle32Run*4 > rle24Run*3) {
+            if (rle32Run > rle24Run) {
                 // force use of the 32-bit one instead - rare case but larger range
                 rle24Run = 0;
             }
-            if (rle32Run*4 > rle16Run*2) {
+            if (rle32Run > rle16Run) {
                 // force use of the 32-bit one instead - rare case but larger range
                 rle16Run = 0;
             }
@@ -1117,8 +1184,9 @@ bool compressStream(int song, int st, int minstep) {
                     return false;
                 }
 
-                // '2' means this one, plus 2 more, so that's three. We encode that as zero. There's also an upper limit.
-                rleRun -= 2;
+                // rleRun is scores as bytes saved, so that's number of RLE bytes minus 2. An encode value of 0
+                // means 3. But we want to encode the number of RLE runs (well, in this case that's the same)
+                rleRun--;   // so now it's the count minus 3, which is what we encode
                 if (rleRun > 31) rleRun=31;   // that's all the bits we have
                 outputBuffer[outputPos++] = RLEBITS | rleRun;
                 outputBuffer[outputPos++] = (*str) & 0xff;
@@ -1127,7 +1195,7 @@ bool compressStream(int song, int st, int minstep) {
                 str += rleRun+3;
                 cnt -= rleRun+3;
                 ++minRunData[minRun].cntRLEs.cnt;
-                minRunData[minRun].cntRLEs.total += rleRun;
+                minRunData[minRun].cntRLEs.total += rleRun+3;
                 continue;
             }
             if (rle16Run > 0) {
@@ -1139,9 +1207,9 @@ bool compressStream(int song, int st, int minstep) {
                     return false;
                 }
 
-                // '1' means this one, plus 1 more, so that's two. We encode that as zero. There's also an upper limit.
-                rle16Run -= 1;
-                // we don't have MAXSIZE here
+                // rle16Run is scores as bytes saved, so that's number of RLE cyles times 2, minus 3.
+                // But we want to encode the number of RLE runs minus 2
+                rle16Run = (rle16Run+3)/2 - 2;
                 if (rle16Run > 0x1f) rle16Run=0x1f;   // that's all the bits we have
                 outputBuffer[outputPos++] = RLE16BITS | rle16Run;
                 outputBuffer[outputPos++] = (*(str)) & 0xff;
@@ -1151,7 +1219,7 @@ bool compressStream(int song, int st, int minstep) {
                 str += (rle16Run+2)*2;
                 cnt -= (rle16Run+2)*2;
                 ++minRunData[minRun].cntRLE16s.cnt;
-                minRunData[minRun].cntRLE16s.total += rle16Run;
+                minRunData[minRun].cntRLE16s.total += (rle16Run+2)*2;
                 continue;
             }
             if (rle24Run > 0) {
@@ -1163,8 +1231,9 @@ bool compressStream(int song, int st, int minstep) {
                     return false;
                 }
 
-                // '1' means this one, plus 1 more, so that's two. We encode that as zero. There's also an upper limit.
-                rle24Run -= 1;
+                // rle24Run is scores as bytes saved, so that's number of RLE cyles times 3, minus 4.
+                // But we want to encode the number of RLE runs minus 2
+                rle24Run = (rle24Run+4)/3 - 2;
                 if (rle24Run > 31) rle24Run=31;   // that's all the bits we have
                 outputBuffer[outputPos++] = RLE24BITS | rle24Run;
                 outputBuffer[outputPos++] = (*(str)) & 0xff;
@@ -1175,7 +1244,7 @@ bool compressStream(int song, int st, int minstep) {
                 str += (rle24Run+2)*3;
                 cnt -= (rle24Run+2)*3;
                 ++minRunData[minRun].cntRLE24s.cnt;
-                minRunData[minRun].cntRLE24s.total += rle24Run;
+                minRunData[minRun].cntRLE24s.total += (rle24Run+2)*3;
                 continue;
             }
             if (rle32Run > 0) {
@@ -1187,8 +1256,9 @@ bool compressStream(int song, int st, int minstep) {
                     return false;
                 }
 
-                // '1' means this one, plus 1 more, so that's two. We encode that as zero. There's also an upper limit.
-                rle32Run -= 1;
+                // rle32Run is scores as bytes saved, so that's number of RLE cyles times 4, minus 5.
+                // But we want to encode the number of RLE runs minus 2
+                rle32Run = (rle32Run+5)/4 - 2;
                 if (rle32Run > 31) rle32Run=31;   // that's all the bits we have
                 outputBuffer[outputPos++] = RLE32BITS | rle32Run;
                 outputBuffer[outputPos++] = (*(str)) & 0xff;
@@ -1200,7 +1270,7 @@ bool compressStream(int song, int st, int minstep) {
                 str += (rle32Run+2)*4;
                 cnt -= (rle32Run+2)*4;
                 ++minRunData[minRun].cntRLE32s.cnt;
-                minRunData[minRun].cntRLE32s.total += rle32Run;
+                minRunData[minRun].cntRLE32s.total += (rle32Run+2)*4;
                 continue;
             }
         }
@@ -1216,20 +1286,26 @@ bool compressStream(int song, int st, int minstep) {
             }
 
             // 4 is the smallest legal length, so map it down
-            bestBwd -= 4;
-            if (bestBwd > MAXSIZE) bestBwd=MAXSIZE;   // that's all the bits we have
-            outputBuffer[outputPos++] = BACKREFBITS | bestBwd;
+            bestBwdLen -= 4;
+            if (bestBwdLen > MAXSIZE) bestBwdLen=MAXSIZE;   // that's all the bits we have
+            outputBuffer[outputPos++] = BACKREFBITS | bestBwdLen;
             outputBuffer[outputPos++] = bestBwdPos / 256;
             outputBuffer[outputPos++] = bestBwdPos % 256;
 
             // update the input position - careful of the offset tweaking above
-            str += bestBwd+4;
-            cnt -= bestBwd+4;
+            str += bestBwdLen+4;
+            cnt -= bestBwdLen+4;
             ++minRunData[minRun].cntBacks.cnt;
-            minRunData[minRun].cntBacks.total += bestBwd;
+            minRunData[minRun].cntBacks.total += bestBwdLen+4;
             continue;
         } else {
             if (debug2) if (fakeFwd) printf("FakeFwd"); else printf("Fwd");
+
+            // don't take more than this - there should be a backref there
+            if (fakeLen < bestFwdLen) {
+                bestFwdLen = fakeLen;
+                thisLen = fakeLen;
+            }
 
             // if the last was also an inline reference, we might collapse this one
             // into it, if it fits. This is simpler than changing the code which
@@ -1238,25 +1314,25 @@ bool compressStream(int song, int st, int minstep) {
             // will not fit, then we don't bother. Two sequences are two sequences,
             // and it doesn't matter if one is full. It may be better not, if the
             // earlier code correctly detected a split point.
-            if ((lastWasFwd) && (lastFwdSize+bestFwd <= 64)) {
+            if ((lastWasFwd) && (lastFwdSize+bestFwdLen <= 64)) {
                 if (debug2) printf(" (Merged)\n");
 
                 // inline string - just need to add the length to the old encoding
-                if (outputPos >= (signed)sizeof(outputBuffer)-bestFwd) {
+                if (outputPos >= (signed)sizeof(outputBuffer)-bestFwdLen) {
                     printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
                     return false;
                 }
 
                 // fix up the size output - remember the /actual/ size, not the encoded one
                 // lastWasFwd and lastFwdPos don't change.
-                lastFwdSize += bestFwd;
+                lastFwdSize += bestFwdLen;
                 // subtract 1 when encoding for the minimum count of 1 entry
                 outputBuffer[lastFwdPos] = INLINEBITS | (lastFwdSize-1);
 
                 // now append the bytes
                 // we do the subtraction here just to make the loop the same as below
-                --bestFwd;
-                for (int idx=0; idx<=bestFwd; ++idx) {
+                --bestFwdLen;
+                for (int idx=0; idx<=bestFwdLen; ++idx) {
                     outputBuffer[outputPos++] = ((*(str++)) & 0xff);
                     --cnt;
                 }
@@ -1265,30 +1341,29 @@ bool compressStream(int song, int st, int minstep) {
                 // we'll end up mixing fakes and fwds, but it'll probably be close enough
                 // Don't update the count, though, we didn't add a new one!
                 if (fakeFwd) {
-                    minRunData[minRun].cntInlines.total += lastFwdSize-1;
+                    minRunData[minRun].cntInlines.total += bestFwdLen-1;
                 } else {
-                    minRunData[minRun].cntFwds.total += lastFwdSize-1;
+                    minRunData[minRun].cntFwds.total += bestFwdLen-1;
                 }
             } else {
                 if (debug2) printf("\n");
 
                 // remember this one - store size BEFORE we subtract 1
-
                 lastWasFwd = true;
                 lastFwdPos = outputPos;
-                lastFwdSize = bestFwd;
+                lastFwdSize = bestFwdLen;
 
                 // inline string - 1 + length bytes space to encode
-                if (outputPos >= (signed)sizeof(outputBuffer)-bestFwd-1) {
+                if (outputPos >= (signed)sizeof(outputBuffer)-bestFwdLen-1) {
                     printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
                     return false;
                 }
 
                 // 1 is the smallest legal length, so map it down
-                bestFwd -= 1;
-                if (bestFwd > MAXSIZE) bestFwd=MAXSIZE;   // that's all the bits we have
-                outputBuffer[outputPos++] = INLINEBITS | bestFwd;
-                for (int idx=0; idx<=bestFwd; ++idx) {
+                bestFwdLen -= 1;
+                if (bestFwdLen > MAXSIZE) bestFwdLen=MAXSIZE;   // that's all the bits we have
+                outputBuffer[outputPos++] = INLINEBITS | bestFwdLen;
+                for (int idx=0; idx<=bestFwdLen; ++idx) {   // <= will make sure we include the -1'd count
                     outputBuffer[outputPos++] = ((*(str++)) & 0xff);
                     --cnt;
                 }
@@ -1296,10 +1371,10 @@ bool compressStream(int song, int st, int minstep) {
                 // Already updated position and cnt above
                 if (fakeFwd) {
                     ++minRunData[minRun].cntInlines.cnt;
-                    minRunData[minRun].cntInlines.total += bestFwd;
+                    minRunData[minRun].cntInlines.total += bestFwdLen+1;
                 } else {
                     ++minRunData[minRun].cntFwds.cnt;
-                    minRunData[minRun].cntFwds.total += bestFwd;
+                    minRunData[minRun].cntFwds.total += bestFwdLen+1;
                 }
             }
             continue;
@@ -1330,7 +1405,7 @@ bool compressStream(int song, int st, int minstep) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Compression Tool - v20200615\n\n");
+	printf("VGMComp2 Compression Tool - v20200617\n\n");
 
     // parse arguments
     int nextarg = -1;
@@ -1403,6 +1478,8 @@ int main(int argc, char *argv[])
                 noFwdSearch = true; // no point searching forward if a back search will never find it
             } else if (0 == strcmp(argv[idx], "-deepdive")) {
                 doDeepDive = true;  // secret option that tries most switches on each stream - very slow
+            } else if (0 == strcmp(argv[idx], "-checkanyway")) {
+                checkAnyway = true; // secret option that does a stream decode in phase 2 even if length is wrong
             } else {
                 printf("Unknown switch '%s'\n", argv[idx]);
             }
@@ -1446,6 +1523,14 @@ int main(int argc, char *argv[])
         printf("-nobwd - disable backward searching (implies nofwd, unlikely to be useful)\n");
         return 1;
     }
+
+#ifdef RUNBACKREFTEST
+    if (debug2) {
+        compressStream(-1, 0, 1);
+        printf("Compression: %d -> %d bytes\n", sizeof(tstcase)/4, outputPos);
+        return 0;
+    }
+#endif
 
     // loop through all the songs
     int totalC = 0;
