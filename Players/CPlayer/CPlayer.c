@@ -302,6 +302,7 @@ void SongLoop() {
                     // special case - write to mixer
                     // bits go to noise mixer, all tones active
                     // (just luck that stream 7 goes to reg 7)
+                    // this extra shift is a little miffy, we already shifted above...
                     WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 7, (x<<2)&0x3C);
                 } else {
                     WRITE_BYTE_TO_SOUND_CHIP(songNote[3], str+4, x);
