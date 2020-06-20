@@ -10,7 +10,7 @@
 #define MAXCHANNELS 4
 int VGMDAT[MAXCHANNELS][MAXTICKS];
 int VGMVOL[MAXCHANNELS][MAXTICKS];
-FILE *fp[4];
+FILE *fp[MAXCHANNELS];
 
 // codes for noise processing
 #define NOISE_MASK     0x00FFF
@@ -30,7 +30,7 @@ inline int ABS(int x) {
 }
 
 // input: 8 bit unsigned audio (centers on 128)
-// output: 15 (silent) to 0 (max)
+// output: 0 (silent) to 15 (max)
 int mapVolume(int nTmp) {
 	int nBest = -1;
 	int nDistance = INT_MAX;
@@ -64,7 +64,7 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 AY Prep Tool - v20200525\n\n");
+	printf("VGMComp2 AY Prep Tool - v20200620\n\n");
 
     if (argc < 6) {
         printf("prepare4AY <tone1> <tone2> <tone3> <noise> <output>\n");

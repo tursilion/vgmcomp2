@@ -1,6 +1,11 @@
 // testPlayPSG.cpp : This program reads in the PSG data files and plays them
 // so you can hear what it currently sounds like.
 
+// If you are trying to implement or port a player, do not start with
+// this program, this program is a fairly big jack-of-all-trades and
+// does a lot of things that don't make sense on real hardware.
+// Include look at the sample source codes in the Players folder.
+
 // We need to read in the channels, and there can be any number of channels.
 // They have the following naming schemes:
 // voice channels are <name>_tonXX.60hz
@@ -10,6 +15,12 @@
 // TODO: the "60hz" can also be "50hz", "30hz" or "25hz". We want to support all of those here.
 // We also want the program to be able to /find/ the channels given a prefix, or
 // be given specific channel numbers.
+
+// TODO: for loading PSG and SBF files for testing multiple chips, we need
+// to be able to specify /per file/ what chip it's for. (In the meantime test
+// with the raw channels pre-"prepare" step, or test separately).
+// (Actually, this might be as easy as processing the command line inline
+// so that switches take effect on the next file loaded...)
 
 #include "stdafx.h"
 #include <windows.h>
@@ -32,12 +43,14 @@ int VGMDAT[MAXCHANNELS][MAXTICKS];
 int VGMVOL[MAXCHANNELS][MAXTICKS];
 unsigned int VGMADR[MAXTICKS][MAXHEATMAP];  // a scaled address, always range 0-65535, for heatmap (max read is 4 bytes times 9 streams - 45 bytes (ouch))
 bool isNoise[MAXCHANNELS];
+bool forceNoise[MAXCHANNELS];
 
 bool shownotes = true;                      // whether to scroll the notes
 bool heatmap = false;                       // show a heatmap for SBF files (forces hidenotes)
 char NoteTable[4096][4];                    // note names - we'll just lookup the whole range
 bool testay = false;
 bool testpsg = false;
+bool testsid = false;
 
 // heatmap statistics - gives an average bytes per decode (ignoring frames with no decode)
 // sadly these don't import well into the compressor, where they'd arguably be easier to see,
@@ -80,6 +93,11 @@ int mapVolume(int nTmp) {
 	int nBest = -1;
 	int nDistance = INT_MAX;
 	int idx;
+
+    // SID is linear, so it's easy
+    if (testsid) {
+        return 15-(nTmp / 17);
+    }
 
 	// testing says this is marginally better than just (nTmp>>4)
 	for (idx=0; idx < 16; idx++) {
@@ -177,7 +195,15 @@ bool loadDataCSV(FILE *fp, int &chan, int &cnt, int column, bool noise, bool sca
             }
             VGMDAT[chan][cnt] = in[column];
             if (scalevol) {
-                if (testay) {
+                if (testsid) {
+                    // SID volumes are linear
+                    VGMVOL[chan][cnt] = (in[column+1]&0x0f)*17;
+                    // scale frequency back to PSG range for test play
+                    // SID hz = code * 0.0596
+                    // SN code = 111860.8/hz
+                    // convert newcode = 111860.8 / (code * 0.0596)
+                    VGMDAT[chan][cnt] = int(111860.8 / (VGMDAT[chan][cnt]*0.0596) + 0.5);
+                } else if (testay) {
                     // ay volume levels are inverted from sn
                     VGMVOL[chan][cnt] = volumeTable[15-(in[column+1]&0x0f)];
                 } else {
@@ -381,7 +407,16 @@ int getCompressedByte(STREAM *str, unsigned char *buf, int cnt, int maxbytes) {
 }
 
 int tonetable(unsigned char *buf, int toneoffset, int y) {
-    if (testay) {
+    if (testsid) {
+        // full 16-bit, little endian
+        int val = buf[toneoffset+y*2] + (buf[toneoffset+y*2+1])*256;
+        // scale it back to PSG range for test play
+        // SID hz = code * 0.0596
+        // SN code = 111860.8/hz
+        // convert newcode = 111860.8 / (code * 0.0596)
+        val = int(111860.8 / (val*0.0596) + 0.5);
+        return val;
+    } else if (testay) {
         return buf[toneoffset+y*2] + (buf[toneoffset+y*2+1]&0xf)*256;
     } else {
         // must be PSG
@@ -445,13 +480,15 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
         strDat[idx].framesLeft = 0;
     }
 
-    // register our four channels
+    // register our four channels (or 3 if we know it's SID)
     for (int idx=0; idx<3; ++idx) {
-        isNoise[chan+idx] = false;
-        registerChan(chan+idx, false);
+        isNoise[chan+idx] = forceNoise[chan+idx];
+        registerChan(chan+idx, forceNoise[chan+idx]);
     }
-    isNoise[chan+3] = true;
-    registerChan(chan+3, true);
+    if (!testsid) {
+        isNoise[chan+3] = true;
+        registerChan(chan+3, true);
+    }
 
     /// default settings
     for (int idx=0; idx<4; ++idx) {
@@ -520,7 +557,7 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
                             }
                         }
                     }
-                    if (x&0x10) {
+                    if ((x&0x10) && (!testsid)) {
                         // noise
                         if (strDat[3].mainPtr) {
                             int y = getCompressedByte(&strDat[3], buf, cnt, maxbytes);
@@ -549,6 +586,7 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
 
         // now handle the volume streams
         for (int str=4; str<8; ++str) {
+            if ((str==7)&&(testsid)) continue;
             if (strDat[str].mainPtr != 0) {
                 // check the RLE
                 if (strDat[str].framesLeft) {
@@ -559,15 +597,21 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
                     if (strDat[str].mainPtr) {
                         done = false;
                         strDat[str].framesLeft = x&0xf;
-                        curVol[str-4] = volumeTable[(x>>4)&0xf];
+                        if (testsid) {
+                            // SID is linear, no need for lookup table
+                            curVol[str-4] = ((x>>4)&0xf) * 17;
+                        } else {
+                            curVol[str-4] = volumeTable[(x>>4)&0xf];
+                        }
                     } else {
+                        // this is still okay for SID
                         curVol[str-4] = volumeTable[15];
                     }
                 }
             }
         }
 
-        // copy out the data
+        // copy out the data (it's fine to copy all four)
         for (int idx=0; idx<4; ++idx) {
             VGMDAT[chan+idx][cnt] = curFreq[idx];
             VGMVOL[chan+idx][cnt] = curVol[idx];
@@ -589,7 +633,11 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
     }
 
     printf("Read %d lines\n", cnt);
-    chan += 4;  // return 4 channels loaded
+    if (testsid) {
+        chan += 3;  // return 3 channels loaded
+    } else {
+        chan += 4;  // return 4 channels loaded
+    }
 
     printf("Number of lines with data: %d\n", cntHeatMap);
     printf("Largest data line: %d bytes\n", biggestHeatMap);
@@ -699,12 +747,12 @@ bool testAYData(int chan, int cnt) {
 
     return true;
 }
-bool testPSGData(int chan, int cnt) {
+bool testSNData(int chan, int cnt) {
     // must be 4 channels or less, must be only 1 noise channel,
     // must be within frequency ranges and noise frequency must
     // match either a fixed rate or literally channel 2 (0-based)
     if (chan > 4) {
-        printf("Too many channels for PSG (%d channels found)\n", chan);
+        printf("Too many channels for SN (%d channels found)\n", chan);
         return false;
     }
 
@@ -713,7 +761,7 @@ bool testPSGData(int chan, int cnt) {
         if (!isNoise[idx]) ++x;
     }
     if (x > 3) {
-        printf("Too many tone channels for PSG (%d tone channels found)\n", x);
+        printf("Too many tone channels for SN (%d tone channels found)\n", x);
         return false;
     }
 
@@ -722,7 +770,7 @@ bool testPSGData(int chan, int cnt) {
         if (isNoise[idx]) ++x;
     }
     if (x > 1) {
-        printf("Too many noise channels for PSG (%d noise channels found)\n", x);
+        printf("Too many noise channels for SN (%d noise channels found)\n", x);
         return false;
     }
 
@@ -733,7 +781,7 @@ bool testPSGData(int chan, int cnt) {
                 // noise frequency must be 0x000-0x3ff, and exactly match either a fixed
                 // rate or literally channel 2. Volume is unrestricted
                 if ((VGMDAT[ch][row] < 0) || ((VGMDAT[ch][row]&NOISE_MASK) > 0x3ff)) {
-                    printf("Noise frequency out of range for PSG on row %d - got 0x%02X\n", row, VGMDAT[ch][row]);
+                    printf("Noise frequency out of range for SN on row %d - got 0x%02X\n", row, VGMDAT[ch][row]);
                     return false;
                 }
                 bool match = false;
@@ -753,7 +801,7 @@ bool testPSGData(int chan, int cnt) {
             } else {
                 // tone frequency must be 0x000-0x3FF. Volume is unrestricted
                 if ((VGMDAT[ch][row] < 0) || (VGMDAT[ch][row] > 0x3ff)) {
-                    printf("Tone frequency out of range for PSG (0-0x3ff) on row %d - got 0x%03X\n", row, VGMDAT[ch][row]);
+                    printf("Tone frequency out of range for SN (0-0x3ff) on row %d - got 0x%03X\n", row, VGMDAT[ch][row]);
                     return false;
                 }
             }
@@ -761,6 +809,27 @@ bool testPSGData(int chan, int cnt) {
     }
 
     updateVolume(chan, cnt);
+
+    return true;
+}
+bool testSIDData(int chan, int cnt) {
+    // must be 3 channels or less (any can be noise or tone)
+    // must be within frequency ranges
+    if (chan > 3) {
+        printf("Too many channels for SID (%d channels found)\n", chan);
+        return false;
+    }
+
+    // test the song itself
+    for (int row=0; row<cnt; ++row) {
+        for (int ch=0; ch<chan; ++ch) {
+            // tone frequency must be 0x0000-0xFFFF. Volume is unrestricted
+            if ((VGMDAT[ch][row] < 0) || (VGMDAT[ch][row] > 0xffff)) {
+                printf("Tone frequency out of range for SID (0-0xffff) on row %d - got 0x%03X\n", row, VGMDAT[ch][row]);
+                return false;
+            }
+        }
+    }
 
     return true;
 }
@@ -773,12 +842,14 @@ int main(int argc, char *argv[])
     int delay = 16;
     int sbfsong = 0;
 
-	printf("VGMComp Test Player - v20200525\n");
+	printf("VGMComp Test Player - v20200620\n");
 
 	if (argc < 2) {
-		printf("testPlayPSG [-ay|-sn] [-sbfsong x] [-hidenotes] [-heatmap] [<file prefix> | <file.sbf> | <track1> <track2> ...]\n");
+		printf("testPlayPSG [-ay|-sn|-sid] [-forcenoise x] [-sbfsong x] [-hidenotes] [-heatmap] [<file prefix> | <file.sbf> | <track1> <track2> ...]\n");
         printf(" -ay - force AY PSG restrictions\n");
         printf(" -sn - force SN PSG restrictions\n");
+        printf(" -sid - force SID PSG restrictions\n");
+        printf(" -forcenoise x - force channel 'x' (0-based) to be noise instead of tone. Repeat as needed (for SID)\n");
         printf(" -sbfsong x - play SBF song 'x' instead of song 0\n");
 		printf(" -hidenotes - do not display notes as the frames are played\n");
         printf(" -heatmap - visualize a heatmap instead of notes while playing - only useful with SBF import\n");
@@ -789,20 +860,45 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
+    memset(forceNoise, 0, sizeof(forceNoise));
+
 	int arg=1;
 	while ((arg < argc-1) && (argv[arg][0]=='-')) {
         if (0 == strcmp(argv[arg], "-ay")) {
             testay=true;
-            if (testpsg) {
-                printf("\rInvalid to specify both AY and SN restrictions\n");
+            if ((testsid)||(testpsg)) {
+                printf("\rInvalid to specify multiple restrictions\n");
                 return 1;
             }
         } else if (0 == strcmp(argv[arg], "-sn")) {
             testpsg=true;
-            if (testay) {
-                printf("\rInvalid to specify both AY and SN restrictions\n");
+            if ((testay)||(testsid)) {
+                printf("\rInvalid to specify multiple restrictions\n");
                 return 1;
             }
+        } else if (0 == strcmp(argv[arg], "-sid")) {
+            testsid=true;
+            if ((testay)||(testpsg)) {
+                printf("\rInvalid to specify multiple restrictions\n");
+                return 1;
+            }
+        } else if (0 == strcmp(argv[arg], "-forcenoise")) {
+            ++arg;
+            if (arg >= argc-1) {
+                printf("\rInsufficient arguments for -forcenoise\n");
+                return 1;
+            }
+            if (!isdigit(argv[arg][0])) {
+                printf("\rArgument for -forcenoise must be numeric\n");
+                return 1;
+            }
+            int tmp = atoi(argv[arg]);
+            if (tmp >= MAXCHANNELS) {
+                printf("\rForceNoise count too large (max %d)\n", MAXCHANNELS);
+                return 1;
+            }
+            forceNoise[tmp] = true;
+            printf("Forcing channel %d to noise (if loaded)\n", tmp);
         } else if (0 == strcmp(argv[arg], "-sbfsong")) {
             ++arg;
             if (arg >= argc-1) {
@@ -869,8 +965,8 @@ int main(int argc, char *argv[])
             printf("SBF import %s...\n", namebuf);
 
             // this is probably an SBF file
-            if ((testay==false)&&(testpsg==false)) {
-                printf("SBF files must specify -ay or -sn to be imported!\n");
+            if ((testay==false)&&(testpsg==false)&&(testsid==false)) {
+                printf("SBF files must specify -ay or -sn or -sid to be imported!\n");
                 fclose(fp);
                 return 1;
             }
@@ -903,6 +999,7 @@ int main(int argc, char *argv[])
                 // then it's a simple 60hz file with one channel
                 // noise or tone by filename
                 bool noise = (strstr(namebuf, "_noi") != NULL);
+                if (forceNoise[chan]) noise = true;
                 printf("Reading %s channel %d from %s... ", noise?"NOISE":"TONE", chan, namebuf);
                 if (!loadDataCSV(fp, chan, cnt, 0, noise, false)) {
                     fclose(fp);
@@ -912,8 +1009,12 @@ int main(int argc, char *argv[])
                 // it's a PSG file, we need to load all four channels
                 // This is not efficient, but it's simple
                 for (int idx=0; idx<4; ++idx) {
-                    printf("Reading %s channel %d from %s... ", (idx==3)?"NOISE":"TONE", chan, namebuf);
-                    if (!loadDataCSV(fp, chan, cnt, idx*2, (idx==3), true)) {
+                    // the fourth channel is just dummy data in a SID, so if we are testing that, skip it
+                    if ((idx == 3)&&(testsid)) continue;
+                    // determine noise override
+                    bool isnoise = (idx == 3) | (forceNoise[idx+chan]);
+                    printf("Reading %s channel %d from %s... ", isnoise?"NOISE":"TONE", chan, namebuf);
+                    if (!loadDataCSV(fp, chan, cnt, idx*2, isnoise, true)) {
                         fclose(fp);
                         return 1;
                     }
@@ -962,7 +1063,7 @@ int main(int argc, char *argv[])
             FILE *fp = fopen(buf, "rb");
             if (NULL != fp) {
                 printf("Reading TONE channel %d from %s... ", idx, buf);
-                if (!loadDataCSV(fp, chan, cnt, 0, false, false)) {
+                if (!loadDataCSV(fp, chan, cnt, 0, forceNoise[chan], false)) {
                     fclose(fp);
                     return 1;
                 }
@@ -975,6 +1076,7 @@ int main(int argc, char *argv[])
             FILE *fp = fopen(buf, "rb");
             if (NULL != fp) {
                 printf("Reading NOISE channel %d from %s... ", idx, buf);
+                // these are already noise, so don't need to force
                 if (!loadDataCSV(fp, chan, cnt, 0, true, false)) {
                     fclose(fp);
                     return 1;
@@ -991,7 +1093,12 @@ int main(int argc, char *argv[])
         }
     }
     if (testpsg) {
-        if (!testPSGData(chan, cnt)) {
+        if (!testSNData(chan, cnt)) {
+            return 1;
+        }
+    }
+    if (testsid) {
+        if (!testSIDData(chan, cnt)) {
             return 1;
         }
     }

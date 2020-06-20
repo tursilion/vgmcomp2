@@ -14,6 +14,24 @@
 // 1 extra SLA on the Z80 (2 cycles) and that's worth avoiding the confusion. So the 
 // data is the same - high nibble is count, low nibble is mixer command, partially:
 // - This means ####CBA0 - the mixer needs 00CBA000 - so shift left twice then AND #$38
+//
+// SID notes:
+// Noise and tone channels are identical, the player needs to know which mode to set.
+// This also means channels can be waves other than square, as it's outside the scope
+// of this packing engine. There is a full 16-bits of frequency counter, but the
+// rates are incompatible with the AY and SN. Channel 3 (normally noise) is expected to
+// be empty but not currently enforced.
+
+// TODO: allow the command line to specify input type before every PSG file so
+// that multiple chip types can be mixed.
+
+// TODO: investigate whether the SID can be forced to share an end-stream command from
+// another channel to save a couple of bytes. I think the volume encoding mechanism may
+// cause problems with this (ie: volume streams never end). Currently it eats 24 bytes
+// (5 for the single row of noise and 19 for the volume commands) in afterburner (84s),
+// so we can estimate about 10 bytes per minute plus some change, if the rest of
+// the file can't provide a nice stream of 0x0f bytes for the mutes. ;)
+// Of course, the truly desperate could just hack those streams out...
 
 #include "stdafx.h"
 #include <stdio.h>
@@ -97,7 +115,7 @@ int currentSong = 0;
 
 // options
 char szFileOut[256]={0};
-bool isPSG=false, isAY=false;
+bool isPSG=false, isAY=false, isSID=false;
 bool verbose = false;
 bool debug = false;
 bool debug2 = false;
@@ -1399,13 +1417,15 @@ bool compressStream(int song, int st, int minstep) {
 // these are stored in noiseMask instead
 #define NOISE_MASK     0x0000F              // noise should be pre-converted to target
 #define NOISE_MASK_AY  0x0001F              // AY has larger range
+#define NOISE_MASK_SID 0x0ffff              // SID has full range
 // these in toneMask
 #define TONE_MASK      0x003ff
 #define TONE_MASK_AY   0x00fff
+#define TONE_MASK_SID  0x0ffff
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Compression Tool - v20200617\n\n");
+	printf("VGMComp2 Compression Tool - v20200620\n\n");
 
     // parse arguments
     int nextarg = -1;
@@ -1426,16 +1446,24 @@ int main(int argc, char *argv[])
                 isPSG=true;
                 noiseMask = NOISE_MASK;
                 toneMask = TONE_MASK;
-                if (isAY) {
-                    printf("Can't select both PSG and AY options.\n");
+                if ((isAY)||(isSID)) {
+                    printf("Can't select multiple PSG options.\n");
                     return 1;
                 }
             } else if (0 == strcmp(argv[idx], "-ay")) {
                 isAY=true;
                 noiseMask = NOISE_MASK_AY;
                 toneMask = TONE_MASK_AY;
-                if (isPSG) {
-                    printf("Can't select both PSG and AY options.\n");
+                if ((isPSG)||(isSID)) {
+                    printf("Can't select multiple PSG options.\n");
+                    return 1;
+                }
+            } else if (0 == strcmp(argv[idx], "-sid")) {
+                isSID=true;
+                noiseMask = NOISE_MASK_SID;
+                toneMask = TONE_MASK_SID;
+                if ((isPSG)||(isAY)) {
+                    printf("Can't select multiple PSG options.\n");
                     return 1;
                 }
             } else if (0 == strcmp(argv[idx], "-minrun")) {
@@ -1499,9 +1527,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if ((strlen(szFileOut)==0)||((isAY==false)&&(isPSG==false))) {
-        if ((isAY==false)&&(isPSG==false)) {
-            printf("* You must specify -ay or -sn for output type\n");
+    if ((strlen(szFileOut)==0)||((isAY==false)&&(isPSG==false)&&(isSID==false))) {
+        if ((isAY==false)&&(isPSG==false)&&(isSID==false)) {
+            printf("* You must specify -ay, -sn or -sid for output type\n");
         }
         printf("vgmcomp2 [-d] [-dd] [-v] [-minrun s,e] [-alwaysrle] [-norle] [-norle16] [-norle24] [-norle32] [-nofwd] [-nobwd] <-ay|-sn> <filenamein1.psg> [<filenamein2.psg>...] <filenameout.sbf>\n");
         printf("\nProvides a compressed (sound compressed format) file from\n");
@@ -1572,8 +1600,7 @@ int main(int argc, char *argv[])
         for (int idx=0; idx<songs[thisSong].outCnt; ++idx) {
             for (int chan=TONE1; chan<=TONE3; ++chan) {   // we don't need to scan the noise channel, it needs no reduction
                 int note = songs[thisSong].VGMDAT[chan][idx];
-                if (isPSG) note &= 0x3ff;   // 10 bit PSG
-                if (isAY) note &= 0xfff;    // 12 bit AY
+                note &= toneMask;
                 if (note != songs[thisSong].VGMDAT[chan][idx]) {
                     printf("Warning - out of range note clipped (song %d, row %d, channel %d). Songs should be pre-processed for target chip!\n",
                            thisSong, idx, chan);
@@ -1819,8 +1846,12 @@ int main(int argc, char *argv[])
             // significant 4 bits
             outputBuffer[outputPos++] = noteTable[nt] & 0xff;
             outputBuffer[outputPos++] = (noteTable[nt] >> 8) & 0xf;
+        } else if (isSID) {
+            // SID uses two registers, and is stored little endian first, full 16 bits
+            outputBuffer[outputPos++] = noteTable[nt] & 0xff;
+            outputBuffer[outputPos++] = (noteTable[nt] >> 8) & 0xff;
         } else {
-            printf("Output failed - neither PSG nor AY mode set?\n");
+            printf("Output failed - neither PSG, AY, nor SID mode set?\n");
             return false;
         }
         if (debug) printf("  [%3d]: 0x%04X -> 0x%02X%02X\n", nt, noteTable[nt], outputBuffer[outputPos-2], outputBuffer[outputPos-1]);

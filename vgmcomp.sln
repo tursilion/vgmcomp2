@@ -70,6 +70,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "psg2vgm", "psg2vgm\psg2vgm.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AnalyzeStream", "AnalyzeStream\AnalyzeStream.vcxproj", "{9A7B3DFD-4F72-4D9D-9611-BB733ED64621}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prepare4SID", "prepare4SID\prepare4SID.vcxproj", "{C887944E-AD9B-4C5E-91B6-B04F4E5B35CE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -190,6 +192,14 @@ Global
 		{9A7B3DFD-4F72-4D9D-9611-BB733ED64621}.Release|Win32.Build.0 = Release|Win32
 		{9A7B3DFD-4F72-4D9D-9611-BB733ED64621}.Release|x64.ActiveCfg = Release|x64
 		{9A7B3DFD-4F72-4D9D-9611-BB733ED64621}.Release|x64.Build.0 = Release|x64
+		{C887944E-AD9B-4C5E-91B6-B04F4E5B35CE}.Debug|Win32.ActiveCfg = Debug|Win32
+		{C887944E-AD9B-4C5E-91B6-B04F4E5B35CE}.Debug|Win32.Build.0 = Debug|Win32
+		{C887944E-AD9B-4C5E-91B6-B04F4E5B35CE}.Debug|x64.ActiveCfg = Debug|x64
+		{C887944E-AD9B-4C5E-91B6-B04F4E5B35CE}.Debug|x64.Build.0 = Debug|x64
+		{C887944E-AD9B-4C5E-91B6-B04F4E5B35CE}.Release|Win32.ActiveCfg = Release|Win32
+		{C887944E-AD9B-4C5E-91B6-B04F4E5B35CE}.Release|Win32.Build.0 = Release|Win32
+		{C887944E-AD9B-4C5E-91B6-B04F4E5B35CE}.Release|x64.ActiveCfg = Release|x64
+		{C887944E-AD9B-4C5E-91B6-B04F4E5B35CE}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

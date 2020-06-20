@@ -1,4 +1,9 @@
 // example standalone player for the TI
+//
+// This is the music player for the TI SN chip.
+// Note that there is no player for the AY chip because
+// as of this date nobody has ever hooked an AY chip up
+// to a TI. ;)
 
 #include "../CPlayer/CPlayer.h"
 #include <sound.h>

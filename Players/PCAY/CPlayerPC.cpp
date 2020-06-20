@@ -1,5 +1,5 @@
 // helper code to let the PC write to the sound chip
-// this is included directly in CPlayer.c
+// this directly includes CPlayer.c
 
 // now our sound chip access...
 #ifdef USE_SN_PSG
