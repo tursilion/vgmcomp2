@@ -43,7 +43,9 @@ StartSong
 	li   r2,strDat+6    * point to the first strDats "curBytes" with r2
 STARTLP
     mov *r3+,r4         * get stream offset from table and increment pointer
+    jeq  nullptr        * if it was >0000, dont add the base address
 	a    r1,r4          * make it a memory pointer
+nullptr
 	mov  r4,@>FFFC(r2)  * save as mainPtr
 	clr  @>FFFA(r2)     * zero curPtr
 	clr  *r2            * zero curBytes and framesLeft

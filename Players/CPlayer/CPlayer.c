@@ -115,7 +115,12 @@ void StartSong(unsigned char *buf, uWordSize sbfsong) {
 
     // load the stream pointers
     for (int idx=0; idx<9; ++idx) {
-        strDat[idx].mainPtr = buf[streamoffset+idx*2]*256+buf[streamoffset+idx*2+1]+buf;
+        int stream = buf[streamoffset+idx*2]*256+buf[streamoffset+idx*2+1];
+        if (stream == 0) {
+            strDat[idx].mainPtr = 0;
+        } else {
+            strDat[idx].mainPtr = buf + stream;
+        }
         strDat[idx].curPtr = 0;
         strDat[idx].curBytes = 0;
         strDat[idx].curType = getDatZero;
