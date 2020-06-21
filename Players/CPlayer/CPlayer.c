@@ -22,10 +22,11 @@
 // pointer variable.
 //#define SONG_PREFIX sfx_
 
-// enable exactly one of these two defines - affects the tone table and
+// enable exactly one of these three defines - affects the tone table and
 // the noise channel slightly
 //#define USE_SN_PSG
 //#define USE_AY_PSG
+//#define USE_SID_PSG
 
 // enable exactly one of these targets - affects data types and
 // any specific build deviancies
@@ -42,11 +43,17 @@
 
 #include "CPlayer.h"
 
-#if !defined(USE_SN_PSG) && !defined(USE_AY_PSG)
-#error Define USE_SN_PSG or USE_AY_PSG
+#if !defined(USE_SN_PSG) && !defined(USE_AY_PSG) & !defined(USE_SID_PSG)
+#error Define USE_SN_PSG or USE_AY_PSG or USE_SID_PSG
+#endif
+#if defined(USE_SN_PSG) && defined(USE_SID_PSG)
+#error Define USE_SN_PSG **OR** USE_AY_PSG **OR** USE_SID_PSG
 #endif
 #if defined(USE_SN_PSG) && defined(USE_AY_PSG)
-#error Define USE_SN_PSG **OR** USE_AY_PSG
+#error Define USE_SN_PSG **OR** USE_AY_PSG **OR** USE_SID_PSG
+#endif
+#if defined(USE_AY_PSG) && defined(USE_SID_PSG)
+#error Define USE_SN_PSG **OR** USE_AY_PSG **OR** USE_SID_PSG
 #endif
 
 #ifdef SONG_PREFIX
@@ -94,6 +101,11 @@ static inline uint16 tonetable(uWordSize y) {
 #ifdef USE_SN_PSG
     //             MSB, fine tune, 1st (4 bits)     LSB, coarse tune, 2nd
     return ((uint16)(workBuf[toneoffset+y*2]&0xf)<<8) + (workBuf[toneoffset+y*2+1]);
+#endif
+#ifdef USE_SID_PSG
+    // Note I am flipping the order here to properly read the little endian data
+    // 16-bit LE     MSB, Freq HI, 8 bits              LSB, Freq LO, 8 bits
+    return ((uint16)(workBuf[toneoffset+y*2+1])<<8) + (workBuf[toneoffset+y*2]);
 #endif
 }
 
@@ -186,7 +198,9 @@ void SongLoop() {
 #ifdef USE_AY_PSG
                             songNote[0] = 0x0001;
 #endif
-
+#ifdef USE_SID_PSG
+                            songNote[0] = 0x0001;  // SID has no high frequency, but this may be low enough to be unnoticable?
+#endif
                         }
 #ifdef USE_SN_PSG
                         songNote[0] |= 0x8000;
@@ -197,6 +211,11 @@ void SongLoop() {
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 1, songNote[0]>>8);
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 0, songNote[0]&0xff);
                         songNote[0] |= 0x8000;
+#endif
+#ifdef USE_SID_PSG
+                        // note that SID has no bits left for trigger flagging!
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 1, songNote[0]>>8);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 0, songNote[0]&0xff);
 #endif
                     }
                 }
@@ -214,6 +233,9 @@ void SongLoop() {
 #ifdef USE_AY_PSG
                             songNote[1] = 0x0001;
 #endif
+#ifdef USE_SID_PSG
+                            songNote[1] = 0x0001;  // SID has no high frequency, but this may be low enough to be unnoticable?
+#endif
                         }
 #ifdef USE_SN_PSG
                         songNote[1] |= 0xa000;
@@ -224,6 +246,11 @@ void SongLoop() {
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 3, songNote[1]>>8);
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 2, songNote[1]&0xff);
                         songNote[1] |= 0xa000;
+#endif
+#ifdef USE_SID_PSG
+                        // note that SID has no bits left for trigger flagging!
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 8, songNote[1]>>8);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 7, songNote[1]&0xff);
 #endif
                     }
                 }
@@ -241,6 +268,9 @@ void SongLoop() {
 #ifdef USE_AY_PSG
                             songNote[2] = 0x0001;
 #endif
+#ifdef USE_SID_PSG
+                            songNote[2] = 0x0001;  // SID has no high frequency, but this may be low enough to be unnoticable?
+#endif
                         }
 #ifdef USE_SN_PSG
                         songNote[2] |= 0xc000;
@@ -252,8 +282,14 @@ void SongLoop() {
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 4, songNote[2]&0xff);
                         songNote[2] |= 0xc000;
 #endif
+#ifdef USE_SID_PSG
+                        // note that SID has no bits left for trigger flagging!
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 0xf, songNote[2]>>8);
+                        WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 0xe, songNote[2]&0xff);
+#endif
                     }
                 }
+#ifndef USE_SID_PSG
                 if (x&0x10) {
                     // noise
                     if (strDat[3].mainPtr) {
@@ -276,13 +312,18 @@ void SongLoop() {
                         }   // no 'else' case on purpose, there's no usefully silent noise!
                     }
                 }
+#endif // SID
             }
         }
     }
 
     // now handle the volume streams
     unsigned char flag=0x90;
+#ifdef USE_SID_PSG
+    for (str=4; str<7; ++str) {
+#else
     for (str=4; str<8; ++str) {
+#endif
         if (strDat[str].mainPtr != 0) {
             // check the RLE
             if (strDat[str].framesLeft) {
@@ -312,6 +353,11 @@ void SongLoop() {
                 } else {
                     WRITE_BYTE_TO_SOUND_CHIP(songNote[3], str+4, x);
                 }
+                songVol[str-4] = x | flag;
+#endif
+#ifdef USE_SID_PSG
+                // we CAN flag the trigger for SID though, though it's less useful on volume
+                WRITE_BYTE_TO_SOUND_CHIP(songNote[3], ((str-4)*7+6), (x<<4));   // sustain register in top bits
                 songVol[str-4] = x | flag;
 #endif
             }

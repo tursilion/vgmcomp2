@@ -8,5 +8,12 @@ But, if you care to give me a thanks in your production, "Tursi" will do. ;)
 Current Exceptions:
 
     Players/PCAY and the resulting PCAY.exe are required to be licensed as GPL version 2, because GPL trumps all.
-    You'll find the required "COPYING" file in that folder. This was because I didn't want to write an AY chip emulator.
+    You'll find the required "COPYING" file in that folder. This was because I didn't want to write an AY chip 
+    emulator. 
+    
+    Players/PCSID and the resulting PCSID.exe are required to be licensed as GPL version 2, because GPL trumps all.
+    You'll find the required "COPYING" file in that folder. This was because I didn't want to write a SID chip 
+    emulator.
 
+    That said, the CPlayer files are therefore dual licensed - GPLv2 when part of PCAY or PCSID and Public 
+    Domain when they are not. :p

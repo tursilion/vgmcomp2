@@ -27,18 +27,15 @@ songActive EQU songNote+7
 
 * Call this function to prepare to play
 * r1 = pSbf - pointer to song block data (must be word aligned)
-* r2 = songNum - which song to play (starts at 0)
+* r2 = songNum - which song to play in MSB (byte, starts at 0)
 	def	StartSong
     even
 StartSong
+    li r3,18            * each table is 18 bytes (warning: StopSong uses this - don''t move it!)
+    srl r2,8            * make byte in R2 into a word
+    mpy r2,r3           * multiply, result in r3/r4 (so r4)
 	mov *r1,r3          * get pointer to stream indexes into r3
-
-	srl  r2,8           * make word of song index byte
-	mov  r2,r4          * make copy
-	a    r2,r4          * *2 at r4
-	sla  r2,>4          * *16 at r2
-	a    r2,r4          * add to get *18 in r4
-	a    r4,r3          * add to stream offset to get base stream for this song
+	a    r4,r3          * add song offset to stream offset to get base stream for this song
 	a    r1,r3          * add buf to make it a memory pointer (also word aligned)
 	li   r2,strDat+6    * point to the first strDats "curBytes" with r2
 STARTLP
@@ -65,7 +62,7 @@ nullptr
 
 	mov  r1,@workBuf    * store the song pointer in the global
 	li   r2,>0101       * init value for noise with songActive bit set
-	mov  r2,@songNote+6 * set the noise channel note and bit
+	mov  r2,@songNote+6 * set the noise channel note and songActive bit
 	b    *r11
 	.size	StartSong,.-StartSong
 
@@ -73,7 +70,7 @@ nullptr
 	def	StopSong
 	even
 StopSong
-    movb @R6LSB,@songActive	 * zero all bits in songActive
+    movb @StartSong+2,@songActive	 * zero all bits in songActive (pulls a 0 byte from a LI)
 	b    *r11
 	.size	StopSong,.-StopSong
 

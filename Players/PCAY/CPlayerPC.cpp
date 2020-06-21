@@ -111,5 +111,61 @@ void ay_update(short *buf, double nAudioIn, int nSamples) {
 
 #endif
 
+#ifdef USE_SID_PSG
+#include "..\PCSID\sid.h"
+
+SIDChip psg;
+
+void writeSound(int reg, int c) {
+#if 0
+    static int oldc[0x20];
+
+    if ((reg == 6)||(reg==0x0d)||(reg==0x14)) {
+        // when volume mutes, we should turn off
+        // gate. when volume rises, we need to toggle
+        // gate (with 80ns between writes). But we don't
+        // want to toggle gate unnecessarily or the
+        // volume won't stay at sustain.
+        // TODO: I need better docs... the approach here
+        // is not a good one for hardware...
+        if (c == 0) {
+            // muting - set sustain
+            psg.set_register(reg, c);
+            // turn off gate
+            psg.set_register(reg-2, oldc[reg-2]&0xfe);
+        } else if (c > oldc[c]) {
+            // louder - toggle gate off
+            psg.set_register(reg-2, oldc[reg-2]&0xfe);
+            // set sustain
+            psg.set_register(reg, c);
+            // louder - toggle gate on
+            psg.set_register(reg-2, oldc[reg-2]|1);
+        } else {
+            // quieter, just set sustain
+            psg.set_register(reg, c);
+        }
+    } else {
+        // any other reg
+        psg.set_register(reg, c);
+    }
+
+    if (reg < 0x20) oldc[reg]=c;
+#else
+    psg.set_register(reg, c);
+#endif
+
+}
+
+// not doing the muting for this test player
+#define WRITE_BYTE_TO_SOUND_CHIP(mutes,reg,x) writeSound(reg,x)
+
+// wrapper function for the Classic99 audio driver
+void sid_update(short *buf, double nAudioIn, int nSamples) {
+    psg.generate(buf, nSamples);
+}
+
+#endif
+
+
 // and now include the actual implementation
 #include "../CPlayer/CPlayer.c"
