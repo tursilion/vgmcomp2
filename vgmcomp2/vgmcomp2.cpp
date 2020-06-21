@@ -229,6 +229,7 @@ bool loadDataCSV(FILE *fp, int &chan, SONG *s, int column, bool noise) {
 bool testOutputRLE(SONG *s) {
     // output outStream[][] and streamCnt[] into testSong's VGMDAT[][] amd VGMVOL[][]
     // so that we can make sure it packed correctly
+    // NOTE: this still processes for isSID, even though we won't use the last channel
     int incnt[MAXSTREAMS];
     int testCnt[MAXSTREAMS];    // we can do tones and volumes separately anyway
     bool ret = true;
@@ -396,6 +397,18 @@ bool testOutputSBF(SONG *s, int songidx) {
         if (debug) printf("Testing stream %d\n", st);
         int offset = (songidx*18) + (st*2) + outputBuffer[STREAMTABLE]*256 + outputBuffer[STREAMTABLE+1];
         offset = outputBuffer[offset]*256 + outputBuffer[offset+1];
+
+        if (isSID) {
+            if ((st==3)||(st==7)) {
+                if (offset != 0) {
+                    printf("VERIFY PHASE 2 - failed on stream %d, got %04X vs desired 0x0000\n",
+                        st, offset);
+                    ret = false;
+                }
+                continue;
+            }
+        }
+
         t->streamCnt[st] = 0;
 
         if (verbose) printf("SBF Testing song %d, stream %d at offset 0x%04x...\n", songidx, st, offset);
@@ -504,6 +517,10 @@ bool testOutputSBF(SONG *s, int songidx) {
 
     // and test it - VERIFY PHASE 2 means this whole SBF test
     for (int st=0; st<MAXSTREAMS; ++st) {
+        if ((isSID) && ((st==3)||(st==7))) {
+            continue;
+        }
+
         // check length
         if (t->streamCnt[st] != s->streamCnt[st]) {
             printf("VERIFY PHASE 2 - failed on stream %d length, got 0x%X vs desired 0x%X\n",
@@ -534,7 +551,8 @@ bool initialRLE(SONG *s) {
     // (noise handling here is different on the AY)
     // Basically, we need to RLE all four channels at the same time
     // Output goes into outStream[]
-    
+    // NOTE: this still processes for isSID, even though we won't use the last channel
+
     // set up first block defaults
     s->streamCnt[TIMESTREAM]=0;
     s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]=0xf0;  // start with all channels changing
@@ -1078,6 +1096,9 @@ bool compressStream(int song, int st, int minstep) {
             // now check the remaining streams for forward refs
             for (int sng=song; sng<currentSong; ++sng) {
                 for (int stx=(sng==song?st+1:0); stx<MAXSTREAMS; ++stx) {
+                    // again, for SID we have to skip the omitted streams so we don't
+                    // base compression decisions based on them...
+                    if ((isSID) && ((stx==3)||(stx==7))) continue;
                     stringSearchFwd(str, thisLen, songs[sng].outStream[stx], songs[sng].streamCnt[stx], bestFwdLen, bestFwdScore);
                 }
             }
@@ -1643,11 +1664,11 @@ int main(int argc, char *argv[])
             printf("  - Tone 1 to %d rows\n", songs[idx].streamCnt[TONE1]);
             printf("  - Tone 2 to %d rows\n", songs[idx].streamCnt[TONE2]);
             printf("  - Tone 3 to %d rows\n", songs[idx].streamCnt[TONE3]);
-            printf("  - Noise  to %d rows\n", songs[idx].streamCnt[NOISE]);
+            if (!isSID) printf("  - Noise  to %d rows\n", songs[idx].streamCnt[NOISE]);
             printf("  - Vol  1 to %d rows\n", songs[idx].streamCnt[VOL1]);
             printf("  - Vol  2 to %d rows\n", songs[idx].streamCnt[VOL2]);
             printf("  - Vol  3 to %d rows\n", songs[idx].streamCnt[VOL3]);
-            printf("  - Vol  4 to %d rows\n", songs[idx].streamCnt[VOL4]);
+            if (!isSID) printf("  - Vol  4 to %d rows\n", songs[idx].streamCnt[VOL4]);
             printf("  - TimeSt to %d rows\n", songs[idx].streamCnt[TIMESTREAM]);
             printf("  = %d bytes to %d bytes\n", songs[idx].outCnt*(2+2+2+1+1+1+1+1), 
                    songs[idx].streamCnt[TONE1]+songs[idx].streamCnt[TONE2]+songs[idx].streamCnt[TONE3]+
@@ -1698,6 +1719,17 @@ int main(int argc, char *argv[])
     // Individually compress each of the 9 channels (all treated the same)
     for (int song=0; song<currentSong; ++song) {
         for (int st=0; st<MAXSTREAMS; ++st) {
+            // now here we DO have to skip the SID tracks, because otherwise
+            // they might be used for compression by other tracks. This means
+            // a bit of ugly checks since it's hard to skip two interleaved streams
+            if ((isSID) && ((st==3)||(st==7))) {
+                if (verbose) {
+                    printf("SBF skip    song %d, stream %d for SID...\n", song, st);
+                }
+                songs[song].streamOffset[st] = 0;   // no stream encoded
+                continue;
+            }
+
             if (verbose) {
                 printf("SBF packing song %d, stream %d...", song, st);
             }
@@ -1877,6 +1909,7 @@ int main(int argc, char *argv[])
             // can just dump it now that it's binary
             int start = songs[song].streamOffset[st];
             int end;
+            if (start == 0) continue;
             if (st == MAXSTREAMS-1) {
                 if (song == currentSong-1) {
                     // last stream, last song, take till the note table

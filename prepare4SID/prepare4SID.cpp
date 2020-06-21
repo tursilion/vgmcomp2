@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <limits.h>
+#include <string.h>
 
 #define MAXTICKS 432000					    // about 2 hrs, but arbitrary
 #define MAXCHANNELS 3
@@ -68,7 +69,7 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 SID Prep Tool - v20200620\n\n");
+	printf("VGMComp2 SID Prep Tool - v20200621\n\n");
 
     if (argc < 5) {
         printf("prepare4SID <tone1|noise1> <tone2|noise2> <tone3|noise3> <output>\n");
@@ -82,6 +83,8 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    int arg = 1;
+
     // TODO: you could probably store the noise/tone config in the first row of data
     // and just allow it to be part of the datastream without costing must, but for
     // now we're just going to force the player to KNOW what each channel is.
@@ -93,16 +96,16 @@ int main(int argc, char *argv[])
     // only /three/ channels on this chip!
     for (int idx=0; idx<3; ++idx) {
         // we don't need to track whether it's noise or tone, so never mind the extension....
-        if (argv[idx+1][0]=='-') {
+        if (argv[idx+arg][0]=='-') {
             printf("Channel %d free\n", idx);
             fp[idx] = NULL;
         } else {
-            fp[idx] = fopen(argv[idx+1], "r");
+            fp[idx] = fopen(argv[idx+arg], "r");
             if (NULL == fp[idx]) {
-                printf("Failed to open file '%s' for channel %d, code %d\n", argv[idx+1], idx, errno);
+                printf("Failed to open file '%s' for channel %d, code %d\n", argv[idx+arg], idx, errno);
                 return 1;
             }
-            printf("Opened SID channel %d: %s\n", idx, argv[idx+1]);
+            printf("Opened SID channel %d: %s\n", idx, argv[idx+arg]);
             cont = true;
         }
     }
@@ -183,9 +186,9 @@ int main(int argc, char *argv[])
 
     // now we just have to spit the data back out.
     // it's a single line output
-    FILE *fout = fopen(argv[4], "w");
+    FILE *fout = fopen(argv[arg+3], "w");
     if (NULL == fout) {
-        printf("Failed to open output file '%s', err %d\n", argv[5], errno);
+        printf("Failed to open output file '%s', err %d\n", argv[arg+3], errno);
         return 1;
     }
 

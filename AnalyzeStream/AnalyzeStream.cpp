@@ -32,11 +32,18 @@ bool processOld(int str) {
     case 11: printf("Timestream...\n"); break;
     }
 
+    // get the tonetable to mark the end of the stream table
+    int tonetable = buf[2]*256+buf[3];
+    if (tonetable >= bufSize) {
+        printf("Tonetable appears to be invalid\n");
+        return false;
+    }
+
     // find the stream
     tmp = buf[0]*256+buf[1];    // stream table
     tmp += str*2;
 
-    if (tmp+1 > bufSize) {
+    if (tmp+1 >= bufSize) {
         printf("Stream is not found in file\n");
         return false;
     }
@@ -48,7 +55,7 @@ bool processOld(int str) {
     }
     base = pos;
     tmp+=2;
-    if (tmp+1 > bufSize) {
+    if (tmp+1 > tonetable) {
         // this is probably the last stream, so use start of
         // the stream table
         end = buf[0]*256+buf[1];
@@ -58,12 +65,14 @@ bool processOld(int str) {
 
     // okay, work the stream and just report each entry
     while (pos < end) {
+        printf("0x%04X: ", pos);
+
         int ctrl = buf[pos++];
         int size = 0;
         switch (ctrl&0xc0) {
         case 0x00:  // inline
             size = ctrl&0x3f;
-            printf("INLINE - %-2d bytes: ", size);
+            printf("INLINE - %3d bytes: ", size);
             // print first 10
             for (int idx=0; (idx<10)&&(idx<size); ++idx) {
                 printf("%02X ", buf[pos+idx]);
@@ -77,13 +86,13 @@ bool processOld(int str) {
 
         case 0x40:  // RLE
             size = ctrl&0x3f;
-            printf("RLE    - %-2d bytes: %02X\n", size, buf[pos]);
+            printf("RLE    - %3d bytes: %02X\n", size, buf[pos]);
             pos++;
             break;
 
         case 0x80:  // short back reference
             size = ctrl&0x3f;
-            printf("SHORT  - %-2d bytes: ", size);
+            printf("SHORT  - %3d bytes: ", size);
             // print first 10
             tmp = base + buf[pos];
             for (int idx=0; (idx<10)&&(idx<size); ++idx) {
@@ -98,7 +107,7 @@ bool processOld(int str) {
 
         case 0xc0:  // long back ref
             size = ctrl&0x3f;
-            printf("LONG   - %-2d bytes: ", size);
+            printf("LONG   - %3d bytes: ", size);
             // print first 10
             tmp = buf[pos] * 256 + buf[pos+1];
             for (int idx=0; (idx<10)&&(idx<size); ++idx) {
@@ -134,11 +143,18 @@ bool processNew(int str) {
     case 8: printf("Timestream...\n"); break;
     }
 
+    // get the tonetable to mark the end of the stream table
+    int tonetable = buf[2]*256+buf[3];
+    if (tonetable >= bufSize) {
+        printf("Tonetable appears to be invalid\n");
+        return false;
+    }
+
     // find the stream
     tmp = buf[0]*256+buf[1];    // stream table
     tmp += str*2;
 
-    if (tmp+1 > bufSize) {
+    if (tmp+1 > tonetable) {
         printf("Stream is not found in file\n");
         return false;
     }
@@ -148,17 +164,32 @@ bool processNew(int str) {
         printf("Stream pointer doesn't appear valid\n");
         return false;
     }
+    if (pos == 0) {
+        printf("Undefined stream (no data present)\n");
+        return true;
+    }
+
     tmp+=2;
-    if (tmp+1 > bufSize) {
+    if (tmp+1 >= tonetable) {
         // this is probably the last stream, so use start of
         // the stream table
         end = buf[0]*256+buf[1];
     } else {
-        end = buf[tmp]*256+buf[tmp+1];
+        end = 0;
+        // allow for null streams, end on the next one ;)
+        while (end == 0) {
+            end = buf[tmp]*256+buf[tmp+1];
+            tmp +=2;
+            if ((tmp >= tonetable) && (end == 0)) {
+                end = tonetable;
+            }
+        }
     }
 
     // okay, work the stream and just report each entry
     while (pos < end) {
+        printf("0x%04X: ", pos);
+
         int ctrl = buf[pos++];
         int size = 0;
         switch (ctrl&0xe0) {
@@ -166,7 +197,7 @@ bool processNew(int str) {
         case 0x20:  // also inline (expanded range)
             size = ctrl&0x3f;
             size += 1;
-            printf("INLINE - %-2d bytes: ", size);
+            printf("INLINE - %3d bytes: ", size);
             // print first 10
             for (int idx=0; (idx<10)&&(idx<size); ++idx) {
                 printf("%02X ", buf[pos+idx]);
@@ -181,7 +212,7 @@ bool processNew(int str) {
         case 0x40:  // RLE
             size = ctrl&0x1f;
             size += 3;
-            printf("RLE    - %-2d bytes: %02X\n", size, buf[pos]);
+            printf("RLE    - %3d bytes: %02X\n", size, buf[pos]);
             pos++;
             break;
 
@@ -189,7 +220,7 @@ bool processNew(int str) {
             size = ctrl&0x1f;
             size += 2;
             size *= 4;
-            printf("RLE32  - %-2d bytes: %02X %02X %02X %02X\n", size, buf[pos], buf[pos+1], buf[pos+2], buf[pos+3]);
+            printf("RLE32  - %3d bytes: %02X %02X %02X %02X\n", size, buf[pos], buf[pos+1], buf[pos+2], buf[pos+3]);
             pos+=4;
             break;
 
@@ -197,7 +228,7 @@ bool processNew(int str) {
             size = ctrl&0x1f;
             size += 2;
             size *= 2;
-            printf("RLE16  - %-2d bytes: %02X %02X\n", size, buf[pos], buf[pos+1]);
+            printf("RLE16  - %3d bytes: %02X %02X\n", size, buf[pos], buf[pos+1]);
             pos+=2;
             break;
 
@@ -205,7 +236,7 @@ bool processNew(int str) {
             size = ctrl&0x1f;
             size += 2;
             size *= 3;
-            printf("RLE24  - %-2d bytes: %02X %02X %02X\n", size, buf[pos], buf[pos+1], buf[pos+2]);
+            printf("RLE24  - %3d bytes: %02X %02X %02X\n", size, buf[pos], buf[pos+1], buf[pos+2]);
             pos+=3;
             break;
         
@@ -213,7 +244,7 @@ bool processNew(int str) {
         case 0xe0:  // also back ref (expanded range)
             size = ctrl&0x3f;
             size += 4;
-            printf("BACKREF- %-2d bytes: ", size);
+            printf("BACKREF- %3d bytes: ", size);
             // print first 10
             tmp = buf[pos]*256+buf[pos+1];
             if (tmp == 0) {
@@ -237,7 +268,7 @@ bool processNew(int str) {
 }
 
 int main(int argc, char *argv[]) {
-	printf("VGMComp2 Stream Analysis Tool - v20200615\n\n");
+	printf("VGMComp2 Stream Analysis Tool - v20200620\n\n");
 
     if (argc < 3) {
         printf("AnalyzeStream <name.sbf> <stream index (0-based)> [-old]\n");

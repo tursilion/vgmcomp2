@@ -824,7 +824,17 @@ bool testSIDData(int chan, int cnt) {
     for (int row=0; row<cnt; ++row) {
         for (int ch=0; ch<chan; ++ch) {
             // tone frequency must be 0x0000-0xFFFF. Volume is unrestricted
-            if ((VGMDAT[ch][row] < 0) || (VGMDAT[ch][row] > 0xffff)) {
+            // this is not a great test, but convert the value back from PSG to SID range
+            // and see if it fits. Since that's what the rest of the tools will do, it's
+            // probably still a good test.
+            // the current shift rates are based on the SN standard shift, we need
+            // to adapt them to the SID shifts. This is the ratio.
+            // SN HZ = 111860.8/code
+            // SID code = hz/0.0596
+            // convert newcode = (111860.8/code)/0.0596
+            int val = VGMDAT[ch][row];
+            val = int(((111860.8/val) / 0.0596) + 0.5);
+            if ((val < 0) || (val > 0xffff)) {
                 printf("Tone frequency out of range for SID (0-0xffff) on row %d - got 0x%03X\n", row, VGMDAT[ch][row]);
                 return false;
             }
