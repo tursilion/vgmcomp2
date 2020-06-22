@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
     psg.write(1,0);  // frequency 1
     psg.write(2,0);
     psg.write(3,8);  // pwm 0x800 (50%)
-    psg.write(4, ctrl);  // square wave, gate
+    psg.write(4,ctrl);
     psg.write(5,0);  // attack/decay fastest
     psg.write(6,0);  // zero sustain, fastest release
 
@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
     psg.write(8,0);  // frequency 1
     psg.write(9,0);
     psg.write(10,8);  // pwm 0x800 (50%)
-    psg.write(11,ctrl);  // square wave, gate
+    psg.write(11,ctrl);
     psg.write(12,0);  // attack/decay fastest
     psg.write(13,0);  // zero sustain, fastest release
 
@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
     psg.write(15,0);  // frequency 1
     psg.write(16,0);
     psg.write(17,8);  // pwm 0x800 (50%)
-    psg.write(18, ctrl);  // noise wave, gate
+    psg.write(18,ctrl);
     psg.write(19,0);  // attack/decay fastest
     psg.write(20,0);  // zero sustain, fastest release
 

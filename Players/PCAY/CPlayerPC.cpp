@@ -171,7 +171,6 @@ void writeSound(int reg, int c) {
     // without a mute inbetween...
     // This array could technically be reduced to 3 bytes...
     static int oldreg[0x19] = { 0 };
-
     if ((reg == 6)||(reg == 0x0d)) {
         if (c == 0) {
             psg.write(reg-2, 0x40);
@@ -188,7 +187,6 @@ void writeSound(int reg, int c) {
     oldreg[reg] = c;
 
 #endif
-
 }
 
 // not doing the muting for this test player

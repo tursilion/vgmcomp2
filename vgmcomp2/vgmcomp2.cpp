@@ -273,11 +273,12 @@ bool testOutputRLE(SONG *s) {
                 printf("-- 0x%02X\n", s->outStream[TIMESTREAM][incnt[TIMESTREAM]]);
             }
 
+            incnt[TIMESTREAM]++;
+            
+            // TODO: this is not a great way to end the RLE test either...
             if ((s->outStream[TIMESTREAM][incnt[TIMESTREAM]]==0) && (s->outStream[TIMESTREAM][incnt[TIMESTREAM]+1]==0)) {
                 break;
             }
-
-            incnt[TIMESTREAM]++;
         } else {
             for (int idx=TONE1; idx<=NOISE; ++idx) {
                 t->VGMDAT[idx][testCnt[idx]] = t->VGMDAT[idx][testCnt[idx]-1];
@@ -318,6 +319,7 @@ bool testOutputRLE(SONG *s) {
                 volcnt[idx-VOL1] &= 0x0f;
 
                 // check next row and this row for 0's, marking the end
+                // TODO: isn't this just a side effect? I dropped this everywhere else...
                 if (idx == VOL4) {
                     if ((s->outStream[idx][incnt[idx]] == 0) && (s->outStream[idx][incnt[idx]-1] == 0)) {
                         cont=false;
@@ -351,7 +353,7 @@ bool testOutputRLE(SONG *s) {
 
     // and test it - VERIFY PHASE 1 means this whole RLE test
     for (int idx=0; idx<TIMESTREAM; ++idx) {
-        if (testCnt[idx] != s->outCnt+1) {  // Why do I need a plus one here?
+        if (testCnt[idx] != s->outCnt) {
             printf("VERIFY PHASE 1 - Failed on song length - got %d rows on %s %d, song was %d rows\n", 
                    testCnt[idx], idx<VOL1?"channel":"volume", idx, s->outCnt);
             ret = false;

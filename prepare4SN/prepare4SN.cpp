@@ -66,7 +66,7 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 PSG Prep Tool - v20200525\n\n");
+	printf("VGMComp2 PSG Prep Tool - v20200621\n\n");
 
     if (argc < 6) {
         printf("prepare4SN <tone1> <tone2> <tone3> <noise> <output>\n");
@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
     bool cont = false;
 
     for (int idx=0; idx<4; ++idx) {
-        if (argv[idx+1][0]=='-') {
+        if ((argv[idx+1][0]=='-')&&(argv[idx+1][1]=='\0')) {
             printf("Channel %d (%s) free\n", idx, idx == 3 ? "noise":"tone");
             fp[idx] = NULL;
         } else {

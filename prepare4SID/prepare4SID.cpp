@@ -2,8 +2,7 @@
 //
 
 // TODO: we might need to differently scale noise rates - have to
-// come back to this to determine the correct scale. That would also
-// requiring keeping track of which channels ARE noise after all ;)
+// come back to this to determine the correct scale. 
 
 #include "stdafx.h"
 #include <stdio.h>
@@ -17,8 +16,7 @@ int VGMDAT[MAXCHANNELS][MAXTICKS];
 int VGMVOL[MAXCHANNELS][MAXTICKS];
 FILE *fp[MAXCHANNELS];
 
-// codes for noise processing
-#define NOISE_MASK     0x00FFF
+bool isNoise[3];                            // keep track whether a channel is noise
 
 // lookup table to map SID volume to linear 8-bit. (SID is also linear, 0=mute)
 // mapVolume assumes the order of this table for mute suppression
@@ -57,16 +55,6 @@ int mapVolume(int nTmp) {
 	return 15-nBest;
 }
 
-// return true if the channel is muted (by frequency or by volume)
-// We cut off at a frequency count of 7, which is roughly 16khz.
-// The volume table at this point has been adjusted to the SID volume values
-bool muted(int ch, int row) {
-    if ((VGMDAT[ch][row] <= 7) || (VGMVOL[ch][row] == 0)) {
-        return true;
-    }
-    return false;
-}
-
 int main(int argc, char *argv[])
 {
 	printf("VGMComp2 SID Prep Tool - v20200621\n\n");
@@ -75,19 +63,13 @@ int main(int argc, char *argv[])
         printf("prepare4SID <tone1|noise1> <tone2|noise2> <tone3|noise3> <output>\n");
         printf("  You must specify 3 channels to prepare - any combination of tone and/or noise.\n");
         printf("  It is up to you to ensure that you are placing the correct data.\n");
-        printf("  The frequency is not verified - again, up to you to verify they are the same.\n");
         printf("  You may leave a channel blank by passing '-' instead of a filename.\n");
-        printf("  Volumes will be mapped to the SID range, however the player must be\n");
-        printf("  configured correctly for tone/noise as that information is not stored.\n");
         printf("  The output file is ready for compression with vgmcomp2.\n");
         return 1;
     }
 
     int arg = 1;
-
-    // TODO: you could probably store the noise/tone config in the first row of data
-    // and just allow it to be part of the datastream without costing must, but for
-    // now we're just going to force the player to KNOW what each channel is.
+    memset(isNoise, 0, sizeof(isNoise));
 
     // open up the files (if defined)
     // continue only if at least one opens!
@@ -95,8 +77,7 @@ int main(int argc, char *argv[])
 
     // only /three/ channels on this chip!
     for (int idx=0; idx<3; ++idx) {
-        // we don't need to track whether it's noise or tone, so never mind the extension....
-        if (argv[idx+arg][0]=='-') {
+        if ((argv[idx+arg][0]=='-')&&(argv[idx+arg][1]=='\0')) {
             printf("Channel %d free\n", idx);
             fp[idx] = NULL;
         } else {
@@ -105,7 +86,10 @@ int main(int argc, char *argv[])
                 printf("Failed to open file '%s' for channel %d, code %d\n", argv[idx+arg], idx, errno);
                 return 1;
             }
-            printf("Opened SID channel %d: %s\n", idx, argv[idx+arg]);
+            if (NULL != strstr(argv[idx+arg], "_noi")) {
+                isNoise[idx] = true;
+            }
+            printf("Opened SID channel %d (%s): %s\n", idx, isNoise[idx] ? "noise":"tone ", argv[idx+arg]);
             cont = true;
         }
     }
@@ -160,7 +144,7 @@ int main(int argc, char *argv[])
     // However, the shift rates are probably wrong for everything, so:
     // 1) resample the volume to the appropriate linear value
     // 2) resample the shift rates to the SID shift rates
-    // 3) mute any frequencies that end up out of range
+    // 3) mute any frequencies that end up out of range (have to do this by volume)
     int muted = 0;
     for (int idx = 0; idx<row; ++idx) {
         // just do both resamples right here...
@@ -192,13 +176,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // the compressor requires a fourth channel, so we'll still provide it
-    // the format will zero it out so that it only costs a few bytes and
-    // the player will ignore it.
+    // There's no fourth channel, but the rest is all set.
     for (int idx=0; idx<row; ++idx) {
         fprintf(fout, "0x%05X,0x%X,0x%05X,0x%X,0x%05X,0x%X,0x%05X,0x%X\n",
                 VGMDAT[0][idx], VGMVOL[0][idx], VGMDAT[1][idx], VGMVOL[1][idx],
-                VGMDAT[2][idx], VGMVOL[2][idx], 1,0);
+                VGMDAT[2][idx], VGMVOL[2][idx], 1, 0);
     }
     fclose(fout);
 
