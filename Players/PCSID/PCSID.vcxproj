@@ -30,14 +30,68 @@
     <ClCompile Include="..\PCAY\CPlayerPC.cpp" />
     <ClCompile Include="..\PCAY\PC.cpp" />
     <ClCompile Include="..\PCAY\sound.cpp" />
-    <ClCompile Include="sid.cpp" />
+    <ClCompile Include="resid\dac.cc" />
+    <ClCompile Include="resid\envelope.cc" />
+    <ClCompile Include="resid\extfilt.cc" />
+    <ClCompile Include="resid\filter.cc" />
+    <ClCompile Include="resid\filter8580new.cc">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="resid\pot.cc" />
+    <ClCompile Include="resid\sid.cc" />
+    <ClCompile Include="resid\version.cc" />
+    <ClCompile Include="resid\voice.cc" />
+    <ClCompile Include="resid\wave.cc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\PCAY\sound.h" />
-    <ClInclude Include="sid.h" />
+    <ClInclude Include="resid\dac.h" />
+    <ClInclude Include="resid\envelope.h" />
+    <ClInclude Include="resid\extfilt.h" />
+    <ClInclude Include="resid\filter.h" />
+    <ClInclude Include="resid\pot.h" />
+    <ClInclude Include="resid\resid-config.h" />
+    <ClInclude Include="resid\sid.h" />
+    <ClInclude Include="resid\siddefs.h" />
+    <ClInclude Include="resid\spline.h" />
+    <ClInclude Include="resid\voice.h" />
+    <ClInclude Include="resid\wave.h" />
+    <ClInclude Include="resid\wave6581_PST.h" />
+    <ClInclude Include="resid\wave6581_PS_.h" />
+    <ClInclude Include="resid\wave6581_P_T.h" />
+    <ClInclude Include="resid\wave6581__ST.h" />
+    <ClInclude Include="resid\wave8580_PST.h" />
+    <ClInclude Include="resid\wave8580_PS_.h" />
+    <ClInclude Include="resid\wave8580_P_T.h" />
+    <ClInclude Include="resid\wave8580__ST.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="COPYING" />
+    <None Include="resid\aclocal.m4" />
+    <None Include="resid\AUTHORS" />
+    <None Include="resid\ChangeLog" />
+    <None Include="resid\configure" />
+    <None Include="resid\configure.in" />
+    <None Include="resid\COPYING" />
+    <None Include="resid\INSTALL" />
+    <None Include="resid\Makefile.am" />
+    <None Include="resid\Makefile.in" />
+    <None Include="resid\NEWS" />
+    <None Include="resid\README" />
+    <None Include="resid\README.VICE" />
+    <None Include="resid\samp2src.pl" />
+    <None Include="resid\siddefs.h.in" />
+    <None Include="resid\THANKS" />
+    <None Include="resid\TODO" />
+    <None Include="resid\wave6581_PST.dat" />
+    <None Include="resid\wave6581_PS_.dat" />
+    <None Include="resid\wave6581_P_T.dat" />
+    <None Include="resid\wave6581__ST.dat" />
+    <None Include="resid\wave8580_PST.dat" />
+    <None Include="resid\wave8580_PS_.dat" />
+    <None Include="resid\wave8580_P_T.dat" />
+    <None Include="resid\wave8580__ST.dat" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -93,12 +147,14 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>$(ProjectDir);$(ProjectDir)\resid;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>$(ProjectDir);$(ProjectDir)\resid;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
