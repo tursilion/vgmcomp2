@@ -74,6 +74,17 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prepare4SID", "prepare4SID\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCSID", "Players\PCSID\PCSID.vcxproj", "{E1FC2EB0-D727-485C-89FA-44CC6914D7FF}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISID", "TISID", "{1E65BDBD-AF4C-4AF3-AFC9-F9C6814ED736}"
+	ProjectSection(SolutionItems) = preProject
+		Players\TISID\crt0_ea5.asm = Players\TISID\crt0_ea5.asm
+		Players\TISID\CSIDPlay.h = Players\TISID\CSIDPlay.h
+		Players\TISID\CSIDPlayCommonHandEdit.asm = Players\TISID\CSIDPlayCommonHandEdit.asm
+		Players\TISID\CSIDPlayTIHandEdit.asm = Players\TISID\CSIDPlayTIHandEdit.asm
+		Players\TISID\Makefile = Players\TISID\Makefile
+		Players\TISID\Readme.txt = Players\TISID\Readme.txt
+		Players\TISID\tisidplay.c = Players\TISID\tisidplay.c
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -221,6 +232,7 @@ Global
 		{01263202-227D-4316-8459-25D35EFCD16E} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 		{280179E3-2613-41F5-A99B-0BE8B51CB232} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 		{E1FC2EB0-D727-485C-89FA-44CC6914D7FF} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
+		{1E65BDBD-AF4C-4AF3-AFC9-F9C6814ED736} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

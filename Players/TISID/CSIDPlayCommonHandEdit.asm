@@ -1,7 +1,7 @@
 * code that is shared between multiple instances of the player
 * Hand edit of CPlayerCommon.c assembly by Tursi
 * The functions in this file can not be directly called from C.
-* To call getCompressedByte directly, you need to move the
+* To call getCompressedSid directly, you need to move the
 * input argument from R1 to R15 with your own wrapper function.
 * Public Domain
 
@@ -21,7 +21,7 @@
 *cntBack bss 2
 
 	pseg
-	ref workBuf
+	ref workSID
 
 * we sometimes need to directly access the LSB of some registers - addresses here
 * Note this assumes a workspace of >8300 and that it can pretty much completely
@@ -57,20 +57,20 @@ R3LSB EQU >8307
 * R6 =                      R14= 
 * R7 =                      R15= 
 
-* register usage for SongLoop and getCompressedByte
+* register usage for SongLoop and getCompressedSid
 * R0 = SongLoop scratch     R8 = address of sound chip
 * R1 = scratch,return       R9 = SongLoop scratch 
 * R2 = scratch              R10= stack pointer (if used from C, not touched)
 * R3 = scratch              R11= return address
 * R4 = scratch              R12= SongLoop scratch
-* R5 = scratch              R13= address of getCompressedByte
+* R5 = scratch              R13= address of getCompressedSid
 * R6 = contains >0100       R14= SongLoop scratch
-* R7 = SongLoop scratch     R15= getCompressedByte arg1, SongLoop scratch
+* R7 = SongLoop scratch     R15= getCompressedSid arg1, SongLoop scratch
 
 *****************************************************************************
 
 * some useful data
-    def getDatInline,getDatRLE16,getDatRLE24,getDatRLE32,getDatRLE
+*    def getDatInline,getDatRLE16,getDatRLE24,getDatRLE32,getDatRLE
 JMPTAB DATA L24,L24,L25,L26,L30_B,L28,L29,L29
 ADRINLINE DATA getDatInline
 ADRRLE16  DATA getDatRLE16
@@ -162,14 +162,14 @@ getDatRLE24
 * unpack a stream byte - offset and maxbytes are used to write a scaled
 * address for the heatmap to display later
 * cnt is row count, and maxbytes is used for scaling, max size of data
-* uint8 getCompressedByte(STREAM *str, uint8 *buf)
+* uint8 getCompressedSid(STREAM *str, uint8 *buf)
 * r15 = str (and curptr is offset 0), buf is unused and not provided
 * r6 /must/ contain >0100 on entry
 * r2 will be zeroed if timestream was ended
 * mainptr is offset 2, curType is 4, curBytes is 6
-	def	getCompressedByte,getDatZero
+	def	getCompressedSid,getSidZero
 
-getCompressedByte
+getCompressedSid
 	sb   r6,@>6(r15)        * decrement curBytes
     jnc  L22                * if it was zero, we need a new one
 
@@ -261,7 +261,7 @@ L29
 	mov  r4,r4				* zero means end of stream
 	jeq  L39				* if zero, go clean up
 	
-	a    @workBuf,r4		* add address of song base to the offset
+	a    @workSID,r4		* add address of song base to the offset
 	movb *r4+,r1            * get the byte
 	mov  r4,*r15    		* save to curPtr
 	inct r5					* add cost of 2 to mainPtr
@@ -275,8 +275,8 @@ L39
 	clr  @>2(r15)		    * zero out mainPtr
     clr r2                  * flag a dead return
 
-* while part of getCompressedByte, this is also all we need for getDatZero
-getDatZero
+* while part of getCompressedSid, this is also all we need for getSidZero
+getSidZero
 	clr  r1					* zero out return
 	b    *r11				* back to caller - r2 may be anything but is probably zero
-	.size	getCompressedByte, .-getCompressedByte
+	.size	getCompressedSid, .-getCompressedSid
