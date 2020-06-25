@@ -114,6 +114,7 @@ void ay_update(short *buf, double nAudioIn, int nSamples) {
 #ifdef USE_SID_PSG
 #include "sid.h"
 reSID::SID psg;
+extern bool configNoise[];
 
 void writeSound(int reg, int c) {
     psg.write(reg, c);
@@ -143,15 +144,17 @@ void writeSound(int reg, int c) {
     // This array could technically be reduced to 3 bytes...
     static int oldreg[0x19] = { 0 };
 
-    if ((reg == 6)||(reg == 0x0d)) {
-        if (oldreg[reg] < c) {
-            psg.write(reg-2, 0x40);
-            psg.write(reg-2, 0x41);
-        }
-    } else if (reg == 0x14) {
-        if (oldreg[reg] < c) {
-            psg.write(reg-2, 0x80);
-            psg.write(reg-2, 0x81);
+    if ((reg == 6)||(reg == 13)||(reg == 20)) {
+        if (!configNoise[(reg-6)/7]) {
+            if (oldreg[reg] < c) {
+                psg.write(reg-2, 0x40);
+                psg.write(reg-2, 0x41);
+            }
+        } else {
+            if (oldreg[reg] < c) {
+                psg.write(reg-2, 0x80);
+                psg.write(reg-2, 0x81);
+            }
         }
     }
     oldreg[reg] = c;

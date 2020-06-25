@@ -52,6 +52,7 @@ extern ayemu_ay_reg_frame_t regs;
 extern void writeSound(int reg, int c); // so we can send the mute commands
 extern void sid_update(short *buf, double nAudioIn, int nSamples);
 extern reSID::SID psg;
+bool configNoise[3] = { false, false, false };
 #endif
 
 // -----------------------------------------
@@ -75,12 +76,27 @@ int main(int argc, char *argv[]) {
 #endif
 #ifdef USE_SID_PSG
         printf("SID PSG version\n");
+        printf("Optional first argument: -000 for all tones, -111 for all noise,\n");
+        printf("or any combination for the specific channel config you want. Default is 001\n");
 #endif
         return 1;
     }
 
+    int arg = 1;
+#ifdef USE_SID_PSG
+    if (argv[arg][0] == '-') {
+        // take as a 3 character noise configuration
+        for (int idx=0; idx<3; ++idx) {
+            if (argv[arg][idx+1] == '\0') break;
+            if (argv[arg][idx+1] == '1') configNoise[idx]=true;
+            printf(" - Voice %d is %s\n", idx, configNoise[idx]?"noise":"tone");
+        }
+        ++arg;
+    }
+#endif
+
     // read the file in - assumes success
-    FILE *fp = fopen(argv[1], "rb");
+    FILE *fp = fopen(argv[arg], "rb");
     if (NULL == fp) {
         printf("Failed to open '%s', code %d\n", argv[1], errno);
         return 1;
@@ -131,13 +147,11 @@ int main(int argc, char *argv[]) {
     psg.set_sampling_parameters(985248, reSID::SAMPLE_FAST, 22050);
     psg.reset();
 
-    const int ctrl = 0x41;  // square wave, gate
-
     psg.write(0,1);
     psg.write(1,0);  // frequency 1
     psg.write(2,0);
     psg.write(3,8);  // pwm 0x800 (50%)
-    psg.write(4,ctrl);
+    psg.write(4,configNoise[0]?0x81:0x41);
     psg.write(5,0);  // attack/decay fastest
     psg.write(6,0);  // zero sustain, fastest release
 
@@ -145,7 +159,7 @@ int main(int argc, char *argv[]) {
     psg.write(8,0);  // frequency 1
     psg.write(9,0);
     psg.write(10,8);  // pwm 0x800 (50%)
-    psg.write(11,ctrl);
+    psg.write(11,configNoise[1]?0x81:0x41);
     psg.write(12,0);  // attack/decay fastest
     psg.write(13,0);  // zero sustain, fastest release
 
@@ -153,7 +167,7 @@ int main(int argc, char *argv[]) {
     psg.write(15,0);  // frequency 1
     psg.write(16,0);
     psg.write(17,8);  // pwm 0x800 (50%)
-    psg.write(18,ctrl);
+    psg.write(18,configNoise[2]?0x81:0x41);
     psg.write(19,0);  // attack/decay fastest
     psg.write(20,0);  // zero sustain, fastest release
 

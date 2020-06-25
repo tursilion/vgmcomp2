@@ -57,7 +57,7 @@ int mapVolume(int nTmp) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 SID Prep Tool - v20200621\n\n");
+	printf("VGMComp2 SID Prep Tool - v20200625\n\n");
 
     if (argc < 5) {
         printf("prepare4SID <tone1|noise1> <tone2|noise2> <tone3|noise3> <output>\n");
@@ -161,8 +161,10 @@ int main(int argc, char *argv[])
             // is only 7 notes off the end of the E/A table
             if (VGMDAT[ch][idx] > 0xffff) {
                 VGMDAT[ch][idx] = 0xffff;
-                VGMVOL[ch][idx] = 0;
-                ++muted;
+                if (VGMVOL[ch][idx] > 0) {
+                    VGMVOL[ch][idx] = 0;
+                    ++muted;
+                }
             }
         }
     }
