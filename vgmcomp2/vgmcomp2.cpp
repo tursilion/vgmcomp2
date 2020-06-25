@@ -309,24 +309,45 @@ bool testOutputRLE(SONG *s) {
     }
 
     // unpack the volume channels - volume is command plus hold time (0xVT)
+    // end the volume rows by the channel counts, like the real thing does
     bool cont = true;
     int volcnt[4] = {0,0,0,0};
     while (cont) {
+        printf("%05d - ", testCnt[VOL1]);
         for (int idx=VOL1; idx<=VOL4; ++idx) {
+            if (debug) printf("%X: ", idx);
             if (--volcnt[idx-VOL1] < 0) {
+                if (debug) printf("%X/%2d ", (s->outStream[idx][incnt[idx]]>>4)&0xf, (s->outStream[idx][incnt[idx]]&0xf));
                 volcnt[idx-VOL1] = s->outStream[idx][incnt[idx]++];
                 t->VGMVOL[idx-VOL1][testCnt[idx]++] = (volcnt[idx-VOL1]>>4)&0xf;
                 volcnt[idx-VOL1] &= 0x0f;
 
-                // check next row and this row for 0's, marking the end
-                // TODO: isn't this just a side effect? I dropped this everywhere else...
+                // check if we're done only when VOL4 finishes
+                // they SHOULD all line up, but we need to add that check...
                 if (idx == VOL4) {
-                    if ((s->outStream[idx][incnt[idx]] == 0) && (s->outStream[idx][incnt[idx]-1] == 0)) {
-                        cont=false;
+                    if (debug) printf("(%d%d%d%d) ",
+                        (testCnt[VOL1] > testCnt[TONE1]),
+                        (testCnt[VOL2] > testCnt[TONE2]),
+                        (testCnt[VOL3] > testCnt[TONE3]),
+                        (testCnt[VOL4] > testCnt[NOISE]));
+
+                    // volume length is linked to voice length
+                    if ((testCnt[VOL1] > testCnt[TONE1]) &&
+                        (testCnt[VOL2] > testCnt[TONE2]) &&
+                        (testCnt[VOL3] > testCnt[TONE3]) &&
+                        (testCnt[VOL4] > testCnt[NOISE])) {
+                        // decrement them all - exact length checked below
+                        --testCnt[VOL1];
+                        --testCnt[VOL2];
+                        --testCnt[VOL3];
+                        --testCnt[VOL4];
+                        cont = false;
                         break;
                     }
                 }
             } else {
+                if (debug) printf(".... ");
+                if ((debug)&&(idx == VOL4) ) printf("       ");
                 t->VGMVOL[idx-VOL1][testCnt[idx]] = t->VGMVOL[idx-VOL1][testCnt[idx]-1];
                 testCnt[idx]++;
             }
@@ -335,17 +356,16 @@ bool testOutputRLE(SONG *s) {
         if (debug) {
             // debug current row
             int lastrow = testCnt[VOL1]-1;
-            printf("%04d: ", lastrow);
             for (int idx=VOL1; idx<=VOL4; ++idx) {
                 printf("0x%02X%c ", t->VGMVOL[idx-VOL1][lastrow], volcnt[idx-VOL1]==0?'<':' ');
             }
-            printf("===   ");
+            printf("=== ");
             for (int idx=VOL1; idx<=VOL4; ++idx) {
-                printf("0x%02X  ", s->VGMVOL[idx-VOL1][lastrow]);
+                printf("0x%02X ", s->VGMVOL[idx-VOL1][lastrow]);
             }
-            printf("===   ");
+            printf("=== ");
             for (int idx=VOL1; idx<=VOL4; ++idx) {
-                printf("%02d  ", volcnt[idx-VOL1]);
+                printf("%02d ", volcnt[idx-VOL1]);
             }
             printf("\n");
         }
@@ -376,6 +396,10 @@ bool testOutputRLE(SONG *s) {
                 break;
             }
         }
+    }
+
+    if (ret == true) {
+        printf("Got %d rows... ", testCnt[0]);
     }
 
     return ret;
@@ -632,11 +656,13 @@ bool initialRLE(SONG *s) {
             if (s->lastnote[idx2] != s->VGMVOL[idx2-VOL1][idx]) {
                 // check for special case - we wrapped and counted out at the same time,
                 // so a new entry is not actually needed, just reuse it
-                if (s->outStream[idx2][s->streamCnt[idx2]] > 0) {
+                if ((s->outStream[idx2][s->streamCnt[idx2]]&0x0f) > 0) {
                     // decrement the count and add the note
                     s->outStream[idx2][s->streamCnt[idx2]]--;
                     s->outStream[idx2][s->streamCnt[idx2]] |= (s->lastnote[idx2]<<4)&0xf0;
                     s->streamCnt[idx2]++;
+                } else {
+                    printf("Special case of wrap and count out (if a problem occurs, tell Tursi this line appeared)\n");
                 }
                 s->outStream[idx2][s->streamCnt[idx2]]=1;         // include this row
                 s->lastnote[idx2] = s->VGMVOL[idx2-VOL1][idx];
@@ -648,7 +674,7 @@ bool initialRLE(SONG *s) {
                     s->outStream[idx2][s->streamCnt[idx2]]--;
                     s->outStream[idx2][s->streamCnt[idx2]] |= (s->lastnote[idx2]<<4)&0xf0;
                     s->streamCnt[idx2]++;
-                    s->outStream[idx2][s->streamCnt[idx2]]=0;     // already counted
+                    s->outStream[idx2][s->streamCnt[idx2]]=0;   // zero means 1, we already counted
                 }
             }
         }
@@ -658,14 +684,29 @@ bool initialRLE(SONG *s) {
     // if it was zero (only possible in the maximum size case), then we can delete the entry entirely
     for (int idx2=VOL1; idx2<=VOL4; ++idx2) {
         if ((s->outStream[idx2][s->streamCnt[idx2]]&0xf) == 0) {
-            // do nothing - it's empty
+            // do nothing - it's empty - although how did we get here?
             //s->streamCnt[idx2]--;
+            printf("Impossible RLE 0 case\n");  // haven't seen this actually hit...
         } else {
             s->outStream[idx2][s->streamCnt[idx2]]--;
             s->outStream[idx2][s->streamCnt[idx2]] |= (s->lastnote[idx2]<<4)&0xf0;
             s->streamCnt[idx2]++;
         }
     }
+
+#ifdef _DEBUG
+    // output the RLE streams
+    for (int idx=TONE1; idx<=TIMESTREAM; ++idx) {
+        char buf[128];
+        sprintf(buf, "d:\\new\\rle%d.txt", idx);
+        FILE *fp = fopen(buf, "w");
+        for (int i2=0; i2<s->streamCnt[idx]; ++i2) {
+            sprintf(buf, "%05d: %02X\n", i2, s->outStream[idx][i2]);
+            fprintf(fp, "%s", buf);
+        }
+        fclose(fp);
+    }
+#endif
 
 #if 0
     // Not using double-zero to mark the end - don't do this
