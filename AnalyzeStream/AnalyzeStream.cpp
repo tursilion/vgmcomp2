@@ -8,6 +8,22 @@
 
 unsigned char buf[65536];
 int bufSize = 0;
+int totalSize = 0;
+int streamSize = 0;
+int inlineSize = 0;
+int rleSize = 0;
+int rle16Size = 0;
+int rle24Size = 0;
+int rle32Size = 0;
+int shortRefSize = 0;
+int longRefSize = 0;
+int inlineData = 0;
+int rleData = 0;
+int rle16Data = 0;
+int rle24Data = 0;
+int rle32Data = 0;
+int shortRefData = 0;
+int longRefData = 0;
 
 bool processOld(int str) {
     // the old format is very similar to the new one
@@ -62,6 +78,7 @@ bool processOld(int str) {
     } else {
         end = buf[tmp]*256+buf[tmp+1];
     }
+    streamSize = end-base;
 
     // okay, work the stream and just report each entry
     while (pos < end) {
@@ -73,6 +90,9 @@ bool processOld(int str) {
         case 0x00:  // inline
             size = ctrl&0x3f;
             printf("INLINE - %3d bytes: ", size);
+            totalSize+=size;
+            inlineSize+=size+1;
+            inlineData+=size;
             // print first 10
             for (int idx=0; (idx<10)&&(idx<size); ++idx) {
                 printf("%02X ", buf[pos+idx]);
@@ -87,12 +107,18 @@ bool processOld(int str) {
         case 0x40:  // RLE
             size = ctrl&0x3f;
             printf("RLE    - %3d bytes: %02X\n", size, buf[pos]);
+            totalSize+=size;
+            rleSize+=2;
+            rleData+=size;
             pos++;
             break;
 
         case 0x80:  // short back reference
             size = ctrl&0x3f;
             printf("SHORT  - %3d bytes: ", size);
+            totalSize+=size;
+            shortRefSize+=2;
+            shortRefData+=size;
             // print first 10
             tmp = base + buf[pos];
             for (int idx=0; (idx<10)&&(idx<size); ++idx) {
@@ -108,6 +134,9 @@ bool processOld(int str) {
         case 0xc0:  // long back ref
             size = ctrl&0x3f;
             printf("LONG   - %3d bytes: ", size);
+            totalSize+=size;
+            longRefSize+=3;
+            longRefData+=size;
             // print first 10
             tmp = buf[pos] * 256 + buf[pos+1];
             for (int idx=0; (idx<10)&&(idx<size); ++idx) {
@@ -185,6 +214,7 @@ bool processNew(int str) {
             }
         }
     }
+    streamSize = end-pos;
 
     // okay, work the stream and just report each entry
     while (pos < end) {
@@ -198,6 +228,9 @@ bool processNew(int str) {
             size = ctrl&0x3f;
             size += 1;
             printf("INLINE - %3d bytes: ", size);
+            totalSize += size;
+            inlineSize += size+1;
+            inlineData += size;
             // print first 10
             for (int idx=0; (idx<10)&&(idx<size); ++idx) {
                 printf("%02X ", buf[pos+idx]);
@@ -213,6 +246,9 @@ bool processNew(int str) {
             size = ctrl&0x1f;
             size += 3;
             printf("RLE    - %3d bytes: %02X\n", size, buf[pos]);
+            totalSize += size;
+            rleSize += 2;
+            rleData += size;
             pos++;
             break;
 
@@ -221,6 +257,9 @@ bool processNew(int str) {
             size += 2;
             size *= 4;
             printf("RLE32  - %3d bytes: %02X %02X %02X %02X\n", size, buf[pos], buf[pos+1], buf[pos+2], buf[pos+3]);
+            totalSize += size;
+            rle32Size += 5;
+            rle32Data += size;
             pos+=4;
             break;
 
@@ -229,6 +268,9 @@ bool processNew(int str) {
             size += 2;
             size *= 2;
             printf("RLE16  - %3d bytes: %02X %02X\n", size, buf[pos], buf[pos+1]);
+            totalSize += size;
+            rle16Size += 3;
+            rle16Data += size;
             pos+=2;
             break;
 
@@ -237,6 +279,9 @@ bool processNew(int str) {
             size += 2;
             size *= 3;
             printf("RLE24  - %3d bytes: %02X %02X %02X\n", size, buf[pos], buf[pos+1], buf[pos+2]);
+            totalSize += size;
+            rle24Size += 4;
+            rle24Data += size;
             pos+=3;
             break;
         
@@ -245,6 +290,9 @@ bool processNew(int str) {
             size = ctrl&0x3f;
             size += 4;
             printf("BACKREF- %3d bytes: ", size);
+            totalSize += size;
+            longRefSize += 3;
+            longRefData += size;
             // print first 10
             tmp = buf[pos]*256+buf[pos+1];
             if (tmp == 0) {
@@ -268,7 +316,7 @@ bool processNew(int str) {
 }
 
 int main(int argc, char *argv[]) {
-	printf("VGMComp2 Stream Analysis Tool - v20200620\n\n");
+	printf("VGMComp2 Stream Analysis Tool - v20200625\n\n");
 
     if (argc < 3) {
         printf("AnalyzeStream <name.sbf> <stream index (0-based)> [-old]\n");
@@ -302,6 +350,15 @@ int main(int argc, char *argv[]) {
             return 1;
         }
     }
+    printf("\nStream size %d -> %d bytes: Compressed to %d%%\n", totalSize, streamSize,
+        streamSize*100/totalSize);
+    if (inlineSize) printf(" - inlines  : %5d bytes: %2d%% of stream, %2d%% of data\n", inlineSize, inlineSize*100/streamSize, inlineData*100/totalSize);
+    if (rleSize)    printf(" - RLE      : %5d bytes: %2d%% of stream, %2d%% of data\n", rleSize, rleSize*100/streamSize, rleData*100/totalSize);
+    if (rle16Size)  printf(" - RLE16    : %5d bytes: %2d%% of stream, %2d%% of data\n", rle16Size, rle16Size*100/streamSize, rle16Data*100/totalSize);
+    if (rle24Size)  printf(" - RLE24    : %5d bytes: %2d%% of stream, %2d%% of data\n", rle24Size, rle24Size*100/streamSize, rle24Data*100/totalSize);
+    if (rle32Size)  printf(" - RLE32    : %5d bytes: %2d%% of stream, %2d%% of data\n", rle32Size, rle32Size*100/streamSize, rle32Data*100/totalSize);
+    if (shortRefSize) printf(" - short ref: %5d bytes: %2d%% of stream, %2d%% of data\n", shortRefSize, shortRefSize*100/streamSize, shortRefData*100/totalSize);
+    if (longRefSize)  printf(" - long ref : %5d bytes: %2d%% of stream, %2d%% of data\n", longRefSize, longRefSize*100/streamSize, longRefData*100/totalSize);
 
     return 0;
 }

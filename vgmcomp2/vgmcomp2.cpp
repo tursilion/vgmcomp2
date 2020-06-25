@@ -313,7 +313,7 @@ bool testOutputRLE(SONG *s) {
     bool cont = true;
     int volcnt[4] = {0,0,0,0};
     while (cont) {
-        printf("%05d - ", testCnt[VOL1]);
+        if (debug) printf("%05d - ", testCnt[VOL1]);
         for (int idx=VOL1; idx<=VOL4; ++idx) {
             if (debug) printf("%X: ", idx);
             if (--volcnt[idx-VOL1] < 0) {
@@ -633,9 +633,11 @@ bool initialRLE(SONG *s) {
     // reduce the final count by 1, since we didn't get a chance above (must do this before the nibble tweaking)
     // if it was zero (only possible in the maximum size case), then we can delete the entry entirely
     if ((s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]&0xf) == 0) {
-        s->streamCnt[TIMESTREAM]--;
+        // do nothing, this row is discarded
+        //s->streamCnt[TIMESTREAM]--;
     } else {
         s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]--;
+        ++s->streamCnt[TIMESTREAM]; // count this row
     }
 
     // at the end, re-set the first timestream command nibble to remove unused channels
@@ -1489,7 +1491,7 @@ bool compressStream(int song, int st, int minstep) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Compression Tool - v20200620\n\n");
+	printf("VGMComp2 Compression Tool - v20200625\n\n");
 
     // parse arguments
     int nextarg = -1;
@@ -1932,16 +1934,6 @@ int main(int argc, char *argv[])
         if (debug) printf("  [%3d]: 0x%04X -> 0x%02X%02X\n", nt, noteTable[nt], outputBuffer[outputPos-2], outputBuffer[outputPos-1]);
     }
 
-    // test the SBF process
-    for (int idx=0; idx<currentSong; ++idx) {
-        if (!testOutputSBF(&songs[idx], idx)) {
-            return 1;
-        }
-    }
-
-    // it all seems to have worked
-    printf("Successful!\n");
-
 #ifdef _DEBUG
     // dump the compressed streams so I can look at them
     for (int song=0; song<currentSong; ++song) {
@@ -1970,6 +1962,16 @@ int main(int argc, char *argv[])
         }
     }
 #endif
+
+    // test the SBF process
+    for (int idx=0; idx<currentSong; ++idx) {
+        if (!testOutputSBF(&songs[idx], idx)) {
+            return 1;
+        }
+    }
+
+    // it all seems to have worked
+    printf("Successful!\n");
 
     // emit some stats
     int totalRows = 0;
