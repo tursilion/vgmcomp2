@@ -31,7 +31,7 @@ OBJECT_LIST_EA5=\
 OBJECT_LIST=\
   ab_sid.o  \
   tisidplay.o \
-  CSIDPlayCommonHandEdit.o \
+  ../TISN/CPlayerCommonHandEdit.o \
   CSIDPlayTIHandEdit.o
 
 # List of all files needed in executable

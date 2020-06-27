@@ -795,6 +795,10 @@ bool testSNData(int chan, int cnt) {
                 if ((VGMDAT[ch][row]&NOISE_MASK) == VGMDAT[2][row]) {
                     match=true;
                 }
+                if (VGMVOL[ch][row] == 0) {
+                    // ignore it if it's muted, this may be a disabled channel
+                    match = true;
+                }
                 if (!match) {
                     printf("Noise volume has no matching frequency for PSG on row %d. Got 0x%03X, must match 0x010, 0x020, 0x040 or chan 2 0x%03X\n", row, VGMDAT[ch][row], VGMDAT[2][row]);
                     return false;

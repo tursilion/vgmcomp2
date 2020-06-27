@@ -32,10 +32,9 @@ OBJECT_LIST=\
   wbsid.o  \
   wbsn.o  \
   tisnsidplay.o \
-  CPlayerCommonHandEdit.o \
-  CPlayerTIHandEdit.o \
-  CSIDPlayCommonHandEdit.o \
-  CSIDPlayTIHandEdit.o
+  ../TISN/CPlayerCommonHandEdit.o \
+  ../TISN/CPlayerTIHandEdit.o \
+  ../TISID/CSIDPlayTIHandEdit.o
 
 # List of all files needed in executable
 PREREQUISITES=\

@@ -1,4 +1,4 @@
-* code that is shared between multiple instances of the player
+* code that is //shared// between multiple instances of the player
 * Hand edit of CPlayerCommon.c assembly by Tursi
 * The functions in this file can not be directly called from C.
 * To call getCompressedByte directly, you need to move the

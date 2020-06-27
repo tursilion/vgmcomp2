@@ -10,7 +10,6 @@
 #endif
 
 extern uint8 getCompressedByte(STREAM *str, uint8 *buf);
-extern uint8* workBuf;
 STREAM test;
 
 // disable this if you are not using the TI hand-rolled assembly
@@ -54,10 +53,10 @@ static const unsigned char rle24[] =
     { 0xa1, '1','2','3', 0xc0,0x00,0x00 };
 // back reference (actually forward here, but the protocol doesn't care which way it goes) - 8 bytes
 static const unsigned char backref[] = 
-    { 0xc4, 0x00, 0x06, 0xc0,0x00,0x00, '1','2','3','4','5','6','7','8' };
+    { 0xc4, 0x00, 0x05, 0xc0,0x00,0x00, '1','2','3','4','5','6','7','8' };
 // backref 2 - same but 36 bytes long
 static const unsigned char backref2[] = 
-    { 0xe0, 0x00, 0x06, 0xc0,0x00,0x00, '1','2','3','4','5','6','7','8','9','0',
+    { 0xe0, 0x00, 0x05, 0xc0,0x00,0x00, '1','2','3','4','5','6','7','8','9','0',
                                         '9','8','7','6','5','4','3','2','1','0',
                                         '1','2','3','4','5','6','7','8','9','0',
                                         '9','8','7','6','5','4' };
@@ -66,7 +65,6 @@ void runTest(const char *name, const unsigned char *buf, const char *tst) {
     unsigned char x;
     int flag;
 
-    workBuf = (uint8*)buf;
     test.mainPtr = (uint8*)buf;
     test.curPtr = 0;
     test.curBytes = 0;

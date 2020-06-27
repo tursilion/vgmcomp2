@@ -41,7 +41,7 @@ Linker script and memory map
 LOAD crt0_ea5.o
 LOAD ab_sid.o
 LOAD tisidplay.o
-LOAD CSIDPlayCommonHandEdit.o
+LOAD ../TISN/CPlayerCommonHandEdit.o
 LOAD CSIDPlayTIHandEdit.o
 LOAD ../../../libti99/libti99.a
 Address of section .text set to 0xa000
@@ -184,61 +184,66 @@ Address of section .data set to 0x2080
 .plt
  *(.plt)
 
-.text           0x000000000000a000     0x13ac
+.text           0x000000000000a000     0x1580
  *(.text .stub .text.* .gnu.linkonce.t.*)
  .text          0x000000000000a000       0x3c crt0_ea5.o
                 0x000000000000a000                _start
                 0x000000000000a032                _init_data
- .text          0x000000000000a03c      0x89e ab_sid.o
+ .text          0x000000000000a03c      0xa74 ab_sid.o
                 0x000000000000a03c                mysong
- .text          0x000000000000a8da      0x1bc tisidplay.o
-                0x000000000000a8da                main
- .text          0x000000000000aa96      0x15e CSIDPlayCommonHandEdit.o
-                0x000000000000abf0                getSidZero
-                0x000000000000aaf2                getCompressedSid
- .text          0x000000000000abf4      0x1fa CSIDPlayTIHandEdit.o
-                0x000000000000accc                StopSID
-                0x000000000000abf4                StartSID
-                0x000000000000acd4                SongSID
- .text          0x000000000000adee       0xde ../../../libti99/libti99.a(vdp_setgraphics.o)
-                0x000000000000adee                set_graphics_raw
-                0x000000000000aeae                set_graphics
- .text          0x000000000000aecc       0x30 ../../../libti99/libti99.a(vdp_sprite.o)
-                0x000000000000aecc                sprite
- .text          0x000000000000aefc       0x1c ../../../libti99/libti99.a(vdp_waitvint.o)
-                0x000000000000aefc                vdpwaitvint
- .text          0x000000000000af18        0x0 ../../../libti99/libti99.a(vdp_setmode.o)
- .text          0x000000000000af18       0x16 ../../../libti99/libti99.a(vdp_fasterhexprint.o)
-                0x000000000000af18                faster_hexprint
- .text          0x000000000000af2e       0x1c ../../../libti99/libti99.a(vdp_char.o)
-                0x000000000000af2e                vdpchar_default
- .text          0x000000000000af4a       0x40 ../../../libti99/libti99.a(vdp_vchar.o)
-                0x000000000000af4a                vchar
- .text          0x000000000000af8a       0x16 ../../../libti99/libti99.a(kscan.o)
-                0x000000000000af8a                kscan
- .text          0x000000000000afa0      0x108 ../../../libti99/libti99.a(vdp_scrnscroll.o)
-                0x000000000000afa0                scrn_scroll_default
- .text          0x000000000000b0a8        0x0 ../../../libti99/libti99.a(vdp_textdefs.o)
- .text          0x000000000000b0a8      0x200 ../../../libti99/libti99.a(vdp_byte2hex.o)
-                0x000000000000b0a8                byte2hex
- .text          0x000000000000b2a8       0x26 ../../../libti99/libti99.a(vdp_memread.o)
-                0x000000000000b2a8                vdpmemread
- .text          0x000000000000b2ce       0x2c ../../../libti99/libti99.a(vdp_memcpy.o)
-                0x000000000000b2ce                vdpmemcpy
- .text          0x000000000000b2fa       0x2a ../../../libti99/libti99.a(vdp_memset.o)
-                0x000000000000b2fa                vdpmemset
- .text          0x000000000000b324       0x88 ../../../libti99/libti99.a(conio_bgcolor.o)
-                0x000000000000b3a8                reverse
-                0x000000000000b388                bordercolor
-                0x000000000000b324                bgcolor
-                0x000000000000b354                textcolor
+ .text          0x000000000000aab0      0x1bc tisidplay.o
+                0x000000000000aab0                main
+ .text          0x000000000000ac6c      0x15c ../TISN/CPlayerCommonHandEdit.o
+                0x000000000000ac8e                getDatRLE
+                0x000000000000acc8                getCompressedByte
+                0x000000000000ac86                getDatInline
+                0x000000000000acb6                getDatRLE24
+                0x000000000000aca6                getDatRLE16
+                0x000000000000ac94                getDatRLE32
+                0x000000000000adc4                getDatZero
+ .text          0x000000000000adc8      0x1fa CSIDPlayTIHandEdit.o
+                0x000000000000aea0                StopSID
+                0x000000000000adc8                StartSID
+                0x000000000000aea8                SongSID
+ .text          0x000000000000afc2       0xde ../../../libti99/libti99.a(vdp_setgraphics.o)
+                0x000000000000afc2                set_graphics_raw
+                0x000000000000b082                set_graphics
+ .text          0x000000000000b0a0       0x30 ../../../libti99/libti99.a(vdp_sprite.o)
+                0x000000000000b0a0                sprite
+ .text          0x000000000000b0d0       0x1c ../../../libti99/libti99.a(vdp_waitvint.o)
+                0x000000000000b0d0                vdpwaitvint
+ .text          0x000000000000b0ec        0x0 ../../../libti99/libti99.a(vdp_setmode.o)
+ .text          0x000000000000b0ec       0x16 ../../../libti99/libti99.a(vdp_fasterhexprint.o)
+                0x000000000000b0ec                faster_hexprint
+ .text          0x000000000000b102       0x1c ../../../libti99/libti99.a(vdp_char.o)
+                0x000000000000b102                vdpchar_default
+ .text          0x000000000000b11e       0x40 ../../../libti99/libti99.a(vdp_vchar.o)
+                0x000000000000b11e                vchar
+ .text          0x000000000000b15e       0x16 ../../../libti99/libti99.a(kscan.o)
+                0x000000000000b15e                kscan
+ .text          0x000000000000b174      0x108 ../../../libti99/libti99.a(vdp_scrnscroll.o)
+                0x000000000000b174                scrn_scroll_default
+ .text          0x000000000000b27c        0x0 ../../../libti99/libti99.a(vdp_textdefs.o)
+ .text          0x000000000000b27c      0x200 ../../../libti99/libti99.a(vdp_byte2hex.o)
+                0x000000000000b27c                byte2hex
+ .text          0x000000000000b47c       0x26 ../../../libti99/libti99.a(vdp_memread.o)
+                0x000000000000b47c                vdpmemread
+ .text          0x000000000000b4a2       0x2c ../../../libti99/libti99.a(vdp_memcpy.o)
+                0x000000000000b4a2                vdpmemcpy
+ .text          0x000000000000b4ce       0x2a ../../../libti99/libti99.a(vdp_memset.o)
+                0x000000000000b4ce                vdpmemset
+ .text          0x000000000000b4f8       0x88 ../../../libti99/libti99.a(conio_bgcolor.o)
+                0x000000000000b57c                reverse
+                0x000000000000b55c                bordercolor
+                0x000000000000b4f8                bgcolor
+                0x000000000000b528                textcolor
  *(.gnu.warning)
 
 .fini
  *(.fini)
-                0x000000000000b3ac                PROVIDE (__etext, .)
-                0x000000000000b3ac                PROVIDE (_etext, .)
-                0x000000000000b3ac                PROVIDE (etext, .)
+                0x000000000000b580                PROVIDE (__etext, .)
+                0x000000000000b580                PROVIDE (_etext, .)
+                0x000000000000b580                PROVIDE (etext, .)
 
 .rodata
  *(.rodata .rodata.* .gnu.linkonce.r.*)
@@ -260,7 +265,7 @@ Address of section .data set to 0x2080
 
 .gcc_except_table
  *(.gcc_except_table .gcc_except_table.*)
-                0x00000000000167ac                . = (ALIGN (0x200) + (. & 0xffffffffffffffff))
+                0x0000000000016b80                . = (ALIGN (0x200) + (. & 0xffffffffffffffff))
 
 .eh_frame
  *(.eh_frame)
@@ -275,22 +280,22 @@ Address of section .data set to 0x2080
  *(.tbss .tbss.* .gnu.linkonce.tb.*)
  *(.tcommon)
 
-.preinit_array  0x00000000000167ac        0x0
-                0x00000000000167ac                PROVIDE (__preinit_array_start, .)
+.preinit_array  0x0000000000016b80        0x0
+                0x0000000000016b80                PROVIDE (__preinit_array_start, .)
  *(.preinit_array)
-                0x00000000000167ac                PROVIDE (__preinit_array_end, .)
+                0x0000000000016b80                PROVIDE (__preinit_array_end, .)
 
-.init_array     0x00000000000167ac        0x0
-                0x00000000000167ac                PROVIDE (__init_array_start, .)
+.init_array     0x0000000000016b80        0x0
+                0x0000000000016b80                PROVIDE (__init_array_start, .)
  *(SORT(.init_array.*))
  *(.init_array)
-                0x00000000000167ac                PROVIDE (__init_array_end, .)
+                0x0000000000016b80                PROVIDE (__init_array_end, .)
 
-.fini_array     0x00000000000167ac        0x0
-                0x00000000000167ac                PROVIDE (__fini_array_start, .)
+.fini_array     0x0000000000016b80        0x0
+                0x0000000000016b80                PROVIDE (__fini_array_start, .)
  *(.fini_array)
  *(SORT(.fini_array.*))
-                0x00000000000167ac                PROVIDE (__fini_array_end, .)
+                0x0000000000016b80                PROVIDE (__fini_array_end, .)
 
 .ctors
  *crtbegin.o(.ctors)
@@ -321,7 +326,7 @@ Address of section .data set to 0x2080
  .data          0x0000000000002080        0x0 crt0_ea5.o
  .data          0x0000000000002080        0x0 ab_sid.o
  .data          0x0000000000002080        0x0 tisidplay.o
- .data          0x0000000000002080        0x0 CSIDPlayCommonHandEdit.o
+ .data          0x0000000000002080        0x0 ../TISN/CPlayerCommonHandEdit.o
  .data          0x0000000000002080        0x0 CSIDPlayTIHandEdit.o
  .data          0x0000000000002080        0x0 ../../../libti99/libti99.a(vdp_setgraphics.o)
  .data          0x0000000000002080        0x0 ../../../libti99/libti99.a(vdp_sprite.o)
@@ -369,7 +374,7 @@ Address of section .data set to 0x2080
  .bss           0x000000000000208c        0x0 crt0_ea5.o
  .bss           0x000000000000208c        0x0 ab_sid.o
  .bss           0x000000000000208c        0x0 tisidplay.o
- .bss           0x000000000000208c        0x0 CSIDPlayCommonHandEdit.o
+ .bss           0x000000000000208c        0x0 ../TISN/CPlayerCommonHandEdit.o
  .bss           0x000000000000208c        0x0 CSIDPlayTIHandEdit.o
  .bss           0x000000000000208c        0x0 ../../../libti99/libti99.a(vdp_setgraphics.o)
  .bss           0x000000000000208c        0x0 ../../../libti99/libti99.a(vdp_sprite.o)

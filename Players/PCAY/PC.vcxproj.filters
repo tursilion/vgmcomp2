@@ -6,6 +6,7 @@
     <ClCompile Include="sound.cpp" />
     <ClCompile Include="CPlayerPC.cpp" />
     <ClCompile Include="ay8912.cpp" />
+    <ClCompile Include="..\CPlayer\CPlayerTest.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sound.h" />

@@ -48,7 +48,7 @@ nullptr
 	mov  r4,@>FFFC(r2)  * save as mainPtr
 	clr  @>FFFA(r2)     * zero curPtr
 	clr  *r2            * zero curBytes and framesLeft
-	li   r4,getSidZero
+	li   r4,getDatZero
 	mov  r4,@>FFFE(r2)  * set curType to getSidZero (just a safety move)
 
 	ai   r2,>8          * next structure
@@ -164,7 +164,7 @@ SongSID
     clr  r12                * prepare to write CRU
     sbo  >24                * write keyboard select - this maps in the SID Blaster
     mov  r11,@sidSave       * save the return address
-	li   r13,getCompressedSid  * store address of getCompressedSid
+	li   r13,getCompressedByte  * store address of getCompressedSid
     li   r6,>0100           * 1 in a byte for byte math
 
 	mov  @sidDat+66,r1      * timestream mainPtr
