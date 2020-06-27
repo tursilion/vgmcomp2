@@ -165,7 +165,7 @@ getDatRLE24
 * uint8 getCompressedByte(STREAM *str, uint8 *buf)
 * r15 = str (and curptr is offset 0), buf is unused and not provided
 * r6 /must/ contain >0100 on entry
-* r2 will be zeroed if timestream was ended
+* r2 will be zero if timestream was ended
 * mainptr is offset 2, curType is 4, curBytes is 6
 	def	getCompressedByte,getDatZero
 
@@ -261,7 +261,7 @@ L29
 	mov  r4,r4				* zero means end of stream
 	jeq  L39				* if zero, go clean up
 	
-	a    @workBuf,r4		* add address of song base to the offset
+	a    r5,r4		        * add current mainPtr to the offset
 	movb *r4+,r1            * get the byte
 	mov  r4,*r15    		* save to curPtr
 	inct r5					* add cost of 2 to mainPtr

@@ -365,6 +365,7 @@ int getCompressedByte(STREAM *str, unsigned char *buf, int cnt, int maxbytes) {
                 str->mainPtr = 0;
                 return 0;
             }
+            str->curPtr = (str->curPtr + str->mainPtr) & 0xffff;
             str->mainPtr += 2;
             str->curBytes = (x&0x3f) + 4;
         }
@@ -852,7 +853,7 @@ int main(int argc, char *argv[])
     int delay = 16;
     int sbfsong = 0;
 
-	printf("VGMComp Test Player - v20200620\n");
+	printf("VGMComp Test Player - v20200626\n");
 
 	if (argc < 2) {
 		printf("testPlayPSG [-ay|-sn|-sid] [-forcenoise x] [-sbfsong x] [-hidenotes] [-heatmap] [<file prefix> | <file.sbf> | <track1> <track2> ...]\n");

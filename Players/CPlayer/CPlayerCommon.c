@@ -11,6 +11,11 @@
 #define TYPEBACKREF 0xc0
 #define TYPEBACKREF2 0xe0
 
+// NOTE: "buf" is not used anywhere in this file, but it's provided
+// in case it is useful for visualizers or the like. If you need
+// to save space and your compiler doesn't optimize it out, feel
+// free to remove it.
+
 // extract a byte from the buffer, called for every byte
 // Normally inline, but if you need to split up your
 // output date (say, for banking or split memory), you
@@ -72,17 +77,17 @@ uint8 getCompressedByte(STREAM *str, uint8 *buf) {
     case TYPEBACKREF:  // long back reference
     case TYPEBACKREF2:
         {
-            int temp;
+            signed short temp;   // to ensure we get proper sign extension - 16 bit
             str->curType = getDatInline;
             x1 = getBufferByte(buf, str->mainPtr);
             x2 = getBufferByte(buf, str->mainPtr+1);
-            temp = x1*256 + x2;
+            temp = (short)(x1*256 + x2);
             // check for end of stream
             if (temp == 0) {
                 str->mainPtr = 0;
                 return 0;
             }
-            str->curPtr = buf + temp;
+            str->curPtr = str->mainPtr + temp;  // add before we increment mainptr
             str->mainPtr += 2;
             str->curBytes = (x&0x3f) + 4;
         }

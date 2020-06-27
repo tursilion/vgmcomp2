@@ -261,7 +261,7 @@ L29
 	mov  r4,r4				* zero means end of stream
 	jeq  L39				* if zero, go clean up
 	
-	a    @workSID,r4		* add address of song base to the offset
+	a    r5,r4		        * add current mainptr to the offset
 	movb *r4+,r1            * get the byte
 	mov  r4,*r15    		* save to curPtr
 	inct r5					* add cost of 2 to mainPtr

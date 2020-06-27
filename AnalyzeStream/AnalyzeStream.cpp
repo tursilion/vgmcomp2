@@ -299,6 +299,7 @@ bool processNew(int str) {
                 printf("--END--\n");
                 return true;
             } else {
+                tmp = (tmp+pos)&0xffff;
                 for (int idx=0; (idx<10)&&(idx<size); ++idx) {
                     printf("%02X ", buf[tmp+idx]);
                 }
@@ -316,7 +317,7 @@ bool processNew(int str) {
 }
 
 int main(int argc, char *argv[]) {
-	printf("VGMComp2 Stream Analysis Tool - v20200625\n\n");
+	printf("VGMComp2 Stream Analysis Tool - v20200626\n\n");
 
     if (argc < 3) {
         printf("AnalyzeStream <name.sbf> <stream index (0-based)> [-old]\n");

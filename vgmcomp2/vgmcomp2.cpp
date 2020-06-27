@@ -23,15 +23,9 @@
 // be empty but not currently enforced.
 
 // TODO: allow the command line to specify input type before every PSG file so
-// that multiple chip types can be mixed.
-
-// TODO: investigate whether the SID can be forced to share an end-stream command from
-// another channel to save a couple of bytes. I think the volume encoding mechanism may
-// cause problems with this (ie: volume streams never end). Currently it eats 24 bytes
-// (5 for the single row of noise and 19 for the volume commands) in afterburner (84s),
-// so we can estimate about 10 bytes per minute plus some change, if the rest of
-// the file can't provide a nice stream of 0x0f bytes for the mutes. ;)
-// Of course, the truly desperate could just hack those streams out...
+// that multiple chip types can be mixed. (The tone table gets confusing here, but
+// we could take the format into account and just extend it...?)
+// This also needs to apply to the forceChan option, that should also be per-song...
 
 #include "stdafx.h"
 #include <stdio.h>
@@ -82,12 +76,33 @@ const int INLINEBITS2 = 0x20;   // 00x
 #define MAXCHANNELS 4                       // channels 0-2 are tone, and 3 is noise
 #define MAXSONGS 16                         // kind of arbitrary
 
-struct SONG {
+class SONG {
     // note: the VGMDAT, VGMVOL, and outStream must all be the SAME base type (int today)
+public:
+    SONG() {
+        reset();
+    }
+    void reset() {
+        for (int idx=0; idx<MAXCHANNELS; ++idx) {
+            for (int idx2=0; idx2<MAXTICKS; ++idx2) {
+                VGMDAT[idx][idx2] = 0;
+                VGMVOL[idx][idx2] = 0;
+            }
+        }
+        for (int idx=0; idx<MAXSTREAMS; ++idx) {
+            streamCnt[idx] = 0;
+            lastnote[idx] = -1;
+            streamOffset[idx] = 0;
+            for (int idx2=0; idx2<MAXTICKS; ++idx2) {
+                outStream[idx][idx2] = INT_MAX;     // so we can detect the end of RLE data
+            }
+        }
+        outCnt = 0;
+    }
 
     // raw tick data from the file
-    int VGMDAT[MAXCHANNELS][MAXTICKS];
-    int VGMVOL[MAXCHANNELS][MAXTICKS];
+    int VGMDAT[MAXCHANNELS][MAXTICKS];          // voice data
+    int VGMVOL[MAXCHANNELS][MAXTICKS];          // volume data
 
     // RLE compressed data
     int outStream[MAXSTREAMS][MAXTICKS];        // storage for the output streams
@@ -95,11 +110,15 @@ struct SONG {
 
     // informational data
     int lastnote[MAXSTREAMS];                   // used to check for RLE
-    int outCnt;
+    int outCnt;                                 // number of rows in the song
 
     // stream data
     int streamOffset[MAXSTREAMS];               // where in the binary blob does each stream start
 } songs[MAXSONGS], testSong;                    // testSong is used for the unpack testing
+
+// skip empty streams
+bool skipStreams[MAXSTREAMS];
+bool forceStreams[MAXSTREAMS];
 
 #define MAXNOTES 256
 int noteCnt;
@@ -226,10 +245,10 @@ bool loadDataCSV(FILE *fp, int &chan, SONG *s, int column, bool noise) {
     return true;
 }
 
-bool testOutputRLE(SONG *s) {
+bool testInitialRLE(SONG *s) {
     // output outStream[][] and streamCnt[] into testSong's VGMDAT[][] amd VGMVOL[][]
     // so that we can make sure it packed correctly
-    // NOTE: this still processes for isSID, even though we won't use the last channel
+    // NOTE: the RLE phase happens on all streams, even skipped ones, but we don't test it
     int incnt[MAXSTREAMS];
     int testCnt[MAXSTREAMS];    // we can do tones and volumes separately anyway
     bool ret = true;
@@ -252,9 +271,25 @@ bool testOutputRLE(SONG *s) {
     int timecnt = 0;
 
     for (;;) {
+        // always true on first row!
         if (--timecnt < 0) {
+            // check if we ran out of data - RLE data is bytes so full ints are unset data
+            if (s->outStream[TIMESTREAM][incnt[TIMESTREAM]] == INT_MAX) {
+                break;
+            }
+
+            // assumes TONE1 is zero
             for (int idx=TONE1; idx<=NOISE; ++idx) {
+                // timestream bits should be set for EVERY channel on the first row...
+                if (s->outStream[TIMESTREAM][incnt[TIMESTREAM]] > 0xff) {
+                    printf("RLE encode error - out of data on timestream.\n");
+                    return false;
+                }
                 if (s->outStream[TIMESTREAM][incnt[TIMESTREAM]] & (0x80>>idx)) {
+                    if (s->outStream[idx][incnt[idx]] > 0xff) {
+                        printf("RLE encode error - out of data on voice %d at output row %d.\n", idx, testCnt[idx]);
+                        return false;
+                    }
                     t->VGMDAT[idx][testCnt[idx]++] = s->outStream[idx][incnt[idx]++];
                 } else {
                     if (testCnt[idx] > 0) {
@@ -262,6 +297,11 @@ bool testOutputRLE(SONG *s) {
                         // just remember what was currently set. It's only because
                         // I'm storing every frame into an array for later compare
                         t->VGMDAT[idx][testCnt[idx]] = t->VGMDAT[idx][testCnt[idx]-1];
+                    } else {
+                        if (!skipStreams[idx]) {
+                            // if the stream was skipped, the timestream deliberately set no first value
+                            printf("Warning, first row did not set a frequency value on voice %d\n", idx);
+                        }
                     }
                     testCnt[idx]++;
                 }
@@ -275,10 +315,6 @@ bool testOutputRLE(SONG *s) {
 
             incnt[TIMESTREAM]++;
             
-            // TODO: this is not a great way to end the RLE test either...
-            if ((s->outStream[TIMESTREAM][incnt[TIMESTREAM]]==0) && (s->outStream[TIMESTREAM][incnt[TIMESTREAM]+1]==0)) {
-                break;
-            }
         } else {
             for (int idx=TONE1; idx<=NOISE; ++idx) {
                 t->VGMDAT[idx][testCnt[idx]] = t->VGMDAT[idx][testCnt[idx]-1];
@@ -313,37 +349,36 @@ bool testOutputRLE(SONG *s) {
     bool cont = true;
     int volcnt[4] = {0,0,0,0};
     while (cont) {
+        // check if we're done
+        // volume length is linked to voice length
+        if ((testCnt[VOL1] == testCnt[TONE1]) &&
+            (testCnt[VOL2] == testCnt[TONE2]) &&
+            (testCnt[VOL3] == testCnt[TONE3]) &&
+            (testCnt[VOL4] == testCnt[NOISE])) {
+            cont = false;
+            break;
+        }
+
         if (debug) printf("%05d - ", testCnt[VOL1]);
         for (int idx=VOL1; idx<=VOL4; ++idx) {
             if (debug) printf("%X: ", idx);
             if (--volcnt[idx-VOL1] < 0) {
+                if (s->outStream[idx][incnt[idx]] > 0xff) {
+                    printf("RLE encode error - out of data on volume %d at output row %d.\n", idx-VOL1, testCnt[idx]);
+                    return false;
+                }
                 if (debug) printf("%X/%2d ", (s->outStream[idx][incnt[idx]]>>4)&0xf, (s->outStream[idx][incnt[idx]]&0xf));
                 volcnt[idx-VOL1] = s->outStream[idx][incnt[idx]++];
                 t->VGMVOL[idx-VOL1][testCnt[idx]++] = (volcnt[idx-VOL1]>>4)&0xf;
                 volcnt[idx-VOL1] &= 0x0f;
 
-                // check if we're done only when VOL4 finishes
-                // they SHOULD all line up, but we need to add that check...
+                // print if we're done now that someone has finished
                 if (idx == VOL4) {
                     if (debug) printf("(%d%d%d%d) ",
-                        (testCnt[VOL1] > testCnt[TONE1]),
-                        (testCnt[VOL2] > testCnt[TONE2]),
-                        (testCnt[VOL3] > testCnt[TONE3]),
-                        (testCnt[VOL4] > testCnt[NOISE]));
-
-                    // volume length is linked to voice length
-                    if ((testCnt[VOL1] > testCnt[TONE1]) &&
-                        (testCnt[VOL2] > testCnt[TONE2]) &&
-                        (testCnt[VOL3] > testCnt[TONE3]) &&
-                        (testCnt[VOL4] > testCnt[NOISE])) {
-                        // decrement them all - exact length checked below
-                        --testCnt[VOL1];
-                        --testCnt[VOL2];
-                        --testCnt[VOL3];
-                        --testCnt[VOL4];
-                        cont = false;
-                        break;
-                    }
+                        (testCnt[VOL1] == testCnt[TONE1]),
+                        (testCnt[VOL2] == testCnt[TONE2]),
+                        (testCnt[VOL3] == testCnt[TONE3]),
+                        (testCnt[VOL4] == testCnt[NOISE]));
                 }
             } else {
                 if (debug) printf(".... ");
@@ -373,6 +408,7 @@ bool testOutputRLE(SONG *s) {
 
     // and test it - VERIFY PHASE 1 means this whole RLE test
     for (int idx=0; idx<TIMESTREAM; ++idx) {
+        if (skipStreams[idx]) continue;
         if (testCnt[idx] != s->outCnt) {
             printf("VERIFY PHASE 1 - Failed on song length - got %d rows on %s %d, song was %d rows\n", 
                    testCnt[idx], idx<VOL1?"channel":"volume", idx, s->outCnt);
@@ -381,6 +417,7 @@ bool testOutputRLE(SONG *s) {
     }
     for (int idx=0; idx<s->outCnt; ++idx) {
         for (int idx2=0; idx2<MAXCHANNELS; ++idx2) {
+            if (skipStreams[idx2]) continue;
             if (s->VGMDAT[idx2][idx] != t->VGMDAT[idx2][idx]) {
                 printf("VERIFY PHASE 1 - failed on song data - channel %d, row %d, got 0x%X vs desired 0x%X (aborting check)\n",
                        idx2, idx, t->VGMDAT[idx2][idx], s->VGMDAT[idx2][idx]);
@@ -412,7 +449,7 @@ bool testOutputSBF(SONG *s, int songidx) {
     // tool it's okay, but if you pull it out you need to check the buffer size.
     bool ret = true;
     SONG *t = &testSong;
-    memset(&testSong, 0, sizeof(testSong));
+    testSong.reset();
 
     // first, look up each stream offset
     int noteOffset = outputBuffer[NOTETABLE]*256 + outputBuffer[NOTETABLE+1];
@@ -424,15 +461,8 @@ bool testOutputSBF(SONG *s, int songidx) {
         int offset = (songidx*18) + (st*2) + outputBuffer[STREAMTABLE]*256 + outputBuffer[STREAMTABLE+1];
         offset = outputBuffer[offset]*256 + outputBuffer[offset+1];
 
-        if (isSID) {
-            if ((st==3)||(st==7)) {
-                if (offset != 0) {
-                    printf("VERIFY PHASE 2 - failed on stream %d, got %04X vs desired 0x0000\n",
-                        st, offset);
-                    ret = false;
-                }
-                continue;
-            }
+        if (skipStreams[st]) {
+            continue;
         }
 
         t->streamCnt[st] = 0;
@@ -452,17 +482,18 @@ bool testOutputSBF(SONG *s, int songidx) {
                 {
                     int cnt = (outputBuffer[offset++]&0x3f)+4;
                     int off = outputBuffer[offset]*256 + outputBuffer[offset+1];
-                    offset+=2;
                     if (off == 0) {
                         if (debug) printf(" ENDSTREAM()");
                         // end of stream (bytes are already encoded?)
                         keepgoing = false;
                     } else {
+                        off = (off + offset) & 0xffff;
                         if (debug) printf(" BACKREF(%d @ 0x%04X)", cnt, off);
                         while (cnt--) {
                             t->outStream[st][t->streamCnt[st]++] = outputBuffer[off++];
                         }
                     }
+                    offset+=2;
                 }
                 break;
 
@@ -543,7 +574,7 @@ bool testOutputSBF(SONG *s, int songidx) {
 
     // and test it - VERIFY PHASE 2 means this whole SBF test
     for (int st=0; st<MAXSTREAMS; ++st) {
-        if ((isSID) && ((st==3)||(st==7))) {
+        if (skipStreams[st]) {
             continue;
         }
 
@@ -577,74 +608,77 @@ bool initialRLE(SONG *s) {
     // (noise handling here is different on the AY)
     // Basically, we need to RLE all four channels at the same time
     // Output goes into outStream[]
-    // NOTE: this still processes for isSID, even though we won't use the last channel
+    // NOTE: this still processes for all streams, even if skipStream
 
     // set up first block defaults
     s->streamCnt[TIMESTREAM]=0;
-    s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]=0xf0;  // start with all channels changing
+    // set the timestream channels in use for the first update
+    s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]=0;
+    if (!skipStreams[TONE1]) s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]] |= 0x80;
+    if (!skipStreams[TONE2]) s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]] |= 0x40;
+    if (!skipStreams[TONE3]) s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]] |= 0x20;
+    if (!skipStreams[NOISE]) s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]] |= 0x10;
 
     // tones and noise - first note
     for (int idx=TONE1; idx<=NOISE; ++idx) {
         s->streamCnt[idx]=0;
         s->lastnote[idx]=s->VGMDAT[idx][0];
-        s->outStream[idx][s->streamCnt[idx]++] = s->lastnote[idx];
+        if (idx == NOISE) s->lastnote[idx] &= (~NOISE_OUT_TRIGGER);
+        s->outStream[idx][s->streamCnt[idx]++] = s->lastnote[idx];  // save the first note
     }
 
-    // now RLE the rest (tones and noise only)
-    for (int idx=0; idx<s->outCnt; ++idx) {
+    // now RLE the tones and noise - all RLE'd together, maximum
+    // count is 16, and minimum count is 1, stored -1 in the least
+    // significant nibble of the time stream. The most significant
+    // nibble indicates which channels change.
+    // At the point of change, we know the channels, but we don't
+    // know the count to hold until the next change.
+    int idx = 0;
+    int count = -1;     // because we're about to count row 0
+    while (idx < s->outCnt) {
+        if ((s->lastnote[0] == s->VGMDAT[0][idx]) &&    // any voices changed
+            (s->lastnote[1] == s->VGMDAT[1][idx]) &&    // or...
+            (s->lastnote[2] == s->VGMDAT[2][idx]) && 
+            (s->lastnote[3] == s->VGMDAT[3][idx]) && 
+            (idx != s->outCnt-1) &&                     // last row, or...
+            (count < 15)) {                             // count is not at maximum
+            ++idx;
+            ++count;
+            continue;
+        }
+        // fill in the RLE
         int diff=0;
-        // check each tone/noise channel
-        for (int idx2=TONE1; idx2<=NOISE; ++idx2) {
-            if (s->lastnote[idx2] != s->VGMDAT[idx2][idx]) {
-                diff|=0x80>>idx2; 
-                s->lastnote[idx2] = s->VGMDAT[idx2][idx];   
-                s->outStream[idx2][s->streamCnt[idx2]++] = s->lastnote[idx2];    // saving off the new note
-
-                // don't remember the trigger flag on the noise channel, so it matches non-triggers
-                if (idx == 3) {
-                    s->lastnote[idx2] &= ~NOISE_OUT_TRIGGER;
-                }
+        // check each tone/noise channel - assumes TONE1 starts at 0, btw.
+        for (int chan=TONE1; chan<=NOISE; ++chan) {
+            int testMask = (chan == NOISE) ? (~NOISE_OUT_TRIGGER) : 0xff;
+            if (s->lastnote[chan] != (s->VGMDAT[chan][idx] & testMask)) {
+                diff|=0x80>>chan; 
+                s->lastnote[chan] = s->VGMDAT[chan][idx] & testMask;
+                s->outStream[chan][s->streamCnt[chan]++] = s->lastnote[chan];    // saving off the new note
             }
         }
-
-        if (diff != 0) {
-            // don't decrement the timestream count if we didn't count any at all - handles
-            // the case of timeout plus change on the same frame
-            if (s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]] > 0) {
-                // decrement the old timestream count
-                s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]--;
-                s->streamCnt[TIMESTREAM]++;
-            }
-            // init the new timestream count
-            s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]=diff+1;    // include this row
-        } else {
-            // we're still counting - this timeout costs 4 bytes per second on no changes
-            s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]++;
-            if ((s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]&0x0f) == 0) {
-                // wraparound, so decrement
-                s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]--;
-                // maximum count, so move to the next one
-                s->streamCnt[TIMESTREAM]++;
-                s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]=0;     // no channel changes, this row already counted
-            }
+        // count is already predecremented - merge it into the existing timestream, then start the new one
+        if (count > 15) {
+            printf("RLE count encoding error.\n");
+            return false;
         }
+        // if this is the final row and diff was zero, that means we needed
+        // one more frame of no changes, and it's indistinguishable from the
+        // end of the RLE. The old code looked for 0,0 to find the end, but
+        // we just can't rely on that, the test code and encoding code MUST
+        // use the known length to work correctly. That's okay because the
+        // final encoded song DOES have an absolute end marker.
+        // Also, if this is the last row and diff is not zero, the count will
+        // be zero which is correct for one frame.
+        s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]++] |= count;
+        s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]] = diff;
+        if (idx == s->outCnt-1) {
+            // last frame, so register this timestream byte too
+            ++s->streamCnt[TIMESTREAM];
+        }
+        ++idx;
+        count = 0;
     }
-
-    // reduce the final count by 1, since we didn't get a chance above (must do this before the nibble tweaking)
-    // if it was zero (only possible in the maximum size case), then we can delete the entry entirely
-    if ((s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]&0xf) == 0) {
-        // do nothing, this row is discarded
-        //s->streamCnt[TIMESTREAM]--;
-    } else {
-        s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]--;
-        ++s->streamCnt[TIMESTREAM]; // count this row
-    }
-
-    // at the end, re-set the first timestream command nibble to remove unused channels
-    if (s->streamCnt[TONE1] == 0) s->outStream[TIMESTREAM][0] &= 0x7f;
-    if (s->streamCnt[TONE2] == 0) s->outStream[TIMESTREAM][0] &= 0xbf;
-    if (s->streamCnt[TONE3] == 0) s->outStream[TIMESTREAM][0] &= 0xdf;
-    if (s->streamCnt[NOISE] == 0) s->outStream[TIMESTREAM][0] &= 0xef;
 
     // Individually RLE each volume channel (not included in the streams above)
     for (int idx=VOL1; idx<=VOL4; ++idx) {
@@ -664,7 +698,8 @@ bool initialRLE(SONG *s) {
                     s->outStream[idx2][s->streamCnt[idx2]] |= (s->lastnote[idx2]<<4)&0xf0;
                     s->streamCnt[idx2]++;
                 } else {
-                    printf("Special case of wrap and count out (if a problem occurs, tell Tursi this line appeared)\n");
+                    // I think it's okay to do nothing...
+//                    printf("Special case of wrap and count out stream %d (if a problem occurs, tell Tursi this line appeared)\n", idx2);
                 }
                 s->outStream[idx2][s->streamCnt[idx2]]=1;         // include this row
                 s->lastnote[idx2] = s->VGMVOL[idx2-VOL1][idx];
@@ -688,7 +723,7 @@ bool initialRLE(SONG *s) {
         if ((s->outStream[idx2][s->streamCnt[idx2]]&0xf) == 0) {
             // do nothing - it's empty - although how did we get here?
             //s->streamCnt[idx2]--;
-            printf("Impossible RLE 0 case\n");  // haven't seen this actually hit...
+            //printf("Impossible RLE 0 case\n");    // it's clearly not impossible, I see it a lot..
         } else {
             s->outStream[idx2][s->streamCnt[idx2]]--;
             s->outStream[idx2][s->streamCnt[idx2]] |= (s->lastnote[idx2]<<4)&0xf0;
@@ -1141,9 +1176,8 @@ bool compressStream(int song, int st, int minstep) {
             // now check the remaining streams for forward refs
             for (int sng=song; sng<currentSong; ++sng) {
                 for (int stx=(sng==song?st+1:0); stx<MAXSTREAMS; ++stx) {
-                    // again, for SID we have to skip the omitted streams so we don't
-                    // base compression decisions based on them...
-                    if ((isSID) && ((stx==3)||(stx==7))) continue;
+                    // skip the omitted streams so we don't base compression decisions on them...
+                    if (skipStreams[stx]) continue;
                     stringSearchFwd(str, thisLen, songs[sng].outStream[stx], songs[sng].streamCnt[stx], bestFwdLen, bestFwdScore);
                 }
             }
@@ -1373,6 +1407,8 @@ bool compressStream(int song, int st, int minstep) {
             bestBwdLen -= 4;
             if (bestBwdLen > MAXSIZE) bestBwdLen=MAXSIZE;   // that's all the bits we have
             outputBuffer[outputPos++] = BACKREFBITS | bestBwdLen;
+            // position is relative to THIS point, 16-bit signed result
+            bestBwdPos = (bestBwdPos - outputPos) & 0xffff;
             outputBuffer[outputPos++] = bestBwdPos / 256;
             outputBuffer[outputPos++] = bestBwdPos % 256;
 
@@ -1491,7 +1527,14 @@ bool compressStream(int song, int st, int minstep) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Compression Tool - v20200625\n\n");
+	printf("VGMComp2 Compression Tool - v20200627\n\n");
+
+    // skip NO streams by default
+    for (int idx=0; idx<MAXSTREAMS; ++idx) {
+        skipStreams[idx] = false;
+        forceStreams[idx] = false;
+    }
+    forceStreams[TIMESTREAM] = true;    // always need the timestream
 
     // parse arguments
     int nextarg = -1;
@@ -1532,6 +1575,10 @@ int main(int argc, char *argv[])
                     printf("Can't select multiple PSG options.\n");
                     return 1;
                 }
+                // SID doesn't use these streams
+                skipStreams[3] = true;
+                skipStreams[3+4] = true;
+                printf("Skip streams 3 and 7 for SID\n");
             } else if (0 == strcmp(argv[idx], "-minrun")) {
                 ++idx;
                 if (idx>=argc) {
@@ -1555,6 +1602,24 @@ int main(int argc, char *argv[])
                     printf("MinRunMax must be less than %d\n", MAXRUN);
                     return 1;
                 }
+            } else if (0 == strcmp(argv[idx], "-forcechan")) {
+                int chan;
+                ++idx;
+                if (idx>=argc) {
+                    printf("Not enough arguments for forcechan!\n");
+                    return 1;
+                }
+                if (1 != sscanf(argv[idx], "%d", &chan)) {
+                    printf("Parse error on forcechan\n");
+                    return 1;
+                }
+                if ((chan < 0)||(chan > 3)) {
+                    printf("Valid channels are 0-3\n");
+                    return 1;
+                }
+                // flag the streams as force enabled
+                forceStreams[chan] = true;
+                forceStreams[chan+4] = true;
             } else if (0 == strcmp(argv[idx], "-alwaysrle")) {
                 alwaysRLE = true;
             } else if (0 == strcmp(argv[idx], "-norle")) {
@@ -1597,7 +1662,7 @@ int main(int argc, char *argv[])
         if ((isAY==false)&&(isPSG==false)&&(isSID==false)) {
             printf("* You must specify -ay, -sn or -sid for output type\n");
         }
-        printf("vgmcomp2 [-d] [-dd] [-v] [-minrun s,e] [-alwaysrle] [-norle] [-norle16] [-norle24] [-norle32] [-nofwd] [-nobwd] <-ay|-sn> <filenamein1.psg> [<filenamein2.psg>...] <filenameout.sbf>\n");
+        printf("vgmcomp2 [-d] [-dd] [-v] [-minrun s,e] [-forcechan c] [-alwaysrle] [-norle] [-norle16] [-norle24] [-norle32] [-nofwd] [-nobwd] <-ay|-sn> <filenamein1.psg> [<filenamein2.psg>...] <filenameout.sbf>\n");
         printf("\nProvides a compressed (sound compressed format) file from\n");
         printf("an input file containing either PSG or AY-3-8910 data\n");
         printf("Except for the noise handling, the output is the same.\n");
@@ -1607,6 +1672,7 @@ int main(int argc, char *argv[])
         printf("-dd - add extra compressor debug output (does not include -d)\n");
         printf("-v - add extra verbose information\n");
         printf("-minrun - specify start and end for minrun search. Default %d,%d. Maximum 0,20\n", minRunMin, minRunMax);
+        printf("-forcechan - force channel 'c' to be included, even if mute. Useful for SN tunes using voice 2 ONLY for noise frequency, which would otherwise be dropped.\n");
         printf("\nThe following tuning options may very rarely be helpful. They apply to the SBF compression and not the initial RLE pack:\n");
         printf("-alwaysrle - always use RLE over string if available - the following disables are still honored\n");
         printf("-norle - disable single-byte RLE encoding\n");
@@ -1673,23 +1739,26 @@ int main(int argc, char *argv[])
                 }
 
                 int match = -1;
-                for (int idx2=0; idx2<noteCnt; ++idx2) {
+                for (int idx2=0; (idx2<noteCnt)&&(idx2<MAXNOTES); ++idx2) {
                     if (note == noteTable[idx2]) {
                         match = idx2;
                         break;
                     }
                 }
                 if (match == -1) {
-                    if (noteCnt >= MAXNOTES) {
-                        printf("Too many notes in song, try reducing count%s\n",
-                               currentSong>1 ? " or try stacking fewer songs.":".");
-                        return 1;
+                    if (noteCnt < MAXNOTES) {
+                        noteTable[noteCnt] = note;
                     }
-                    noteTable[noteCnt] = note;
+                    // if we overflow, keep counting but don't store
                     match = noteCnt++;
                 }
                 songs[thisSong].VGMDAT[chan][idx] = match;
             }
+        }
+        if (noteCnt > MAXNOTES) {
+            printf("Too many notes in song (%d), try reducing count%s\n", noteCnt,
+                    currentSong>1 ? " or try stacking fewer songs.":".");
+            return 1;
         }
         if (currentSong > 1) {
             if (verbose) printf("Song %d adds %d notes to note table\n", thisSong, noteCnt - oldNoteCnt);
@@ -1701,34 +1770,49 @@ int main(int argc, char *argv[])
     // do the RLE pack. It's necessary because it allows us to have RLE in the post-encoded stream
     // Confirmed this makes an important difference 99.99% of the time (okay, 99.99 is a guess... but up there)
     for (int idx=0; idx<currentSong; ++idx) {
+        // do a quick test to see if there are any streams that we should skip because they are empty
+        // we only check volume, since we can't be sure about the frequency channel HAVING a mute
+        // TODO: should be legal to specify the forcechan per song....
+        bool hasNotes[4] = {false, false, false, false};
+        for (int voc = TONE1; voc<=NOISE; ++voc) {
+            for (int idx2 = 0; idx2<songs[idx].outCnt; ++idx2) {
+                if (isPSG) if (songs[idx].VGMVOL[voc][idx2] < 0xf) hasNotes[voc]=true;
+                if (isAY)  if (songs[idx].VGMVOL[voc][idx2] > 0)   hasNotes[voc]=true;
+                if (isSID) if (songs[idx].VGMVOL[voc][idx2] > 0)   hasNotes[voc]=true;
+            }
+        }
+        for (int voc = TONE1; voc<=NOISE; ++voc) {
+            if ((!hasNotes[voc]) && (!forceStreams[voc])) {
+                skipStreams[voc] = true;
+                skipStreams[voc+4] = true;
+                printf("Skipping streams %d and %d due to no audio\n", voc, voc+4);
+            }
+            if ((forceStreams[voc])&&(skipStreams[voc])) {
+                skipStreams[voc] = false;
+                skipStreams[voc+4] = false;
+                printf("Forcing streams %d and %d due to forcechan\n", voc, voc+4);
+            }
+        }
+        // now we can use skipStreams everywhere else instead of assuming by chip type
+
         if (verbose) printf("RLE Packing song %d (%d rows)...\n", idx, songs[idx].outCnt);
         if (!initialRLE(&songs[idx])) {
             return 1;
         }
         if (verbose) {
-            printf("  - Tone 1 to %d rows\n", songs[idx].streamCnt[TONE1]);
-            printf("  - Tone 2 to %d rows\n", songs[idx].streamCnt[TONE2]);
-            printf("  - Tone 3 to %d rows\n", songs[idx].streamCnt[TONE3]);
-            if (!isSID) printf("  - Noise  to %d rows\n", songs[idx].streamCnt[NOISE]);
-            printf("  - Vol  1 to %d rows\n", songs[idx].streamCnt[VOL1]);
-            printf("  - Vol  2 to %d rows\n", songs[idx].streamCnt[VOL2]);
-            printf("  - Vol  3 to %d rows\n", songs[idx].streamCnt[VOL3]);
-            if (!isSID) printf("  - Vol  4 to %d rows\n", songs[idx].streamCnt[VOL4]);
-            printf("  - TimeSt to %d rows\n", songs[idx].streamCnt[TIMESTREAM]);
-            printf("  = %d bytes to %d bytes\n", songs[idx].outCnt*(2+2+2+1+1+1+1+1), 
-                   songs[idx].streamCnt[TONE1]+songs[idx].streamCnt[TONE2]+songs[idx].streamCnt[TONE3]+
-                   songs[idx].streamCnt[NOISE]+songs[idx].streamCnt[VOL1]+songs[idx].streamCnt[VOL2]+
-                   songs[idx].streamCnt[VOL3]+songs[idx].streamCnt[VOL4]+songs[idx].streamCnt[TIMESTREAM]);
+            int total = 0;
+            if (!skipStreams[0]) { total+=songs[idx].streamCnt[0]; printf("  - Tone 1 to %d rows\n", songs[idx].streamCnt[TONE1]); }
+            if (!skipStreams[1]) { total+=songs[idx].streamCnt[0]; printf("  - Tone 2 to %d rows\n", songs[idx].streamCnt[TONE2]); }
+            if (!skipStreams[2]) { total+=songs[idx].streamCnt[0]; printf("  - Tone 3 to %d rows\n", songs[idx].streamCnt[TONE3]); }
+            if (!skipStreams[3]) { total+=songs[idx].streamCnt[0]; printf("  - Noise  to %d rows\n", songs[idx].streamCnt[NOISE]); }
+            if (!skipStreams[4]) { total+=songs[idx].streamCnt[0]; printf("  - Vol  1 to %d rows\n", songs[idx].streamCnt[VOL1]); }
+            if (!skipStreams[5]) { total+=songs[idx].streamCnt[0]; printf("  - Vol  2 to %d rows\n", songs[idx].streamCnt[VOL2]); }
+            if (!skipStreams[6]) { total+=songs[idx].streamCnt[0]; printf("  - Vol  3 to %d rows\n", songs[idx].streamCnt[VOL3]); }
+            if (!skipStreams[7]) { total+=songs[idx].streamCnt[0]; printf("  - Vol  4 to %d rows\n", songs[idx].streamCnt[VOL4]); }
+            if (!skipStreams[8]) { total+=songs[idx].streamCnt[0]; printf("  - TimeSt to %d rows\n", songs[idx].streamCnt[TIMESTREAM]); }
+            printf("  = %d bytes to %d bytes\n", songs[idx].outCnt*(2+2+2+1+1+1+1+1), total);
         }
     }
-    // test the RLE process
-    for (int idx=0; idx<currentSong; ++idx) {
-        if (verbose) printf("RLE Testing song %d...\n", idx);
-        if (!testOutputRLE(&songs[idx])) {
-            return 1;
-        }
-    }
-    if (verbose) printf("RLE tests successful.\n\n");
 
 #ifdef _DEBUG
     // dump the streams so I can look at them
@@ -1745,6 +1829,15 @@ int main(int argc, char *argv[])
         }
     }
 #endif
+
+    // test the RLE process
+    for (int idx=0; idx<currentSong; ++idx) {
+        if (verbose) printf("RLE Testing song %d...\n", idx);
+        if (!testInitialRLE(&songs[idx])) {
+            return 1;
+        }
+    }
+    if (verbose) printf("RLE tests successful.\n\n");
 
     // prepare the output binary blob
     memset(outputBuffer, 0xff, sizeof(outputBuffer));
@@ -1764,12 +1857,11 @@ int main(int argc, char *argv[])
     // Individually compress each of the 9 channels (all treated the same)
     for (int song=0; song<currentSong; ++song) {
         for (int st=0; st<MAXSTREAMS; ++st) {
-            // now here we DO have to skip the SID tracks, because otherwise
-            // they might be used for compression by other tracks. This means
-            // a bit of ugly checks since it's hard to skip two interleaved streams
-            if ((isSID) && ((st==3)||(st==7))) {
+            // now here we DO have to skipStream the tracks, because otherwise
+            // they might be used for compression by other tracks.
+            if (skipStreams[st]) {
                 if (verbose) {
-                    printf("SBF skip    song %d, stream %d for SID...\n", song, st);
+                    printf("SBF skip    song %d, stream %d...\n", song, st);
                 }
                 songs[song].streamOffset[st] = 0;   // no stream encoded
                 continue;
@@ -1984,6 +2076,9 @@ int main(int argc, char *argv[])
 
     // deepdive blows these stats away cause we don't keep all the run data across every combination
     if ((verbose) && (!doDeepDive)) {
+        int cnt = 0;
+        for (int idx = 0; idx<MAXSTREAMS; ++idx) if (skipStreams[idx]) ++cnt;
+        printf("  %d skipped streams\n", cnt);
         printf("  %d RLE encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLEs.cnt, minRunData[MAXRUN].cntRLEs.avg(3));
         printf("  %d RLE16 encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLE16s.cnt, minRunData[MAXRUN].cntRLE16s.avg(2));
         printf("  %d RLE24 encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLE24s.cnt, minRunData[MAXRUN].cntRLE24s.avg(2));

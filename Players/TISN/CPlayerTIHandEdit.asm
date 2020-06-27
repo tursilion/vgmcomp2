@@ -1,9 +1,3 @@
-* TODO:
-* - study Silius title - its almost 2k smaller on the old one. Why? Where is the gain?
-*   If we can merge that gain with this tool, then well have it nailed.
-* - Mutes: this player (music) will /check/ the bits for mute. SFX will /set/ the bits for mute.
-*   Theres no need for the SFX player to check mutes and no need for this one to set them.
-
 * code that is specific to a single instance of the player
 * Hand edit of CPlayerTI.c assembly by Tursi, with SN mode
 * and mute enabled in songActive. Due to hard coded addresses,
