@@ -45,7 +45,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISN", "TISN", "{280179E3-2613-41F5-A99B-0BE8B51CB232}"
 	ProjectSection(SolutionItems) = preProject
 		Players\TISN\CPlayerCommonHandEdit.asm = Players\TISN\CPlayerCommonHandEdit.asm
-		Players\TISN\CPlayerTI.c = Players\TISN\CPlayerTI.c
 		Players\TISN\CPlayerTIHandEdit.asm = Players\TISN\CPlayerTIHandEdit.asm
 		Players\TISN\crt0_ea5.asm = Players\TISN\crt0_ea5.asm
 		Players\TISN\Makefile = Players\TISN\Makefile
@@ -72,7 +71,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCSID", "Players\PCSID\PCSI
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISID", "TISID", "{1E65BDBD-AF4C-4AF3-AFC9-F9C6814ED736}"
 	ProjectSection(SolutionItems) = preProject
-		Players\TISN\CPlayerCommonHandEdit.asm = Players\TISN\CPlayerCommonHandEdit.asm
 		Players\TISID\crt0_ea5.asm = Players\TISID\crt0_ea5.asm
 		Players\TISID\CSIDPlay.h = Players\TISID\CSIDPlay.h
 		Players\TISID\CSIDPlayTIHandEdit.asm = Players\TISID\CSIDPlayTIHandEdit.asm
@@ -98,6 +96,19 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISNSID", "TISNSID", "{0FFE
 		Players\TISNSID\wbsid.c = Players\TISNSID\wbsid.c
 		Players\TISNSID\wbsn.c = Players\TISNSID\wbsn.c
 	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISNSFX", "TISNSFX", "{B3D7944B-E97B-4F71-B64E-01C9E3B063EF}"
+	ProjectSection(SolutionItems) = preProject
+		Players\TISNSFX\CPlayerSfx.h = Players\TISNSFX\CPlayerSfx.h
+		Players\TISNSFX\CPlayerTISfx.asm = Players\TISNSFX\CPlayerTISfx.asm
+		Players\TISNSFX\crt0_ea5.asm = Players\TISNSFX\crt0_ea5.asm
+		Players\TISNSFX\demomusic.c = Players\TISNSFX\demomusic.c
+		Players\TISNSFX\Makefile = Players\TISNSFX\Makefile
+		Players\TISNSFX\Readme.txt = Players\TISNSFX\Readme.txt
+		Players\TISNSFX\snsfxplay.c = Players\TISNSFX\snsfxplay.c
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PlayerSamples", "PlayerSamples", "{2A023C95-5B26-4C4C-838E-77468DD1C9D4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -246,7 +257,8 @@ Global
 		{280179E3-2613-41F5-A99B-0BE8B51CB232} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 		{E1FC2EB0-D727-485C-89FA-44CC6914D7FF} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 		{1E65BDBD-AF4C-4AF3-AFC9-F9C6814ED736} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
-		{0FFE32FC-EDE2-4668-9961-9A6163D0C79F} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
+		{0FFE32FC-EDE2-4668-9961-9A6163D0C79F} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
+		{B3D7944B-E97B-4F71-B64E-01C9E3B063EF} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

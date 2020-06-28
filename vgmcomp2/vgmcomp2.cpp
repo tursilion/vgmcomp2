@@ -26,6 +26,8 @@
 // that multiple chip types can be mixed. (The tone table gets confusing here, but
 // we could take the format into account and just extend it...?)
 // This also needs to apply to the forceChan option, that should also be per-song...
+// One possible way - create an array of song configuration that includes filename, type, skips
+// and forces, and load that from the command line, THEN process.
 
 #include "stdafx.h"
 #include <stdio.h>
@@ -76,11 +78,19 @@ const int INLINEBITS2 = 0x20;   // 00x
 #define MAXCHANNELS 4                       // channels 0-2 are tone, and 3 is noise
 #define MAXSONGS 16                         // kind of arbitrary
 
+// chip types
+enum {
+    TYPE_NONE,
+    TYPE_SN,
+    TYPE_AY,
+    TYPE_SID
+};
+
 class SONG {
     // note: the VGMDAT, VGMVOL, and outStream must all be the SAME base type (int today)
 public:
     SONG() {
-        reset();
+        setType(TYPE_NONE);
     }
     void reset() {
         for (int idx=0; idx<MAXCHANNELS; ++idx) {
@@ -93,12 +103,23 @@ public:
             streamCnt[idx] = 0;
             lastnote[idx] = -1;
             streamOffset[idx] = 0;
+            skipStreams[idx] = false;
+            forceStreams[idx] = false;
             for (int idx2=0; idx2<MAXTICKS; ++idx2) {
                 outStream[idx][idx2] = INT_MAX;     // so we can detect the end of RLE data
             }
         }
         outCnt = 0;
+        forceStreams[TIMESTREAM] = true;
+        if (isSID()) {
+            skipStreams[NOISE] = true;
+            skipStreams[VOL4] = true;
+        }
     }
+    bool isSN() { return chipType == TYPE_SN; }
+    bool isAY() { return chipType == TYPE_AY; }
+    bool isSID() { return chipType == TYPE_SID; }
+    void setType(int type) { chipType = type; reset(); }
 
     // raw tick data from the file
     int VGMDAT[MAXCHANNELS][MAXTICKS];          // voice data
@@ -111,14 +132,13 @@ public:
     // informational data
     int lastnote[MAXSTREAMS];                   // used to check for RLE
     int outCnt;                                 // number of rows in the song
+    int chipType;
 
     // stream data
     int streamOffset[MAXSTREAMS];               // where in the binary blob does each stream start
+    bool skipStreams[MAXSTREAMS];               // which streams are being skipped
+    bool forceStreams[MAXSTREAMS];              // which streams are being forced
 } songs[MAXSONGS], testSong;                    // testSong is used for the unpack testing
-
-// skip empty streams
-bool skipStreams[MAXSTREAMS];
-bool forceStreams[MAXSTREAMS];
 
 #define MAXNOTES 256
 int noteCnt;
@@ -134,7 +154,6 @@ int currentSong = 0;
 
 // options
 char szFileOut[256]={0};
-bool isPSG=false, isAY=false, isSID=false;
 bool verbose = false;
 bool debug = false;
 bool debug2 = false;
@@ -298,7 +317,7 @@ bool testInitialRLE(SONG *s) {
                         // I'm storing every frame into an array for later compare
                         t->VGMDAT[idx][testCnt[idx]] = t->VGMDAT[idx][testCnt[idx]-1];
                     } else {
-                        if (!skipStreams[idx]) {
+                        if (!s->skipStreams[idx]) {
                             // if the stream was skipped, the timestream deliberately set no first value
                             printf("Warning, first row did not set a frequency value on voice %d\n", idx);
                         }
@@ -408,7 +427,7 @@ bool testInitialRLE(SONG *s) {
 
     // and test it - VERIFY PHASE 1 means this whole RLE test
     for (int idx=0; idx<TIMESTREAM; ++idx) {
-        if (skipStreams[idx]) continue;
+        if (s->skipStreams[idx]) continue;
         if (testCnt[idx] != s->outCnt) {
             printf("VERIFY PHASE 1 - Failed on song length - got %d rows on %s %d, song was %d rows\n", 
                    testCnt[idx], idx<VOL1?"channel":"volume", idx, s->outCnt);
@@ -417,7 +436,7 @@ bool testInitialRLE(SONG *s) {
     }
     for (int idx=0; idx<s->outCnt; ++idx) {
         for (int idx2=0; idx2<MAXCHANNELS; ++idx2) {
-            if (skipStreams[idx2]) continue;
+            if (s->skipStreams[idx2]) continue;
             if (s->VGMDAT[idx2][idx] != t->VGMDAT[idx2][idx]) {
                 printf("VERIFY PHASE 1 - failed on song data - channel %d, row %d, got 0x%X vs desired 0x%X (aborting check)\n",
                        idx2, idx, t->VGMDAT[idx2][idx], s->VGMDAT[idx2][idx]);
@@ -461,7 +480,7 @@ bool testOutputSBF(SONG *s, int songidx) {
         int offset = (songidx*18) + (st*2) + outputBuffer[STREAMTABLE]*256 + outputBuffer[STREAMTABLE+1];
         offset = outputBuffer[offset]*256 + outputBuffer[offset+1];
 
-        if (skipStreams[st]) {
+        if (s->skipStreams[st]) {
             continue;
         }
 
@@ -574,7 +593,7 @@ bool testOutputSBF(SONG *s, int songidx) {
 
     // and test it - VERIFY PHASE 2 means this whole SBF test
     for (int st=0; st<MAXSTREAMS; ++st) {
-        if (skipStreams[st]) {
+        if (s->skipStreams[st]) {
             continue;
         }
 
@@ -614,10 +633,10 @@ bool initialRLE(SONG *s) {
     s->streamCnt[TIMESTREAM]=0;
     // set the timestream channels in use for the first update
     s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]]=0;
-    if (!skipStreams[TONE1]) s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]] |= 0x80;
-    if (!skipStreams[TONE2]) s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]] |= 0x40;
-    if (!skipStreams[TONE3]) s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]] |= 0x20;
-    if (!skipStreams[NOISE]) s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]] |= 0x10;
+    if (!s->skipStreams[TONE1]) s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]] |= 0x80;
+    if (!s->skipStreams[TONE2]) s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]] |= 0x40;
+    if (!s->skipStreams[TONE3]) s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]] |= 0x20;
+    if (!s->skipStreams[NOISE]) s->outStream[TIMESTREAM][s->streamCnt[TIMESTREAM]] |= 0x10;
 
     // tones and noise - first note
     for (int idx=TONE1; idx<=NOISE; ++idx) {
@@ -1177,7 +1196,7 @@ bool compressStream(int song, int st, int minstep) {
             for (int sng=song; sng<currentSong; ++sng) {
                 for (int stx=(sng==song?st+1:0); stx<MAXSTREAMS; ++stx) {
                     // skip the omitted streams so we don't base compression decisions on them...
-                    if (skipStreams[stx]) continue;
+                    if (songs[sng].skipStreams[stx]) continue;
                     stringSearchFwd(str, thisLen, songs[sng].outStream[stx], songs[sng].streamCnt[stx], bestFwdLen, bestFwdScore);
                 }
             }
@@ -1529,15 +1548,10 @@ int main(int argc, char *argv[])
 {
 	printf("VGMComp2 Compression Tool - v20200627\n\n");
 
-    // skip NO streams by default
-    for (int idx=0; idx<MAXSTREAMS; ++idx) {
-        skipStreams[idx] = false;
-        forceStreams[idx] = false;
-    }
-    forceStreams[TIMESTREAM] = true;    // always need the timestream
-
     // parse arguments
     int nextarg = -1;
+    // these flags go away when we can mix chip types on one command line
+    bool setAY=false, setSN=false, setSID=false;
     for (int idx=1; idx<argc; ++idx) {
         if (argv[idx][0]=='-') {
             // parse switch
@@ -1552,33 +1566,48 @@ int main(int argc, char *argv[])
             } else if (argv[idx][1] == 'v') {
                 verbose= true;
             } else if (0 == strcmp(argv[idx], "-sn")) {
-                isPSG=true;
+                // todo: make this per song
+                for (int x=0; x<MAXSONGS; ++x) {
+                    songs[x].setType(TYPE_SN);
+                }
+                // todo: put these masks into the song class so they are per song too
                 noiseMask = NOISE_MASK;
                 toneMask = TONE_MASK;
-                if ((isAY)||(isSID)) {
+                // todo: this goes away when we allow multiple chip types
+                setSN = true;
+                if ((setAY)||(setSID)) {
                     printf("Can't select multiple PSG options.\n");
                     return 1;
                 }
             } else if (0 == strcmp(argv[idx], "-ay")) {
-                isAY=true;
+                // todo: make this per song
+                for (int x=0; x<MAXSONGS; ++x) {
+                    songs[x].setType(TYPE_AY);
+                }
+                // todo: put these masks into the song class so they are per song too
                 noiseMask = NOISE_MASK_AY;
                 toneMask = TONE_MASK_AY;
-                if ((isPSG)||(isSID)) {
+                // todo: this goes away when we allow multiple chip types
+                setAY=true;
+                if ((setSN)||(setSID)) {
                     printf("Can't select multiple PSG options.\n");
                     return 1;
                 }
             } else if (0 == strcmp(argv[idx], "-sid")) {
-                isSID=true;
+                // todo: make this per song
+                printf("Skip streams 3 and 7 for SID\n");
+                for (int x=0; x<MAXSONGS; ++x) {
+                    songs[x].setType(TYPE_SID);
+                }
+                // todo: put these masks into the song class so they are per song too
                 noiseMask = NOISE_MASK_SID;
                 toneMask = TONE_MASK_SID;
-                if ((isPSG)||(isAY)) {
+                // todo: this goes away when we allow multiple chip types
+                setSID=true;
+                if ((setSN)||(setAY)) {
                     printf("Can't select multiple PSG options.\n");
                     return 1;
                 }
-                // SID doesn't use these streams
-                skipStreams[3] = true;
-                skipStreams[3+4] = true;
-                printf("Skip streams 3 and 7 for SID\n");
             } else if (0 == strcmp(argv[idx], "-minrun")) {
                 ++idx;
                 if (idx>=argc) {
@@ -1618,8 +1647,11 @@ int main(int argc, char *argv[])
                     return 1;
                 }
                 // flag the streams as force enabled
-                forceStreams[chan] = true;
-                forceStreams[chan+4] = true;
+                // TODO: make this per song
+                for (int x=0; x<MAXSONGS; ++x) {
+                    songs[x].forceStreams[chan] = true;
+                    songs[x].forceStreams[chan+4] = true;
+                }
             } else if (0 == strcmp(argv[idx], "-alwaysrle")) {
                 alwaysRLE = true;
             } else if (0 == strcmp(argv[idx], "-norle")) {
@@ -1658,8 +1690,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if ((strlen(szFileOut)==0)||((isAY==false)&&(isPSG==false)&&(isSID==false))) {
-        if ((isAY==false)&&(isPSG==false)&&(isSID==false)) {
+    // TODO: the type testing needs to be extended when multiple types per command line
+    if ((strlen(szFileOut)==0)||((songs[0].isAY()==false)&&(songs[0].isSN()==false)&&(songs[0].isSID()==false))) {
+        if ((songs[0].isAY()==false)&&(songs[0].isSN()==false)&&(songs[0].isSID()==false)) {
             printf("* You must specify -ay, -sn or -sid for output type\n");
         }
         printf("vgmcomp2 [-d] [-dd] [-v] [-minrun s,e] [-forcechan c] [-alwaysrle] [-norle] [-norle16] [-norle24] [-norle32] [-nofwd] [-nobwd] <-ay|-sn> <filenamein1.psg> [<filenamein2.psg>...] <filenameout.sbf>\n");
@@ -1776,40 +1809,42 @@ int main(int argc, char *argv[])
         bool hasNotes[4] = {false, false, false, false};
         for (int voc = TONE1; voc<=NOISE; ++voc) {
             for (int idx2 = 0; idx2<songs[idx].outCnt; ++idx2) {
-                if (isPSG) if (songs[idx].VGMVOL[voc][idx2] < 0xf) hasNotes[voc]=true;
-                if (isAY)  if (songs[idx].VGMVOL[voc][idx2] > 0)   hasNotes[voc]=true;
-                if (isSID) if (songs[idx].VGMVOL[voc][idx2] > 0)   hasNotes[voc]=true;
+                if (songs[idx].isSN())  if (songs[idx].VGMVOL[voc][idx2] < 0xf) hasNotes[voc]=true;
+                if (songs[idx].isAY())  if (songs[idx].VGMVOL[voc][idx2] > 0)   hasNotes[voc]=true;
+                if (songs[idx].isSID()) if (songs[idx].VGMVOL[voc][idx2] > 0)   hasNotes[voc]=true;
             }
         }
+
+        if (verbose) printf("RLE Packing song %d (%d rows)...\n", idx, songs[idx].outCnt);
+
         for (int voc = TONE1; voc<=NOISE; ++voc) {
-            if ((!hasNotes[voc]) && (!forceStreams[voc])) {
-                skipStreams[voc] = true;
-                skipStreams[voc+4] = true;
-                printf("Skipping streams %d and %d due to no audio\n", voc, voc+4);
+            if ((!hasNotes[voc]) && (!songs[idx].forceStreams[voc])) {
+                songs[idx].skipStreams[voc] = true;
+                songs[idx].skipStreams[voc+4] = true;
+                printf("- Skipping streams %d and %d due to no audio\n", voc, voc+4);
             }
-            if ((forceStreams[voc])&&(skipStreams[voc])) {
-                skipStreams[voc] = false;
-                skipStreams[voc+4] = false;
-                printf("Forcing streams %d and %d due to forcechan\n", voc, voc+4);
+            if ((songs[idx].forceStreams[voc])&&(songs[idx].skipStreams[voc])) {
+                songs[idx].skipStreams[voc] = false;
+                songs[idx].skipStreams[voc+4] = false;
+                printf("- Forcing streams %d and %d due to forcechan\n", voc, voc+4);
             }
         }
         // now we can use skipStreams everywhere else instead of assuming by chip type
 
-        if (verbose) printf("RLE Packing song %d (%d rows)...\n", idx, songs[idx].outCnt);
         if (!initialRLE(&songs[idx])) {
             return 1;
         }
         if (verbose) {
             int total = 0;
-            if (!skipStreams[0]) { total+=songs[idx].streamCnt[0]; printf("  - Tone 1 to %d rows\n", songs[idx].streamCnt[TONE1]); }
-            if (!skipStreams[1]) { total+=songs[idx].streamCnt[0]; printf("  - Tone 2 to %d rows\n", songs[idx].streamCnt[TONE2]); }
-            if (!skipStreams[2]) { total+=songs[idx].streamCnt[0]; printf("  - Tone 3 to %d rows\n", songs[idx].streamCnt[TONE3]); }
-            if (!skipStreams[3]) { total+=songs[idx].streamCnt[0]; printf("  - Noise  to %d rows\n", songs[idx].streamCnt[NOISE]); }
-            if (!skipStreams[4]) { total+=songs[idx].streamCnt[0]; printf("  - Vol  1 to %d rows\n", songs[idx].streamCnt[VOL1]); }
-            if (!skipStreams[5]) { total+=songs[idx].streamCnt[0]; printf("  - Vol  2 to %d rows\n", songs[idx].streamCnt[VOL2]); }
-            if (!skipStreams[6]) { total+=songs[idx].streamCnt[0]; printf("  - Vol  3 to %d rows\n", songs[idx].streamCnt[VOL3]); }
-            if (!skipStreams[7]) { total+=songs[idx].streamCnt[0]; printf("  - Vol  4 to %d rows\n", songs[idx].streamCnt[VOL4]); }
-            if (!skipStreams[8]) { total+=songs[idx].streamCnt[0]; printf("  - TimeSt to %d rows\n", songs[idx].streamCnt[TIMESTREAM]); }
+            if (!songs[idx].skipStreams[0]) { total+=songs[idx].streamCnt[0]; printf("  - Tone 1 to %d rows\n", songs[idx].streamCnt[TONE1]); }
+            if (!songs[idx].skipStreams[1]) { total+=songs[idx].streamCnt[0]; printf("  - Tone 2 to %d rows\n", songs[idx].streamCnt[TONE2]); }
+            if (!songs[idx].skipStreams[2]) { total+=songs[idx].streamCnt[0]; printf("  - Tone 3 to %d rows\n", songs[idx].streamCnt[TONE3]); }
+            if (!songs[idx].skipStreams[3]) { total+=songs[idx].streamCnt[0]; printf("  - Noise  to %d rows\n", songs[idx].streamCnt[NOISE]); }
+            if (!songs[idx].skipStreams[4]) { total+=songs[idx].streamCnt[0]; printf("  - Vol  1 to %d rows\n", songs[idx].streamCnt[VOL1]); }
+            if (!songs[idx].skipStreams[5]) { total+=songs[idx].streamCnt[0]; printf("  - Vol  2 to %d rows\n", songs[idx].streamCnt[VOL2]); }
+            if (!songs[idx].skipStreams[6]) { total+=songs[idx].streamCnt[0]; printf("  - Vol  3 to %d rows\n", songs[idx].streamCnt[VOL3]); }
+            if (!songs[idx].skipStreams[7]) { total+=songs[idx].streamCnt[0]; printf("  - Vol  4 to %d rows\n", songs[idx].streamCnt[VOL4]); }
+            if (!songs[idx].skipStreams[8]) { total+=songs[idx].streamCnt[0]; printf("  - TimeSt to %d rows\n", songs[idx].streamCnt[TIMESTREAM]); }
             printf("  = %d bytes to %d bytes\n", songs[idx].outCnt*(2+2+2+1+1+1+1+1), total);
         }
     }
@@ -1859,7 +1894,7 @@ int main(int argc, char *argv[])
         for (int st=0; st<MAXSTREAMS; ++st) {
             // now here we DO have to skipStream the tracks, because otherwise
             // they might be used for compression by other tracks.
-            if (skipStreams[st]) {
+            if (songs[song].skipStreams[st]) {
                 if (verbose) {
                     printf("SBF skip    song %d, stream %d...\n", song, st);
                 }
@@ -2003,19 +2038,21 @@ int main(int argc, char *argv[])
             printf("Ran out of room in outputBuffer (maximum 64k!) Encode failed.\n");
             return false;
         }
-        if (isPSG) {
+        // TODO: the note table needs to be formatted as its written for multiple songs...
+        // here we just assume the first song matches all the song types
+        if (songs[0].isSN()) {
             // PSG uses a two byte format, where the first byte contains the
             // least significant nibble plus a command nibble, and the second
             // byte contains the most significant 6 bits
             outputBuffer[outputPos++] = noteTable[nt] & 0xf;
             outputBuffer[outputPos++] = (noteTable[nt] >> 4) & 0x3f;
-        } else if (isAY) {
+        } else if (songs[0].isAY()) {
             // AY uses two registers. The even register contains the least
             // significant 8 bits, and the odd register contains the most
             // significant 4 bits
             outputBuffer[outputPos++] = noteTable[nt] & 0xff;
             outputBuffer[outputPos++] = (noteTable[nt] >> 8) & 0xf;
-        } else if (isSID) {
+        } else if (songs[0].isSID()) {
             // SID uses two registers, and is stored little endian first, full 16 bits
             outputBuffer[outputPos++] = noteTable[nt] & 0xff;
             outputBuffer[outputPos++] = (noteTable[nt] >> 8) & 0xff;
@@ -2076,9 +2113,6 @@ int main(int argc, char *argv[])
 
     // deepdive blows these stats away cause we don't keep all the run data across every combination
     if ((verbose) && (!doDeepDive)) {
-        int cnt = 0;
-        for (int idx = 0; idx<MAXSTREAMS; ++idx) if (skipStreams[idx]) ++cnt;
-        printf("  %d skipped streams\n", cnt);
         printf("  %d RLE encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLEs.cnt, minRunData[MAXRUN].cntRLEs.avg(3));
         printf("  %d RLE16 encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLE16s.cnt, minRunData[MAXRUN].cntRLE16s.avg(2));
         printf("  %d RLE24 encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLE24s.cnt, minRunData[MAXRUN].cntRLE24s.avg(2));

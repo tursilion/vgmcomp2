@@ -354,4 +354,4 @@ test/
 *.s
 *.bin
 *.elf
-
+*.60hz

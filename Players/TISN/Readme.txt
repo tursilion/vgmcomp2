@@ -17,21 +17,21 @@ The sample player calls it from the interrupt hook to demonstrate usage from C.
 The main issue is that you now need to give it the workspace at >8300. The C version
 also needs the stack pointer R10 set up, but that's not recommended for use.
 
-MEMORY USAGE (C):                                V1              HandTuned      songDat in Scratchpad
+MEMORY USAGE (C):                                V1              HandTuned
     Song data storage: 88 bytes                 124 bytes        88 bytes
     Stack usage: 16 bytes                         0 bytes         0 bytes
     Workspace: 32 bytes - but optional           32 bytes         0 bytes (*)
 
     Total: 136 bytes                            156 bytes        88 bytes
 
-    Code: 1409 bytes                            608 bytes       740 bytes
+    Code: 1409 bytes                            608 bytes       732 bytes (348 bytes shared)
 
 CPU USAGE:
     Over the course of my test song (Silius title):
         MIN:  2,198 cycles                         938             1,294
-        MAX: 17,310 cycles                       9,722             8,754
-        AVG:  6,208 cycles                       3,989             3,624
-  Scanlines:  11-90 (avg 32)                  5-51 (avg 21)     7-46 (avg 19)
+        MAX: 17,310 cycles                       9,722             8,266
+        AVG:  6,208 cycles                       3,989             3,822
+  Scanlines:  11-90 (avg 32)                  5-51 (avg 21)     7-43 (avg 20)
 
   (190.8 cycles per scanline)
 

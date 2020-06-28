@@ -3,7 +3,7 @@ GAS=~/gcc9900/bin/tms9900-as
 LD=~/gcc9900/bin/tms9900-ld
 CC=~/gcc9900/bin/tms9900-gcc
 CP=/bin/cp
-NAME=tisnplay
+NAME=tisfxplay
 
 # Path to elf2cart conversion utility
 ELF2CART=~/gcc9900/bin/elf2cart
@@ -29,30 +29,30 @@ OBJECT_LIST_EA5=\
   crt0_ea5.o
 
 OBJECT_LIST=\
-  sil_nes.o \
-  tisnplay.o \
-  CPlayerCommonHandEdit.o \
-  CPlayerTIHandEdit.o \
-  ../CPlayer/CPlayerTest.o
+  demomusic.o \
+  snsfxplay.o \
+  ../TISN/CPlayerCommonHandEdit.o \
+  ../TISN/CPlayerTIHandEdit.o   \
+  CPlayerTISfx.o
 
 # List of all files needed in executable
 PREREQUISITES=\
   $(OBJECT_LIST_EA5) $(OBJECT_LIST)
   
-all: tisnplay
-	-/mnt/d/work/classic99paste/release/classic99paste.exe -reset xx25DSK0.TISNPLAY\\n || true
+all: tisfxplay
+	-/mnt/d/work/classic99paste/release/classic99paste.exe -reset xx25DSK0.TISFXPLAY1\\n || true
 
 # Recipe to compile the executable
-tisnplay: $(PREREQUISITES)
+tisfxplay: $(PREREQUISITES)
 	$(LD) $(OBJECT_LIST_EA5) $(OBJECT_LIST) $(LIBS) $(LIBPATH) $(LDFLAGS_EA5) -o $(NAME).ea5.elf > ea5.map
 	$(ELF2EA5) $(NAME).ea5.elf $(NAME).ea5.bin
 	$(EA5PLIT) $(NAME).ea5.bin
-	$(CP) TISNPLA* /mnt/d/classic99/dsk1/
+	$(CP) TISFXPLA* /mnt/d/classic99/dsk1/
 
 split:
 	$(EA5PLIT) $(NAME).ea5.bin
 	$(ELF2CART) $(NAME).c.elf $(NAME).c.bin
-	$(CP) TISNPLAY* /mnt/d/classic99/dsk1/
+	$(CP) TISFXPLAY* /mnt/d/classic99/dsk1/
 
 # Recipe to clean all compiled objects
 .phony clean:

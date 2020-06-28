@@ -1,7 +1,31 @@
-* code that is specific to a single instance of the player
-* Hand edit of CPlayerTI.c assembly by Tursi, with SN mode
-* and mute enabled in songActive. Due to hard coded addresses,
-* you need a separate build for sfx (CPlayerCommon is shared)
+* Based on CPlayerTIHandEdit.asm, also required the TISN player
+* to be available. This SFX player has the following differences,
+* beyond just names:
+*
+* - no storage of note/volume data (to save memory, usually not needed)
+* - StartSfx takes an additional priority value, higher numbers are higher priority
+* - when it finishes playing, or is stopped, it attempts to restore
+*   the current audio from the main player (if playing)
+* - rather than honoring the mutes, it sets them in its own flags.
+*   the user application will normally just transfer them over to
+*   the main player, unless it has need of further processing.
+* - You may NOT clear the "trigger bits" from the songNotes and songVol
+*   arrays - the stop code here relies on them being present to be
+*   able to more quickly restore the original song
+*
+* Remain aware of the connection between the third voice and the noise
+* channel - if your song or SFX uses custom noises and does not claim
+* BOTH channels, you may get some unexpected results. ;)
+*
+* Also note that a sound effect that pre-empts a lower priority sound
+* effect does not restore it - this means that if your new sound effect
+* uses different channels, the original channels will remain blocked
+* to the main song and MAY be left with a continuing tone until the
+* new SFX ends. The best way around this is to make sure your sfx
+* all use the same channels. Restoring the voices at the end of a
+* sound effect can be rather expensive, so this saves a bit of time
+* when the most likely case is that it's unneded.
+*
 * Public Domain
 
 * we sometimes need to directly access the LSB of some registers - addresses here
@@ -9,6 +33,7 @@
 * wipe it out. If you need to preserve your own registers, use a different workspace.
 R2LSB EQU >8305
 
+    ref songNote,songVol
     pseg
 
 * we sometimes need to directly access the LSB of some registers - addresses here
@@ -16,22 +41,38 @@ R2LSB EQU >8305
 R3LSB EQU >8307
 R6LSB EQU >830D
 
-* SongActive is stored in the LSB of the noise channel
-songActive EQU songNote+7
+* songActive is stored in the LSB of the noise channel
+* assembler doesnt like this syntax, so done inline
+*songActive EQU songNote+7
+
+* sfxActive is its own word. Its LSB is the current priority
 
 * Call this function to prepare to play
 * r1 = pSbf - pointer to song block data (must be word aligned)
 * r2 = songNum - which song to play in MSB (byte, starts at 0)
-	def	StartSong
+* r3 = priority in MSB - higher is more priority
+	def	StartSfx
     even
-StartSong
-    li r3,18            * each table is 18 bytes (warning: StopSong uses this - don''t move it!)
+StartSfx
+    li r4,>0100         * activity bit (warning: StopSong uses this - dont move it!)
+    mov @sfxActive,r5   * get the activity bits
+    coc r4,r5           * are we active?
+    jne okstart         * no, go ahead
+    swpb r5             * get priority byte
+    cb r3,r5            * check priority
+    jh okstart
+    b *r11              * too low priority, ignore
+
+okstart
+    movb r3,@sfxActive+1    * store the new priority
+
+    li r3,18            * each table is 18 bytes
     srl r2,8            * make byte in R2 into a word
     mpy r2,r3           * multiply, result in r3/r4 (so r4)
 	mov *r1,r3          * get pointer to stream indexes into r3
 	a    r4,r3          * add song offset to stream offset to get base stream for this song
 	a    r1,r3          * add buf to make it a memory pointer (also word aligned)
-	li   r2,strDat+6    * point to the first strDats "curBytes" with r2
+	li   r2,sfxDat+6    * point to the first strDats "curBytes" with r2
 STARTLP
     mov *r3+,r4         * get stream offset from table and increment pointer
     jeq  nullptr        * if it was >0000, dont add the base address
@@ -44,34 +85,61 @@ nullptr
 	mov  r4,@>FFFE(r2)  * set curType to getDatZero (just a safety move)
 
 	ai   r2,>8          * next structure
-	ci   r2,strDat+78   * check if we did the last (9th) one (9*8=72,+6 offset = 78. I dont know why GCC used an offset,but no biggie)
+	ci   r2,sfxDat+78   * check if we did the last (9th) one (9*8=72,+6 offset = 78. I dont know why GCC used an offset,but no biggie)
 	jne  STARTLP        * loop around if not done
 
-	li   r2,>1          * set all three notes to >0001
-	mov  r2,@songNote
-	mov  r2,@songNote+2
-	mov  r2,@songNote+4
-
-	mov  r1,@workBuf    * store the song pointer in the global
-	li   r2,>0101       * init value for noise with songActive bit set
-	mov  r2,@songNote+6 * set the noise channel note and songActive bit
-
-setMutes
-    li   r2,>9FBF
-    mov  r2,@songVol    * mute songVol 0 and 1
-    li   r2,>DFFF
-    mov  r2,@songVol+2  * mute songVol 2 and 3
-
-	b    *r11
-	.size	StartSong,.-StartSong
+	mov  r1,@sfxWorkBuf * store the song pointer in the global
+	li   r2,>0100       * init value for noise with songActive bit set, no mutes set
+	movb r2,@sfxActive  * songActive bit (LSB is priority, already set)
+    b    *r11
+	.size	StartSfx,.-StartSfx
 
 * Call this to stop the current song
-	def	StopSong
+* this is automatically called when an SFX ends
+* we always restore from what is in the songNote and songVol registers,
+* even if its not playing, so make sure they are initialized properly.
+	def	StopSfx
 	even
-StopSong
-    movb @StartSong+2,@songActive	 * zero all bits in songActive (pulls a 0 byte from a LI)
-    jmp  setMutes                    * make sure the song mutes its voices
-	.size	StopSong,.-StopSong
+StopSfx
+    li r2,>8400                 * sound address
+    movb @sfxActive,r1          * its faster to check and restore only what is needed, due to slow SOUND
+    sla r1,1                    * check first bit
+    jnc stop2
+
+    li r0,songNote              * first note (assumes command bits are still set)
+    movb *r0+,*r2               * write first byte
+    movb *r0,*r2                * write second byte
+    movb @songVol,*r2           * write volume byte
+
+stop2
+    sla r1,1                    * check bit
+    jnc stop3
+
+    li r0,songNote+2            * note (assumes command bits are still set)
+    movb *r0+,*r2               * write first byte
+    movb *r0,*r2                * write second byte
+    movb @songVol+1,*r2         * write volume byte
+
+stop3
+    sla r1,1                    * check bit
+    jnc stop4
+
+    li r0,songNote+4            * note (assumes command bits are still set)
+    movb *r0+,*r2               * write first byte
+    movb *r0,*r2                * write second byte
+    movb @songVol+2,*r2         * write volume byte
+
+stop4
+    sla r1,1                    * check bit
+    jnc stopDone
+
+    movb @songNote+6,*r2        * write noise byte
+    movb @songVol+3,*r2         * write volume byte
+
+stopDone
+    movb @StartSfx+3,@sfxActive	 * zero all bits in songActive (pulls a 0 byte from a LI)
+	b    *r11
+	.size	StopSfx,.-StopSfx
 
 * this needs to be called 60 times per second by your system
 * if this function can be interrupted, dont manipulate songActive
@@ -80,11 +148,12 @@ StopSong
 * By replacing GCC regs 3-6 with 12,0,7,8, and knowing that we dont need to
 * preserve or restore ANY registers on entry, we can do away with
 * the stack usage completely. (We do preserve R10, the C stack.)
-	def	SongLoop
+* As far as the mute bits go, we set them only based on volume output
+	def	SfxLoop
 	even
 
-SongLoop
-    movb @songActive,r1     * need to check if its active
+SfxLoop
+    movb @sfxActive,r1      * need to check if its active
     andi r1,>0100           * isolate the bit
 	jeq  RETHOME2           * if clear, back to caller (normal case drops through faster)
 
@@ -94,7 +163,7 @@ SongLoop
     li   r8,>8400           * address of the sound chip
     li   r6,>0100           * 1 in a byte for byte math
 
-	mov  @strDat+66,r1      * timestream mainPtr
+	mov  @sfxDat+66,r1      * timestream mainPtr
 	jne  HASTIMESTR         * keep working if we still have a timestream
 
 NOTIMESTR
@@ -102,36 +171,33 @@ NOTIMESTR
     jmp  VOLLOOP            * go work on volumes
 
 HASTIMESTR
-    sb r6,@strDat+71        * decrement the timestream frames left
+    sb r6,@sfxDat+71        * decrement the timestream frames left
     jnc  DOTIMESTR          * if it was zero, jump over volumes to get a new byte
 DONETONEACT
 	seto r7                 * set outSongActive to true for later testing
 
 * volume processing loop
 VOLLOOP
-	li   r15,strDat+32      * stream 4 curPtr (vol[0])  r15
-	li   r0,songVol         * songVol table pointer     r0
+	li   r15,sfxDat+32      * stream 4 curPtr (vol[0])  r15
 	li   r14,>9000          * command nibble            r14
-    movb @songActive,r12    * actual mute flags         r12
+    li   r0,>8000           * mute bits for this voice  r0
+    clr  r12                * actual mute flags         r12
 	jmp  VLOOPEND           * jump to bottom of loop
 
 VLOOPDEC
 	seto r7                 * set outSongActive to true for later
 
 VLOOPSHIFT
-    sla r12,1               * if we come here, we still needed to shift
-	inc  r0                 * next songVol pointer
-
-VLOOPNEXT
+    srl  r0,1               * we always come here to shift in this version
 	ai   r15,>8             * next curPtr
 	ai   r14,>2000          * next command nibble
     joc  VLOOPDONE          * that was the last one
 
 VLOOPEND
 	mov  @2(r15),r1         * check if mainPtr is valid
-	jeq  VLOOPSHIFT         * if not, execute next loop after shifting r12
+	jeq  VLOOPSHIFT         * if not, execute next loop after shifting r0
     sb r6,@7(r15)           * decrement frames left
-    joc VLOOPDEC            * was not yet zero, next loop (will shift r12)
+    joc VLOOPDEC            * was not yet zero, next loop (will shift r0)
 
 	bl   *r13               * and call getCompressedByte
 	mov  r2,r2              * check if stream was ended
@@ -148,48 +214,50 @@ VNEWVOL
 	seto r7                 * set outSongActive to true for later
 
 VLOADVOL
+    soc  r0,r12             * set the mute bit in r12
 	socb r14,r1             * merge in the command bits
-
-    sla  r12,1              * check the mute map - carry means muted (test and update in one!)
-	joc  VMUTED             * if the bit was set, skip the write (we still want the rest!)
 	movb r1,*r8             * write to the sound chip
-
-VMUTED
-	movb r1,*r0+            * write the byte to songVol as well, and increment
-    jmp VLOOPNEXT           * next loop
+    jmp VLOOPSHIFT          * next loop
 
 VLOOPDONE
+    socb r12,@sfxActive     * merge in the mute bits - note we never clear them!
+    mov  @retSave,r11       * recover return address
     mov  r7,r7              * end of loop - check if outSongActive was set
     jne  RETHOME            * skip if not zero
-    movb @R6LSB,@songActive	 * turn off the active bit and the mutes (this BYTE writes a >00)
+
+    li   r0,>f000           * going to relieve the mutes on the main song
+    szcb r0,@songNote+7     * no more mutes
+    b    @StopSfx           * go restore the songs notes
 
 RETHOME
-    mov  @retSave,r11       * back to caller
+    movb @songNote+7,r0     * get main songs activity
+    coc r6,r0               * check for activity
+    jne RETHOME2            * not active, so never mind
+    movb @sfxActive,@songNote+7     * copy our active bits over to its mute bits
+
 RETHOME2
 	b    *r11
 
 * handle new timestream event
 DOTIMESTR
-	li   r15,strDat+64      * timestream curPtr
+	li   r15,sfxDat+64      * timestream curPtr
 	bl   *r13               * getCompressedByte
     mov  r2,r2              * check if stream was ended
     jeq  NOTIMESTR  		* skip ahead if it was zero
 
 	movb r1,r9              * make a copy
 	andi r1,>F00            * get framesleft
-	movb r1,@strDat+71      * save in timestream framesLeft
+	movb r1,@sfxDat+71      * save in timestream framesLeft
 
-	li r15,strDat			* start with stream 0, curPtr
-	li r0,songNote			* output pointer for songNote
+	li r15,sfxDat			* start with stream 0, curPtr
 	li r14,>8000			* first command nibble
-	mov @workBuf,r7         * get song address
-	movb @songActive,r12	* get the songActive mutes
+	mov @sfxWorkBuf,r7      * get song address
 
 CKTONE1
     sla  r9,1               * test the timestream bit
-	jnc  CKTONE2SHIFT       * not set, so skip with r12 shift
+	jnc  CKTONE2            * not set, skip
 	mov  @2(r15),r1         * stream mainPtr
-	jeq  CKTONE2SHIFT       * if zero, skip with r12 shift
+	jeq  CKTONE2            * if zero, skip 
 	bl   *r13               * call getCompressedByte
 	mov  r2,r2              * check if stream was ended
 	jne  TONETAB1
@@ -207,9 +275,6 @@ TONETAB1
     soc  r14,r2				* OR in the command bits
 
 WRTONE1
-	mov  r2,*r0+            * save the result in songNote and increment
-	sla  r12,1              * check songActive - carry is mute
-	joc  CKTONE2            * jump over if muted
 	movb r2,*r8             * move command byte to sound chip
 	movb @R2LSB,*r8         * move other byte to sound chip
 	
@@ -229,46 +294,29 @@ CKNOISE
 	jeq  DONETONEACT        * jump if so
 
     soc  r14,r1				* no tone table here, just OR in the command bits
-	sla  r12,1              * check songActive - carry is mute
-	joc  NOISEMUTE
 	movb r1,*r8             * else just write it to the sound chip
-
-NOISEMUTE
-	movb r1,*r0             * save byte only in the songNote, no need to increment
-
-DONETONE
 	jmp  DONETONEACT        * go work on the volumes with outSongActive set
 
-CKTONE2SHIFT
-	sla r12,1               * shift just to stay in sync
-	inct r0					* next SongNote
-	jmp CKTONE2
-
-	.size	SongLoop,.-SongLoop
+	.size	SfxLoop,.-SfxLoop
 
 * this data is in a special section so that you can relocate it at will
 * in the makefile (ie: to put it in scratchpad). If you do nothing,
 * it will be placed after the bss section (normally in low RAM)
-    .section songDatVars
+    .section sfxDatVars
 
 	even
-    def strDat
-strDat
+    def sfxDat
+sfxDat
 	bss 72
 
-	even
-	def songVol
-songVol
-	bss 4
+    even
+    def sfxActive
+sfxActive
+    bss 2
 
 	even
-	def songNote
-songNote
-	bss 8
-
-	even
-	def workBuf
-workBuf
+	def sfxWorkBuf
+sfxWorkBuf
 	bss 2
 
     even
