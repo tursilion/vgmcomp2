@@ -124,7 +124,7 @@ CALL_PLAYER_SID
 
 
 SFX Playback: Header: TISfxPlay.h
--------------------------------
+---------------------------------
 StartSfx(unsigned char *pSbf, uWordSize songNum, uWordSize pri)
     File:    CPlayerTISfx.asm
     Return:  void
@@ -174,6 +174,19 @@ CALL_PLAYER_SFX
     Note:    For proper use, call before CALL_PLAYER_SN
     C okay?: Yes.
     Asm?   : Not available. Call SfxLoop directly or as noted below.
+
+
+Unit test: Header: none
+-----------------------
+
+PlayerUnitTest()
+    File:    CPlayer/CPlayerTest.c
+    Return:  void
+    Inputs:  none
+    Purpose: Run a set of pre-defined tests against getCompressedByte
+    Note:    Provide your own extern reference. You MUST link with libti99 or otherwise provide printf().
+    C okay?: Yes.
+    Asm?   : Maybe? Not verified or analyzed.
 
 
 --------------------------------
