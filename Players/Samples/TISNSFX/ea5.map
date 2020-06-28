@@ -1,0 +1,517 @@
+Archive member included because of file (symbol)
+
+../../libtivgm2/libtivgm2.a(CPlayerTISfx.o)
+                              snsfxplay.o (StartSfx)
+../../libtivgm2/libtivgm2.a(CPlayerTIHandEdit.o)
+                              snsfxplay.o (songNote)
+../../libtivgm2/libtivgm2.a(CPlayerCommonHandEdit.o)
+                              ../../libtivgm2/libtivgm2.a(CPlayerTISfx.o) (getCompressedByte)
+/mnt/d/work/ti/libti99/libti99.a(vdp_settext.o)
+                              snsfxplay.o (set_text_raw)
+/mnt/d/work/ti/libti99/libti99.a(vdp_charsetlc.o)
+                              snsfxplay.o (charsetlc)
+/mnt/d/work/ti/libti99/libti99.a(vdp_putstring.o)
+                              snsfxplay.o (putstring)
+/mnt/d/work/ti/libti99/libti99.a(kscanfast.o)
+                              snsfxplay.o (kscanfast)
+/mnt/d/work/ti/libti99/libti99.a(vdp_setmode.o)
+                              snsfxplay.o (gImage)
+/mnt/d/work/ti/libti99/libti99.a(vdp_fasterhexprint.o)
+                              snsfxplay.o (faster_hexprint)
+/mnt/d/work/ti/libti99/libti99.a(vdp_char.o)
+                              /mnt/d/work/ti/libti99/libti99.a(vdp_settext.o) (vdpchar_default)
+/mnt/d/work/ti/libti99/libti99.a(vdp_scrnscroll.o)
+                              /mnt/d/work/ti/libti99/libti99.a(vdp_settext.o) (scrn_scroll_default)
+/mnt/d/work/ti/libti99/libti99.a(vdp_textdefs.o)
+                              /mnt/d/work/ti/libti99/libti99.a(vdp_settext.o) (nTextRow)
+/mnt/d/work/ti/libti99/libti99.a(vdp_memcpy.o)
+                              /mnt/d/work/ti/libti99/libti99.a(vdp_charsetlc.o) (vdpmemcpy)
+/mnt/d/work/ti/libti99/libti99.a(vdp_gplvdp.o)
+                              /mnt/d/work/ti/libti99/libti99.a(vdp_charsetlc.o) (gplvdp)
+/mnt/d/work/ti/libti99/libti99.a(vdp_memset.o)
+                              /mnt/d/work/ti/libti99/libti99.a(vdp_charsetlc.o) (vdpmemset)
+/mnt/d/work/ti/libti99/libti99.a(vdp_byte2hex.o)
+                              /mnt/d/work/ti/libti99/libti99.a(vdp_fasterhexprint.o) (byte2hex)
+/mnt/d/work/ti/libti99/libti99.a(vdp_memread.o)
+                              /mnt/d/work/ti/libti99/libti99.a(vdp_scrnscroll.o) (vdpmemread)
+/mnt/d/work/ti/libti99/libti99.a(conio_bgcolor.o)
+                              /mnt/d/work/ti/libti99/libti99.a(vdp_scrnscroll.o) (conio_scrnCol)
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+LOAD crt0_ea5.o
+LOAD demomusic.o
+LOAD snsfxplay.o
+LOAD ../../libtivgm2/libtivgm2.a
+LOAD /mnt/d/work/ti/libti99/libti99.a
+Address of section .text set to 0xa000
+Address of section .data set to 0x2080
+                0x000000000000a000                PROVIDE (__executable_start, 0xa000)
+                0x000000000000a074                . = (0xa000 + SIZEOF_HEADERS)
+
+.interp
+ *(.interp)
+
+.note.gnu.build-id
+ *(.note.gnu.build-id)
+
+.hash
+ *(.hash)
+
+.gnu.hash
+ *(.gnu.hash)
+
+.dynsym
+ *(.dynsym)
+
+.dynstr
+ *(.dynstr)
+
+.gnu.version
+ *(.gnu.version)
+
+.gnu.version_d
+ *(.gnu.version_d)
+
+.gnu.version_r
+ *(.gnu.version_r)
+
+.rel.init
+ *(.rel.init)
+
+.rela.init
+ *(.rela.init)
+
+.rel.text
+ *(.rel.text .rel.text.* .rel.gnu.linkonce.t.*)
+
+.rela.text
+ *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
+
+.rel.fini
+ *(.rel.fini)
+
+.rela.fini
+ *(.rela.fini)
+
+.rel.rodata
+ *(.rel.rodata .rel.rodata.* .rel.gnu.linkonce.r.*)
+
+.rela.rodata
+ *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
+
+.rel.data.rel.ro
+ *(.rel.data.rel.ro* .rel.gnu.linkonce.d.rel.ro.*)
+
+.rela.data.rel.ro
+ *(.rela.data.rel.ro* .rela.gnu.linkonce.d.rel.ro.*)
+
+.rel.data
+ *(.rel.data .rel.data.* .rel.gnu.linkonce.d.*)
+
+.rela.data
+ *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
+
+.rel.tdata
+ *(.rel.tdata .rel.tdata.* .rel.gnu.linkonce.td.*)
+
+.rela.tdata
+ *(.rela.tdata .rela.tdata.* .rela.gnu.linkonce.td.*)
+
+.rel.tbss
+ *(.rel.tbss .rel.tbss.* .rel.gnu.linkonce.tb.*)
+
+.rela.tbss
+ *(.rela.tbss .rela.tbss.* .rela.gnu.linkonce.tb.*)
+
+.rel.ctors
+ *(.rel.ctors)
+
+.rela.ctors
+ *(.rela.ctors)
+
+.rel.dtors
+ *(.rel.dtors)
+
+.rela.dtors
+ *(.rela.dtors)
+
+.rel.got
+ *(.rel.got)
+
+.rela.got
+ *(.rela.got)
+
+.rel.sdata
+ *(.rel.sdata .rel.sdata.* .rel.gnu.linkonce.s.*)
+
+.rela.sdata
+ *(.rela.sdata .rela.sdata.* .rela.gnu.linkonce.s.*)
+
+.rel.sbss
+ *(.rel.sbss .rel.sbss.* .rel.gnu.linkonce.sb.*)
+
+.rela.sbss
+ *(.rela.sbss .rela.sbss.* .rela.gnu.linkonce.sb.*)
+
+.rel.sdata2
+ *(.rel.sdata2 .rel.sdata2.* .rel.gnu.linkonce.s2.*)
+
+.rela.sdata2
+ *(.rela.sdata2 .rela.sdata2.* .rela.gnu.linkonce.s2.*)
+
+.rel.sbss2
+ *(.rel.sbss2 .rel.sbss2.* .rel.gnu.linkonce.sb2.*)
+
+.rela.sbss2
+ *(.rela.sbss2 .rela.sbss2.* .rela.gnu.linkonce.sb2.*)
+
+.rel.bss
+ *(.rel.bss .rel.bss.* .rel.gnu.linkonce.b.*)
+
+.rela.bss
+ *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*)
+
+.rel.plt
+ *(.rel.plt)
+
+.rela.plt
+ *(.rela.plt)
+
+.init
+ *(.init)
+
+.plt
+ *(.plt)
+
+.text           0x000000000000a000     0x4d64
+ *(.text .stub .text.* .gnu.linkonce.t.*)
+ .text          0x000000000000a000       0x3c crt0_ea5.o
+                0x000000000000a000                _start
+                0x000000000000a032                _init_data
+ .text          0x000000000000a03c     0x3cac demomusic.o
+                0x000000000000a03c                music
+ .text          0x000000000000dce8      0x400 snsfxplay.o
+                0x000000000000ddec                main
+ .text          0x000000000000e0e8      0x1b2 ../../libtivgm2/libtivgm2.a(CPlayerTISfx.o)
+                0x000000000000e18e                SfxLoop
+                0x000000000000e142                StopSfx
+                0x000000000000e0e8                StartSfx
+ .text          0x000000000000e29a      0x180 ../../libtivgm2/libtivgm2.a(CPlayerTIHandEdit.o)
+                0x000000000000e304                SongLoop
+                0x000000000000e29a                StartSong
+                0x000000000000e2fc                StopSong
+ .text          0x000000000000e41a      0x15c ../../libtivgm2/libtivgm2.a(CPlayerCommonHandEdit.o)
+                0x000000000000e43c                getDatRLE
+                0x000000000000e476                getCompressedByte
+                0x000000000000e434                getDatInline
+                0x000000000000e464                getDatRLE24
+                0x000000000000e454                getDatRLE16
+                0x000000000000e442                getDatRLE32
+                0x000000000000e572                getDatZero
+ .text          0x000000000000e576       0x88 /mnt/d/work/ti/libti99/libti99.a(vdp_settext.o)
+                0x000000000000e576                set_text_raw
+                0x000000000000e5e0                set_text
+ .text          0x000000000000e5fe      0x13a /mnt/d/work/ti/libti99/libti99.a(vdp_charsetlc.o)
+                0x000000000000e640                TrueLowerCase
+                0x000000000000e5fe                charsetlc
+ .text          0x000000000000e738       0x8a /mnt/d/work/ti/libti99/libti99.a(vdp_putstring.o)
+                0x000000000000e738                putstring
+ .text          0x000000000000e7c2       0xdc /mnt/d/work/ti/libti99/libti99.a(kscanfast.o)
+                0x000000000000e7c2                kscanfast
+                0x000000000000e86e                keymap
+ .text          0x000000000000e89e        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_setmode.o)
+ .text          0x000000000000e89e       0x16 /mnt/d/work/ti/libti99/libti99.a(vdp_fasterhexprint.o)
+                0x000000000000e89e                faster_hexprint
+ .text          0x000000000000e8b4       0x1c /mnt/d/work/ti/libti99/libti99.a(vdp_char.o)
+                0x000000000000e8b4                vdpchar_default
+ .text          0x000000000000e8d0      0x108 /mnt/d/work/ti/libti99/libti99.a(vdp_scrnscroll.o)
+                0x000000000000e8d0                scrn_scroll_default
+ .text          0x000000000000e9d8        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_textdefs.o)
+ .text          0x000000000000e9d8       0x2c /mnt/d/work/ti/libti99/libti99.a(vdp_memcpy.o)
+                0x000000000000e9d8                vdpmemcpy
+ .text          0x000000000000ea04       0x88 /mnt/d/work/ti/libti99/libti99.a(vdp_gplvdp.o)
+                0x000000000000ea04                gplvdp
+ .text          0x000000000000ea8c       0x2a /mnt/d/work/ti/libti99/libti99.a(vdp_memset.o)
+                0x000000000000ea8c                vdpmemset
+ .text          0x000000000000eab6      0x200 /mnt/d/work/ti/libti99/libti99.a(vdp_byte2hex.o)
+                0x000000000000eab6                byte2hex
+ .text          0x000000000000ecb6       0x26 /mnt/d/work/ti/libti99/libti99.a(vdp_memread.o)
+                0x000000000000ecb6                vdpmemread
+ .text          0x000000000000ecdc       0x88 /mnt/d/work/ti/libti99/libti99.a(conio_bgcolor.o)
+                0x000000000000ed60                reverse
+                0x000000000000ed40                bordercolor
+                0x000000000000ecdc                bgcolor
+                0x000000000000ed0c                textcolor
+ *(.gnu.warning)
+
+.fini
+ *(.fini)
+                0x000000000000ed64                PROVIDE (__etext, .)
+                0x000000000000ed64                PROVIDE (_etext, .)
+                0x000000000000ed64                PROVIDE (etext, .)
+
+.rodata
+ *(.rodata .rodata.* .gnu.linkonce.r.*)
+
+.rodata1
+ *(.rodata1)
+
+.sdata2
+ *(.sdata2 .sdata2.* .gnu.linkonce.s2.*)
+
+.sbss2
+ *(.sbss2 .sbss2.* .gnu.linkonce.sb2.*)
+
+.eh_frame_hdr
+ *(.eh_frame_hdr)
+
+.eh_frame
+ *(.eh_frame)
+
+.gcc_except_table
+ *(.gcc_except_table .gcc_except_table.*)
+                0x000000000001db64                . = (ALIGN (0x200) + (. & 0xffffffffffffffff))
+
+.eh_frame
+ *(.eh_frame)
+
+.gcc_except_table
+ *(.gcc_except_table .gcc_except_table.*)
+
+.tdata
+ *(.tdata .tdata.* .gnu.linkonce.td.*)
+
+.tbss
+ *(.tbss .tbss.* .gnu.linkonce.tb.*)
+ *(.tcommon)
+
+.preinit_array  0x000000000001db64        0x0
+                0x000000000001db64                PROVIDE (__preinit_array_start, .)
+ *(.preinit_array)
+                0x000000000001db64                PROVIDE (__preinit_array_end, .)
+
+.init_array     0x000000000001db64        0x0
+                0x000000000001db64                PROVIDE (__init_array_start, .)
+ *(SORT(.init_array.*))
+ *(.init_array)
+                0x000000000001db64                PROVIDE (__init_array_end, .)
+
+.fini_array     0x000000000001db64        0x0
+                0x000000000001db64                PROVIDE (__fini_array_start, .)
+ *(.fini_array)
+ *(SORT(.fini_array.*))
+                0x000000000001db64                PROVIDE (__fini_array_end, .)
+
+.ctors
+ *crtbegin.o(.ctors)
+ *crtbegin?.o(.ctors)
+ *(EXCLUDE_FILE(*crtend?.o *crtend.o) .ctors)
+ *(SORT(.ctors.*))
+ *(.ctors)
+
+.dtors
+ *crtbegin.o(.dtors)
+ *crtbegin?.o(.dtors)
+ *(EXCLUDE_FILE(*crtend?.o *crtend.o) .dtors)
+ *(SORT(.dtors.*))
+ *(.dtors)
+
+.jcr
+ *(.jcr)
+
+.data.rel.ro
+ *(.data.rel.ro.local* .gnu.linkonce.d.rel.ro.local.*)
+ *(.data.rel.ro* .gnu.linkonce.d.rel.ro.*)
+
+.dynamic
+ *(.dynamic)
+
+.data           0x0000000000002080        0xc
+ *(.data .data.* .gnu.linkonce.d.*)
+ .data          0x0000000000002080        0x0 crt0_ea5.o
+ .data          0x0000000000002080        0x0 demomusic.o
+ .data          0x0000000000002080        0x0 snsfxplay.o
+ .data          0x0000000000002080        0x0 ../../libtivgm2/libtivgm2.a(CPlayerTISfx.o)
+ .data          0x0000000000002080        0x0 ../../libtivgm2/libtivgm2.a(CPlayerTIHandEdit.o)
+ .data          0x0000000000002080        0x0 ../../libtivgm2/libtivgm2.a(CPlayerCommonHandEdit.o)
+ .data          0x0000000000002080        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_settext.o)
+ .data          0x0000000000002080        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_charsetlc.o)
+ .data          0x0000000000002080        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_putstring.o)
+ .data          0x0000000000002080        0x0 /mnt/d/work/ti/libti99/libti99.a(kscanfast.o)
+ .data          0x0000000000002080        0x6 /mnt/d/work/ti/libti99/libti99.a(vdp_setmode.o)
+                0x0000000000002080                gColor
+                0x0000000000002084                gSprite
+                0x0000000000002082                gPattern
+ .data          0x0000000000002086        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_fasterhexprint.o)
+ .data          0x0000000000002086        0x2 /mnt/d/work/ti/libti99/libti99.a(vdp_char.o)
+                0x0000000000002086                vdpchar
+ .data          0x0000000000002088        0x2 /mnt/d/work/ti/libti99/libti99.a(vdp_scrnscroll.o)
+                0x0000000000002088                scrn_scroll
+ .data          0x000000000000208a        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_textdefs.o)
+ .data          0x000000000000208a        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_memcpy.o)
+ .data          0x000000000000208a        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_gplvdp.o)
+ .data          0x000000000000208a        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_memset.o)
+ .data          0x000000000000208a        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_byte2hex.o)
+ .data          0x000000000000208a        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_memread.o)
+ .data          0x000000000000208a        0x2 /mnt/d/work/ti/libti99/libti99.a(conio_bgcolor.o)
+                0x000000000000208a                conio_scrnCol
+
+.data1
+ *(.data1)
+
+.got
+ *(.got.plt)
+ *(.got)
+
+.sdata
+ *(.sdata .sdata.* .gnu.linkonce.s.*)
+                0x000000000000208c                _edata = .
+                0x000000000000208c                PROVIDE (edata, .)
+                0x000000000000208c                __bss_start = .
+
+.sbss
+ *(.dynsbss)
+ *(.sbss .sbss.* .gnu.linkonce.sb.*)
+ *(.scommon)
+
+.bss            0x000000000000208c        0xc
+ *(.dynbss)
+ *(.bss .bss.* .gnu.linkonce.b.*)
+ .bss           0x000000000000208c        0x0 crt0_ea5.o
+ .bss           0x000000000000208c        0x0 demomusic.o
+ .bss           0x000000000000208c        0x0 snsfxplay.o
+ .bss           0x000000000000208c        0x0 ../../libtivgm2/libtivgm2.a(CPlayerTISfx.o)
+ .bss           0x000000000000208c        0x0 ../../libtivgm2/libtivgm2.a(CPlayerTIHandEdit.o)
+ .bss           0x000000000000208c        0x0 ../../libtivgm2/libtivgm2.a(CPlayerCommonHandEdit.o)
+ .bss           0x000000000000208c        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_settext.o)
+ .bss           0x000000000000208c        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_charsetlc.o)
+ .bss           0x000000000000208c        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_putstring.o)
+ .bss           0x000000000000208c        0x0 /mnt/d/work/ti/libti99/libti99.a(kscanfast.o)
+ .bss           0x000000000000208c        0x4 /mnt/d/work/ti/libti99/libti99.a(vdp_setmode.o)
+                0x000000000000208c                gImage
+                0x000000000000208e                gSpritePat
+ .bss           0x0000000000002090        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_fasterhexprint.o)
+ .bss           0x0000000000002090        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_char.o)
+ .bss           0x0000000000002090        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_scrnscroll.o)
+ .bss           0x0000000000002090        0x8 /mnt/d/work/ti/libti99/libti99.a(vdp_textdefs.o)
+                0x0000000000002090                nTextRow
+                0x0000000000002092                nTextEnd
+                0x0000000000002096                nTextFlags
+                0x0000000000002094                nTextPos
+ .bss           0x0000000000002098        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_memcpy.o)
+ .bss           0x0000000000002098        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_gplvdp.o)
+ .bss           0x0000000000002098        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_memset.o)
+ .bss           0x0000000000002098        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_byte2hex.o)
+ .bss           0x0000000000002098        0x0 /mnt/d/work/ti/libti99/libti99.a(vdp_memread.o)
+ .bss           0x0000000000002098        0x0 /mnt/d/work/ti/libti99/libti99.a(conio_bgcolor.o)
+ *(COMMON)
+                0x0000000000002098                . = ALIGN ((. != 0x0)?0x4:0x1)
+                0x0000000000002098                . = ALIGN (0x4)
+                0x0000000000002098                . = ALIGN (0x4)
+                0x0000000000002098                _end = .
+                0x0000000000002098                PROVIDE (end, .)
+
+.stab
+ *(.stab)
+
+.stabstr
+ *(.stabstr)
+
+.stab.excl
+ *(.stab.excl)
+
+.stab.exclstr
+ *(.stab.exclstr)
+
+.stab.index
+ *(.stab.index)
+
+.stab.indexstr
+ *(.stab.indexstr)
+
+.comment
+ *(.comment)
+
+.debug
+ *(.debug)
+
+.line
+ *(.line)
+
+.debug_srcinfo
+ *(.debug_srcinfo)
+
+.debug_sfnames
+ *(.debug_sfnames)
+
+.debug_aranges
+ *(.debug_aranges)
+
+.debug_pubnames
+ *(.debug_pubnames)
+
+.debug_info
+ *(.debug_info .gnu.linkonce.wi.*)
+
+.debug_abbrev
+ *(.debug_abbrev)
+
+.debug_line
+ *(.debug_line)
+
+.debug_frame
+ *(.debug_frame)
+
+.debug_str
+ *(.debug_str)
+
+.debug_loc
+ *(.debug_loc)
+
+.debug_macinfo
+ *(.debug_macinfo)
+
+.debug_weaknames
+ *(.debug_weaknames)
+
+.debug_funcnames
+ *(.debug_funcnames)
+
+.debug_typenames
+ *(.debug_typenames)
+
+.debug_varnames
+ *(.debug_varnames)
+
+.debug_pubtypes
+ *(.debug_pubtypes)
+
+.debug_ranges
+ *(.debug_ranges)
+
+.gnu.attributes
+ *(.gnu.attributes)
+
+/DISCARD/
+ *(.note.GNU-stack)
+ *(.gnu_debuglink)
+OUTPUT(tisfxplay.ea5.elf elf32-tms9900)
+
+sfxDatVars      0x0000000000002098       0x4e
+ sfxDatVars     0x0000000000002098       0x4e ../../libtivgm2/libtivgm2.a(CPlayerTISfx.o)
+                0x0000000000002098                sfxDat
+                0x00000000000020e0                sfxActive
+                0x00000000000020e2                sfxWorkBuf
+
+songDatVars     0x00000000000020e6       0x58
+ songDatVars    0x00000000000020e6       0x58 ../../libtivgm2/libtivgm2.a(CPlayerTIHandEdit.o)
+                0x0000000000002132                songNote
+                0x000000000000212e                songVol
+                0x00000000000020e6                strDat
+                0x000000000000213a                workBuf

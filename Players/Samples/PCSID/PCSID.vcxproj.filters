@@ -1,0 +1,180 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\CPlayer\CPlayerCommon.c" />
+    <ClCompile Include="..\PCAY\CPlayerPC.cpp" />
+    <ClCompile Include="..\PCAY\PC.cpp" />
+    <ClCompile Include="..\PCAY\sound.cpp" />
+    <ClCompile Include="..\..\CPlayer\CPlayerTest.c" />
+    <ClCompile Include="resid\dac.cc">
+      <Filter>resid</Filter>
+    </ClCompile>
+    <ClCompile Include="resid\envelope.cc">
+      <Filter>resid</Filter>
+    </ClCompile>
+    <ClCompile Include="resid\extfilt.cc">
+      <Filter>resid</Filter>
+    </ClCompile>
+    <ClCompile Include="resid\filter.cc">
+      <Filter>resid</Filter>
+    </ClCompile>
+    <ClCompile Include="resid\filter8580new.cc">
+      <Filter>resid</Filter>
+    </ClCompile>
+    <ClCompile Include="resid\pot.cc">
+      <Filter>resid</Filter>
+    </ClCompile>
+    <ClCompile Include="resid\sid.cc">
+      <Filter>resid</Filter>
+    </ClCompile>
+    <ClCompile Include="resid\version.cc">
+      <Filter>resid</Filter>
+    </ClCompile>
+    <ClCompile Include="resid\voice.cc">
+      <Filter>resid</Filter>
+    </ClCompile>
+    <ClCompile Include="resid\wave.cc">
+      <Filter>resid</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\PCAY\sound.h" />
+    <ClInclude Include="resid\dac.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\envelope.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\extfilt.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\filter.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\pot.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\resid-config.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\sid.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\spline.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\voice.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\wave.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\wave6581__ST.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\wave6581_P_T.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\wave6581_PS_.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\wave6581_PST.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\wave8580__ST.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\wave8580_P_T.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\wave8580_PS_.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\wave8580_PST.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+    <ClInclude Include="resid\siddefs.h">
+      <Filter>resid</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="COPYING" />
+    <None Include="resid\aclocal.m4">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\AUTHORS">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\ChangeLog">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\configure">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\configure.in">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\COPYING">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\INSTALL">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\Makefile.am">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\Makefile.in">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\NEWS">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\README">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\README.VICE">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\samp2src.pl">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\siddefs.h.in">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\THANKS">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\TODO">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\wave6581__ST.dat">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\wave6581_P_T.dat">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\wave6581_PS_.dat">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\wave6581_PST.dat">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\wave8580__ST.dat">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\wave8580_P_T.dat">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\wave8580_PS_.dat">
+      <Filter>resid</Filter>
+    </None>
+    <None Include="resid\wave8580_PST.dat">
+      <Filter>resid</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="resid">
+      <UniqueIdentifier>{90f058e0-1428-475b-823d-d009034522e2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

@@ -29,11 +29,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CPlayer", "CPlayer", "{009F
 		Players\CPlayer\CPlayer.h = Players\CPlayer\CPlayer.h
 		Players\CPlayer\CPlayerCommon.c = Players\CPlayer\CPlayerCommon.c
 		Players\CPlayer\CPlayerTest.c = Players\CPlayer\CPlayerTest.c
+		Players\CPlayer\Makefile = Players\CPlayer\Makefile
 	EndProjectSection
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCAY", "Players\PCAY\PC.vcxproj", "{E20C76E4-3B50-4905-91AD-15736D64ED57}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCSN", "Players\PCSN\PCSN.vcxproj", "{01263202-227D-4316-8459-25D35EFCD16E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LICENSE", "LICENSE", "{8F2A78CE-93B2-45DB-964B-40991EEAD2DC}"
 	ProjectSection(SolutionItems) = preProject
@@ -41,19 +38,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LICENSE", "LICENSE", "{8F2A
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prepare4AY", "prepare4AY\prepare4AY.vcxproj", "{066D0D1B-F97E-424E-910A-58E8D5587935}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISN", "TISN", "{280179E3-2613-41F5-A99B-0BE8B51CB232}"
-	ProjectSection(SolutionItems) = preProject
-		Players\TISN\CPlayerCommonHandEdit.asm = Players\TISN\CPlayerCommonHandEdit.asm
-		Players\TISN\CPlayerTIHandEdit.asm = Players\TISN\CPlayerTIHandEdit.asm
-		Players\TISN\crt0_ea5.asm = Players\TISN\crt0_ea5.asm
-		Players\TISN\Makefile = Players\TISN\Makefile
-		Players\TISN\Readme.txt = Players\TISN\Readme.txt
-		Players\TISN\sil_nes.c = Players\TISN\sil_nes.c
-		Players\TISN\sil_nes.vgz.psg = Players\TISN\sil_nes.vgz.psg
-		Players\TISN\sil_nes.vgz.sbf = Players\TISN\sil_nes.vgz.sbf
-		Players\TISN\tisnplay.c = Players\TISN\tisnplay.c
-	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{74DA6445-7D10-4055-AF3A-F48DF65572B7}"
 	ProjectSection(SolutionItems) = preProject
@@ -67,48 +51,100 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AnalyzeStream", "AnalyzeStr
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prepare4SID", "prepare4SID\prepare4SID.vcxproj", "{C887944E-AD9B-4C5E-91B6-B04F4E5B35CE}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCSID", "Players\PCSID\PCSID.vcxproj", "{E1FC2EB0-D727-485C-89FA-44CC6914D7FF}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISID", "TISID", "{1E65BDBD-AF4C-4AF3-AFC9-F9C6814ED736}"
-	ProjectSection(SolutionItems) = preProject
-		Players\TISID\crt0_ea5.asm = Players\TISID\crt0_ea5.asm
-		Players\TISID\CSIDPlay.h = Players\TISID\CSIDPlay.h
-		Players\TISID\CSIDPlayTIHandEdit.asm = Players\TISID\CSIDPlayTIHandEdit.asm
-		Players\TISID\Makefile = Players\TISID\Makefile
-		Players\TISID\Readme.txt = Players\TISID\Readme.txt
-		Players\TISID\tisidplay.c = Players\TISID\tisidplay.c
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISNSID", "TISNSID", "{0FFE32FC-EDE2-4668-9961-9A6163D0C79F}"
-	ProjectSection(SolutionItems) = preProject
-		Players\TISN\CPlayerCommonHandEdit.asm = Players\TISN\CPlayerCommonHandEdit.asm
-		Players\TISN\CPlayerTIHandEdit.asm = Players\TISN\CPlayerTIHandEdit.asm
-		Players\TISNSID\crt0_ea5.asm = Players\TISNSID\crt0_ea5.asm
-		Players\TISNSID\CSIDPlay.h = Players\TISNSID\CSIDPlay.h
-		Players\TISID\CSIDPlayTIHandEdit.asm = Players\TISID\CSIDPlayTIHandEdit.asm
-		Players\TISNSID\Makefile = Players\TISNSID\Makefile
-		Players\TISNSID\Readme.txt = Players\TISNSID\Readme.txt
-		Players\TISNSID\tisnsidplay.c = Players\TISNSID\tisnsidplay.c
-		Players\TISNSID\wb.sidpsg = Players\TISNSID\wb.sidpsg
-		Players\TISNSID\wb.sidsbf = Players\TISNSID\wb.sidsbf
-		Players\TISNSID\wb.snpsg = Players\TISNSID\wb.snpsg
-		Players\TISNSID\wb.snsbf = Players\TISNSID\wb.snsbf
-		Players\TISNSID\wbsid.c = Players\TISNSID\wbsid.c
-		Players\TISNSID\wbsn.c = Players\TISNSID\wbsn.c
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISNSFX", "TISNSFX", "{B3D7944B-E97B-4F71-B64E-01C9E3B063EF}"
-	ProjectSection(SolutionItems) = preProject
-		Players\TISNSFX\CPlayerSfx.h = Players\TISNSFX\CPlayerSfx.h
-		Players\TISNSFX\CPlayerTISfx.asm = Players\TISNSFX\CPlayerTISfx.asm
-		Players\TISNSFX\crt0_ea5.asm = Players\TISNSFX\crt0_ea5.asm
-		Players\TISNSFX\demomusic.c = Players\TISNSFX\demomusic.c
-		Players\TISNSFX\Makefile = Players\TISNSFX\Makefile
-		Players\TISNSFX\Readme.txt = Players\TISNSFX\Readme.txt
-		Players\TISNSFX\snsfxplay.c = Players\TISNSFX\snsfxplay.c
-	EndProjectSection
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PlayerSamples", "PlayerSamples", "{2A023C95-5B26-4C4C-838E-77468DD1C9D4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libtivgm2", "libtivgm2", "{87187B18-D03A-4EC0-AA7B-77416100F494}"
+	ProjectSection(SolutionItems) = preProject
+		Players\libtivgm2\CPlayerCommonHandEdit.asm = Players\libtivgm2\CPlayerCommonHandEdit.asm
+		Players\libtivgm2\CPlayerTIHandEdit.asm = Players\libtivgm2\CPlayerTIHandEdit.asm
+		Players\libtivgm2\CPlayerTISfx.asm = Players\libtivgm2\CPlayerTISfx.asm
+		Players\libtivgm2\CSIDPlayTIHandEdit.asm = Players\libtivgm2\CSIDPlayTIHandEdit.asm
+		Players\libtivgm2\Makefile = Players\libtivgm2\Makefile
+		Players\libtivgm2\readme.txt = Players\libtivgm2\readme.txt
+		Players\libtivgm2\TISfxPlay.h = Players\libtivgm2\TISfxPlay.h
+		Players\libtivgm2\TISIDPlay.h = Players\libtivgm2\TISIDPlay.h
+		Players\libtivgm2\TISNPlay.h = Players\libtivgm2\TISNPlay.h
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCAY", "Players\Samples\PCAY\PC.vcxproj", "{E20C76E4-3B50-4905-91AD-15736D64ED57}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCSID", "Players\Samples\PCSID\PCSID.vcxproj", "{E1FC2EB0-D727-485C-89FA-44CC6914D7FF}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PCSN", "Players\Samples\PCSN\PCSN.vcxproj", "{01263202-227D-4316-8459-25D35EFCD16E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISID", "TISID", "{6253B36F-9C40-47F1-9EED-54CBCA0EC623}"
+	ProjectSection(SolutionItems) = preProject
+		Players\Samples\TISID\ab.psgsid = Players\Samples\TISID\ab.psgsid
+		Players\Samples\TISID\ab.sbfsid = Players\Samples\TISID\ab.sbfsid
+		Players\Samples\TISID\ab_sid.c = Players\Samples\TISID\ab_sid.c
+		Players\Samples\TISID\crt0_ea5.asm = Players\Samples\TISID\crt0_ea5.asm
+		Players\Samples\TISID\Makefile = Players\Samples\TISID\Makefile
+		Players\Samples\TISID\Readme.txt = Players\Samples\TISID\Readme.txt
+		Players\Samples\TISID\TISIDPLAY = Players\Samples\TISID\TISIDPLAY
+		Players\Samples\TISID\tisidplay.c = Players\Samples\TISID\tisidplay.c
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISN", "TISN", "{6EF6849B-6B23-4F0E-9165-1C41A0F286E8}"
+	ProjectSection(SolutionItems) = preProject
+		Players\Samples\TISN\crt0_ea5.asm = Players\Samples\TISN\crt0_ea5.asm
+		Players\Samples\TISN\Makefile = Players\Samples\TISN\Makefile
+		Players\Samples\TISN\Readme.txt = Players\Samples\TISN\Readme.txt
+		Players\Samples\TISN\sil_nes.c = Players\Samples\TISN\sil_nes.c
+		Players\Samples\TISN\sil_nes.vgz.psg = Players\Samples\TISN\sil_nes.vgz.psg
+		Players\Samples\TISN\sil_nes.vgz.sbf = Players\Samples\TISN\sil_nes.vgz.sbf
+		Players\Samples\TISN\TISNPLAY = Players\Samples\TISN\TISNPLAY
+		Players\Samples\TISN\tisnplay.c = Players\Samples\TISN\tisnplay.c
+		Players\Samples\TISN\TISNPLAZ = Players\Samples\TISN\TISNPLAZ
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISNSFX", "TISNSFX", "{12DA533C-1788-4A45-A4B6-FC14505FCF5F}"
+	ProjectSection(SolutionItems) = preProject
+		Players\Samples\TISNSFX\CPlayerSfx.h = Players\Samples\TISNSFX\CPlayerSfx.h
+		Players\Samples\TISNSFX\crt0_ea5.asm = Players\Samples\TISNSFX\crt0_ea5.asm
+		Players\Samples\TISNSFX\demomusic.c = Players\Samples\TISNSFX\demomusic.c
+		Players\Samples\TISNSFX\Makefile = Players\Samples\TISNSFX\Makefile
+		Players\Samples\TISNSFX\Readme.txt = Players\Samples\TISNSFX\Readme.txt
+		Players\Samples\TISNSFX\snsfxplay.c = Players\Samples\TISNSFX\snsfxplay.c
+		Players\Samples\TISNSFX\TISFXPLAY1 = Players\Samples\TISNSFX\TISFXPLAY1
+		Players\Samples\TISNSFX\TISFXPLAY2 = Players\Samples\TISNSFX\TISFXPLAY2
+		Players\Samples\TISNSFX\TISFXPLAY3 = Players\Samples\TISNSFX\TISFXPLAY3
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "vgm", "vgm", "{9D2D81C8-58F5-4B9C-A80C-38E7507056F0}"
+	ProjectSection(SolutionItems) = preProject
+		Players\Samples\TISNSFX\vgm\1Antarctic.psg = Players\Samples\TISNSFX\vgm\1Antarctic.psg
+		Players\Samples\TISNSFX\vgm\1Antarctic.vgm = Players\Samples\TISNSFX\vgm\1Antarctic.vgm
+		Players\Samples\TISNSFX\vgm\2CaGames.psg = Players\Samples\TISNSFX\vgm\2CaGames.psg
+		Players\Samples\TISNSFX\vgm\2CaGames.vgm = Players\Samples\TISNSFX\vgm\2CaGames.vgm
+		Players\Samples\TISNSFX\vgm\3DDragon.psg = Players\Samples\TISNSFX\vgm\3DDragon.psg
+		Players\Samples\TISNSFX\vgm\3DDragon.vgm = Players\Samples\TISNSFX\vgm\3DDragon.vgm
+		Players\Samples\TISNSFX\vgm\4Beatit.psg = Players\Samples\TISNSFX\vgm\4Beatit.psg
+		Players\Samples\TISNSFX\vgm\4BeatIt.vgm = Players\Samples\TISNSFX\vgm\4BeatIt.vgm
+		Players\Samples\TISNSFX\vgm\5Alf.psg = Players\Samples\TISNSFX\vgm\5Alf.psg
+		Players\Samples\TISNSFX\vgm\5ALF.VGM = Players\Samples\TISNSFX\vgm\5ALF.VGM
+		Players\Samples\TISNSFX\vgm\6Collect.psg = Players\Samples\TISNSFX\vgm\6Collect.psg
+		Players\Samples\TISNSFX\vgm\6Collect.vgm = Players\Samples\TISNSFX\vgm\6Collect.vgm
+		Players\Samples\TISNSFX\vgm\7Fall.psg = Players\Samples\TISNSFX\vgm\7Fall.psg
+		Players\Samples\TISNSFX\vgm\7Fall.vgm = Players\Samples\TISNSFX\vgm\7Fall.vgm
+		Players\Samples\TISNSFX\vgm\8Jump.psg = Players\Samples\TISNSFX\vgm\8Jump.psg
+		Players\Samples\TISNSFX\vgm\8Jump.vgm = Players\Samples\TISNSFX\vgm\8Jump.vgm
+		Players\Samples\TISNSFX\vgm\convert.cmd = Players\Samples\TISNSFX\vgm\convert.cmd
+		Players\Samples\TISNSFX\vgm\demo.sbf = Players\Samples\TISNSFX\vgm\demo.sbf
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISNSID", "TISNSID", "{D009E309-977C-4F63-951E-73559D92AC86}"
+	ProjectSection(SolutionItems) = preProject
+		Players\Samples\TISNSID\crt0_ea5.asm = Players\Samples\TISNSID\crt0_ea5.asm
+		Players\Samples\TISNSID\Makefile = Players\Samples\TISNSID\Makefile
+		Players\Samples\TISNSID\Readme.txt = Players\Samples\TISNSID\Readme.txt
+		Players\Samples\TISNSID\tisnsidplay.c = Players\Samples\TISNSID\tisnsidplay.c
+		Players\Samples\TISNSID\wb.sidpsg = Players\Samples\TISNSID\wb.sidpsg
+		Players\Samples\TISNSID\wb.sidsbf = Players\Samples\TISNSID\wb.sidsbf
+		Players\Samples\TISNSID\wb.snpsg = Players\Samples\TISNSID\wb.snpsg
+		Players\Samples\TISNSID\wb.snsbf = Players\Samples\TISNSID\wb.snsbf
+		Players\Samples\TISNSID\wbsid.c = Players\Samples\TISNSID\wbsid.c
+		Players\Samples\TISNSID\wbsn.c = Players\Samples\TISNSID\wbsn.c
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -190,22 +226,6 @@ Global
 		{12A01668-FF88-4A88-8AC5-394B447B2D7E}.Release|Win32.Build.0 = Release|Win32
 		{12A01668-FF88-4A88-8AC5-394B447B2D7E}.Release|x64.ActiveCfg = Release|x64
 		{12A01668-FF88-4A88-8AC5-394B447B2D7E}.Release|x64.Build.0 = Release|x64
-		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Debug|Win32.ActiveCfg = Debug|Win32
-		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Debug|Win32.Build.0 = Debug|Win32
-		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Debug|x64.ActiveCfg = Debug|x64
-		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Debug|x64.Build.0 = Debug|x64
-		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Release|Win32.ActiveCfg = Release|Win32
-		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Release|Win32.Build.0 = Release|Win32
-		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Release|x64.ActiveCfg = Release|x64
-		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Release|x64.Build.0 = Release|x64
-		{01263202-227D-4316-8459-25D35EFCD16E}.Debug|Win32.ActiveCfg = Debug|Win32
-		{01263202-227D-4316-8459-25D35EFCD16E}.Debug|Win32.Build.0 = Debug|Win32
-		{01263202-227D-4316-8459-25D35EFCD16E}.Debug|x64.ActiveCfg = Debug|x64
-		{01263202-227D-4316-8459-25D35EFCD16E}.Debug|x64.Build.0 = Debug|x64
-		{01263202-227D-4316-8459-25D35EFCD16E}.Release|Win32.ActiveCfg = Release|Win32
-		{01263202-227D-4316-8459-25D35EFCD16E}.Release|Win32.Build.0 = Release|Win32
-		{01263202-227D-4316-8459-25D35EFCD16E}.Release|x64.ActiveCfg = Release|x64
-		{01263202-227D-4316-8459-25D35EFCD16E}.Release|x64.Build.0 = Release|x64
 		{066D0D1B-F97E-424E-910A-58E8D5587935}.Debug|Win32.ActiveCfg = Debug|Win32
 		{066D0D1B-F97E-424E-910A-58E8D5587935}.Debug|Win32.Build.0 = Debug|Win32
 		{066D0D1B-F97E-424E-910A-58E8D5587935}.Debug|x64.ActiveCfg = Debug|x64
@@ -238,6 +258,14 @@ Global
 		{C887944E-AD9B-4C5E-91B6-B04F4E5B35CE}.Release|Win32.Build.0 = Release|Win32
 		{C887944E-AD9B-4C5E-91B6-B04F4E5B35CE}.Release|x64.ActiveCfg = Release|x64
 		{C887944E-AD9B-4C5E-91B6-B04F4E5B35CE}.Release|x64.Build.0 = Release|x64
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Debug|Win32.Build.0 = Debug|Win32
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Debug|x64.ActiveCfg = Debug|x64
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Debug|x64.Build.0 = Debug|x64
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Release|Win32.ActiveCfg = Release|Win32
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Release|Win32.Build.0 = Release|Win32
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Release|x64.ActiveCfg = Release|x64
+		{E20C76E4-3B50-4905-91AD-15736D64ED57}.Release|x64.Build.0 = Release|x64
 		{E1FC2EB0-D727-485C-89FA-44CC6914D7FF}.Debug|Win32.ActiveCfg = Debug|Win32
 		{E1FC2EB0-D727-485C-89FA-44CC6914D7FF}.Debug|Win32.Build.0 = Debug|Win32
 		{E1FC2EB0-D727-485C-89FA-44CC6914D7FF}.Debug|x64.ActiveCfg = Debug|x64
@@ -246,19 +274,29 @@ Global
 		{E1FC2EB0-D727-485C-89FA-44CC6914D7FF}.Release|Win32.Build.0 = Release|Win32
 		{E1FC2EB0-D727-485C-89FA-44CC6914D7FF}.Release|x64.ActiveCfg = Release|x64
 		{E1FC2EB0-D727-485C-89FA-44CC6914D7FF}.Release|x64.Build.0 = Release|x64
+		{01263202-227D-4316-8459-25D35EFCD16E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{01263202-227D-4316-8459-25D35EFCD16E}.Debug|Win32.Build.0 = Debug|Win32
+		{01263202-227D-4316-8459-25D35EFCD16E}.Debug|x64.ActiveCfg = Debug|x64
+		{01263202-227D-4316-8459-25D35EFCD16E}.Debug|x64.Build.0 = Debug|x64
+		{01263202-227D-4316-8459-25D35EFCD16E}.Release|Win32.ActiveCfg = Release|Win32
+		{01263202-227D-4316-8459-25D35EFCD16E}.Release|Win32.Build.0 = Release|Win32
+		{01263202-227D-4316-8459-25D35EFCD16E}.Release|x64.ActiveCfg = Release|x64
+		{01263202-227D-4316-8459-25D35EFCD16E}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{009FB895-AF76-4DBE-B35A-E43ABAFFE563} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
-		{E20C76E4-3B50-4905-91AD-15736D64ED57} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
-		{01263202-227D-4316-8459-25D35EFCD16E} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
-		{280179E3-2613-41F5-A99B-0BE8B51CB232} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
-		{E1FC2EB0-D727-485C-89FA-44CC6914D7FF} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
-		{1E65BDBD-AF4C-4AF3-AFC9-F9C6814ED736} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
-		{0FFE32FC-EDE2-4668-9961-9A6163D0C79F} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
-		{B3D7944B-E97B-4F71-B64E-01C9E3B063EF} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
+		{87187B18-D03A-4EC0-AA7B-77416100F494} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
+		{E20C76E4-3B50-4905-91AD-15736D64ED57} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
+		{E1FC2EB0-D727-485C-89FA-44CC6914D7FF} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
+		{01263202-227D-4316-8459-25D35EFCD16E} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
+		{6253B36F-9C40-47F1-9EED-54CBCA0EC623} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
+		{6EF6849B-6B23-4F0E-9165-1C41A0F286E8} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
+		{12DA533C-1788-4A45-A4B6-FC14505FCF5F} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
+		{9D2D81C8-58F5-4B9C-A80C-38E7507056F0} = {12DA533C-1788-4A45-A4B6-FC14505FCF5F}
+		{D009E309-977C-4F63-951E-73559D92AC86} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

@@ -1,5 +1,5 @@
-#ifndef INCLUDE_CPLAYER_H
-#define INCLUDE_CPLAYER_H
+#ifndef INCLUDE_TISNPLAY_H
+#define INCLUDE_TISNPLAY_H
 
 #ifndef true
 #define true 1
@@ -8,27 +8,12 @@
 #define false 0
 #endif
 
-// For instance, the TI native size is int, but on the Z80
-// unsigned char results in more efficient code.
-// the code assumes all types are only 8 or 16 bit,
-// but it's fine to use ints and chars on bigger machines
-#ifdef BUILD_TI99
+#ifndef DEFINED_TI_TYPES
+#define DEFINED_TI_TYPES
 typedef int int16;              // must be 16 bit or larger, signed is okay
 typedef unsigned int uint16;    // must be 16 bit or larger, unsigned
 typedef unsigned char uint8;    // must be 8 bit unsigned
 typedef unsigned char uWordSize;// most efficient word size, 8 bits or more unsigned
-#elif defined(BUILD_COLECO)
-typedef int int16;              // must be 16 bit or larger, signed is okay
-typedef unsigned int uint16;    // must be 16 bit or larger, unsigned
-typedef unsigned char uint8;    // must be 8 bit unsigned
-typedef unsigned char uWordSize; // most efficient word size, 8 bits or more unsigned
-#elif defined(BUILD_PC)
-typedef int int16;              // we're really 32 bit, that's okay
-typedef unsigned int uint16;    // must be 16 bit or larger, unsigned
-typedef unsigned char uint8;    // must be 8 bit unsigned
-typedef unsigned int uWordSize; // most efficient word size, 8 bits or more unsigned
-#else
-#error Define a machine type!
 #endif
 
 // structure for unpacking a stream of data
