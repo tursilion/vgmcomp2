@@ -19,32 +19,6 @@
 extern const unsigned char snsong[];
 extern const unsigned char sidSong[];
 
-// to be called from the user interrupt hook
-// Note that this call, since it shares the workspace with C,
-// will blow away ALL the registers except R0 and R10, so make
-// sure you only call it from a tightly controlled area where
-// there's no state to preserve, or likewise only enable
-// interrupts in such a condition. If you don't know, then
-// use the inline version that tags the variables as trashed,
-// and GCC will figure out what needs to be saved. 
-// Naturally, if you are using the slower C version and not
-// the hand-editted versions, then you don't need to worry
-// about that, GCC takes care of the registers.
-
-// Option 3: use the hand tuned asm code directly with register preservation
-// Have to mark all regs as clobbered. Determine vblank any way you like
-// (I recommend VDP_WAIT_VBLANK_CRU), and then include this define "CALL_PLAYER;"
-// This is probably the safest for the hand-tuned code
-// This calls BOTH functions SN and SID.
-#define CALL_PLAYER \
-    __asm__(                                                        \
-        "bl @SongLoop"                                              \
-        "\n\tbl @SongSID"                                           \
-        : /* no outputs */                                          \
-        : /* no arguments */                                        \
-        : "r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r12","r13","r14","r15","cc"   \
-        )
-
 inline void faster_hexprint2(int x) {
     faster_hexprint(x&0xff);
     faster_hexprint(x>>8);
@@ -84,7 +58,8 @@ int main() {
     // now play it - space to loop
     for (;;) {
         vdpwaitvint();      // wait for an interrupt with ints enabled - console clears it
-        CALL_PLAYER;		// calls both song loops
+        CALL_PLAYER_SN;		// calls both song loops
+        CALL_PLAYER_SID;
 
         // output some proof we're running
         // note faster_hexprint doesn't update (or use!) the cursor position
@@ -151,7 +126,7 @@ int main() {
         }
 
         // check if still playing - either should do - they SHOULD be the same size...
-        if (!(sidNote[3]&SONGACTIVEACTIVE)) {
+        if (!isSIDPlaying) {
             // mute it!!
             *((volatile unsigned char *)0x5808) = 0;
             *((volatile unsigned char *)0x5816) = 0;

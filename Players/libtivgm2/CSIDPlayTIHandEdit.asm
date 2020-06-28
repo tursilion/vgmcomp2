@@ -59,8 +59,6 @@ nullptr
 	mov  r2,@sidNote
 	mov  r2,@sidNote+2
 	mov  r2,@sidNote+4
-    clr @sidVol        * zero sidVol 0 and 1
-    clr @sidVol+2      * zero sidVol 2 and 3
 
 	mov  r1,@workSID    * store the song pointer in the global
 	li   r2,>0101       * init value for noise with songActive bit set
@@ -132,6 +130,9 @@ nullptr
 
     clr *r1+        * this actually writes to read-only POTX, but gets the address latch moved
 
+setMutes
+    clr @sidVol        * zero sidVol 0 and 1
+    clr @sidVol+2      * zero sidVol 2 and 3
 	b    *r11
 	.size	StartSID,.-StartSID
 
@@ -140,7 +141,7 @@ nullptr
 	even
 StopSID
     movb @StartSID+2,@songActive	 * zero all bits in songActive (pulls a 0 byte from a LI)
-	b    *r11
+	jmp setMutes
 	.size	StopSID,.-StopSID
 
 * this needs to be called 60 times per second by your system
@@ -152,10 +153,10 @@ StopSID
 * the stack usage completely. (We do preserve R10, the C stack.)
 * NOTE: this will enable the SID Blaster, do NOT call with any DSR enabled!
 * it also changes the keyboard select column
-	def	SongSID
+	def	SIDLoop
 	even
 
-SongSID
+SIDLoop
     movb @songActive,r1     * need to check if its active
     andi r1,>0100           * isolate the bit
 	jeq  RETHOME2           * if clear, back to caller (normal case drops through faster)
@@ -305,7 +306,7 @@ CKTONE2SHIFT
 	inct r0					* next sidNote
 	jmp CKTONE2
 
-	.size	SongSID,.-SongSID
+	.size	SIDLoop,.-SIDLoop
 
 * this data is in a special section so that you can relocate it at will
 * in the makefile (ie: to put it in scratchpad). If you do nothing,
@@ -319,7 +320,6 @@ sidDat
 
 	even
 	def sidVol
-* warning: sidVol is implemented in reverse order - 3,2,1,x
 sidVol
 	bss 4
 
@@ -334,7 +334,6 @@ workSID
 	bss 2
 
     even
-    def sidSave
 sidSave
     bss 2
 

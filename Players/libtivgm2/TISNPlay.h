@@ -35,11 +35,11 @@ void StartSong(unsigned char *pSbf, uWordSize songNum);
 // Call this to stop the current song
 void StopSong();
 
-// this needs to be called 60 times per second by your system
+// Main loop - do not call this directly, use CALL_PLAYER_SN macro below
 void SongLoop();
 
-// Don't call this, it's for use by the unpack codes
-uint8 getCompressedByte(STREAM *str, uint8 *buf);
+// helpful wrapper
+#define isSNPlaying ((songNote[3]&SONGACTIVEACTIVE) != 0)
 
 // this array contains the current volume of each voice (ignoring mutes)
 // Sound chip specific, but in both cases that means 0x0 is maximum and 0xF
@@ -57,7 +57,7 @@ extern uint8 songVol[4];
 // You, the caller, need to strip the trigger nibble when you are done
 // (if it matters to your software, that is)
 // However, do not strip them if you are using the SFX player, as the SFX
-// player requires those nibbles to write the data back.
+// player requires those nibbles to write the data back when SFX ends.
 extern uint16 songNote[4];
 
 // songActive is the LSB of songNote[3]
@@ -72,5 +72,18 @@ extern uint16 songNote[4];
 #define SONGACTIVEMUTE3  0x20
 #define SONGACTIVEMUTE4  0x10
 
+// Option 3: use the hand tuned asm code directly with register preservation
+// Have to mark all regs as clobbered. Determine vblank any way you like
+// (I recommend VDP_WAIT_VBLANK_CRU), and then include this define "CALL_PLAYER_SFX;"
+// This is probably the safest for the hand-tuned code. GCC will decide whether
+// it needs to preserve any registers. Make sure to call SFX before SN so it can
+// properly set the mutes.
+#define CALL_PLAYER_SN \
+    __asm__(                                                        \
+        "bl @SongLoop"                                              \
+        : /* no outputs */                                          \
+        : /* no arguments */                                        \
+        : "r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r12","r13","r14","r15","cc"   \
+        )
 
 #endif  // file include

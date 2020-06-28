@@ -67,6 +67,24 @@ R3LSB EQU >8307
 * R6 = contains >0100       R14= SongLoop scratch
 * R7 = SongLoop scratch     R15= getCompressedByte arg1, SongLoop scratch
 
+* TMS9900 GCC Register classification
+* R0 - Volatile, Bit shift count
+* R1 - Volatile, Argument 1, return value 1
+* R2 - Volatile, Argument 2, return value 2
+* R3 - Volatile, Argument 3
+* R4 - Volatile, Argument 4
+* R5 - Volatile, Argument 5
+* R6 - Volatile, Argument 6
+* R7 - Volatile, Argument pointer
+* R8 - Volatile, Frame pointer
+* R9 - Preserved across BL calls
+* R10 (SP) - Preserved across BL calls, Stack pointer
+* R11 (LR) - Preserved across BL calls, Return address after BL
+* R12 (CB) - Volatile, CRU base
+* R13 (LW) - Preserved across BL calls, Old workspace register after BLWP
+* R14 (LP) - Preserved across BL calls, Old program counter after BLWP
+* R15 (LS) - Preserved across BL calls, Old status register after BLWP
+
 *****************************************************************************
 
 * some useful data

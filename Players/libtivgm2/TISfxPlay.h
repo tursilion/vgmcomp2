@@ -8,15 +8,32 @@
 // pSbf - pointer to song block data
 // songNum - which song to play (starts at 0)
 // pri - priority to play (lower number = higher priority)
-void StartSfx(unsigned char *pSbf, uWordSize songNum, unsigned char pri);
+void StartSfx(unsigned char *pSbf, uWordSize songNum, uWordSize pri);
 
 // Call this to stop the current sfx
 void StopSfx();
 
-// this needs to be called 60 times per second by your system
+// Main loop - do not call this directly, use CALL_PLAYER_SFX macro below
 void SfxLoop();
+
+// helpful wrapper
+#define isSFXPlaying ((sfxActive&(SONGACTIVEACTIVE<<8)) != 0)
 
 // MSB is the active bit with the mutes, LSB is current priority
 extern unsigned int sfxActive;
+
+// Option 3: use the hand tuned asm code directly with register preservation
+// Have to mark all regs as clobbered. Determine vblank any way you like
+// (I recommend VDP_WAIT_VBLANK_CRU), and then include this define "CALL_PLAYER_SFX;"
+// This is probably the safest for the hand-tuned code. GCC will decide whether
+// it needs to preserve any registers. Make sure to call SFX before SN so it can
+// properly set the mutes.
+#define CALL_PLAYER_SFX \
+    __asm__(                                                        \
+        "bl @SfxLoop"                                               \
+        : /* no outputs */                                          \
+        : /* no arguments */                                        \
+        : "r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r12","r13","r14","r15","cc"   \
+        )
 
 #endif  // file include

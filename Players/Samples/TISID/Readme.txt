@@ -45,6 +45,6 @@ StartSID(unsigned char *pSong, unsigned char nIdx)
 StopSID
 - stop playing any active song
 
-SongSID
+SIDLoop
 - call this function once every frame to play the music. Note that
   your call must be able to tolerate all registers being modified

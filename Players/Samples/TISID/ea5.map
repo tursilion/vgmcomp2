@@ -198,8 +198,8 @@ Address of section .data set to 0x2080
                 0x000000000000aab0                main
  .text          0x000000000000ac6c      0x1fa ../../libtivgm2/libtivgm2.a(CSIDPlayTIHandEdit.o)
                 0x000000000000ad44                StopSID
+                0x000000000000ad4c                SIDLoop
                 0x000000000000ac6c                StartSID
-                0x000000000000ad4c                SongSID
  .text          0x000000000000ae66      0x15c ../../libtivgm2/libtivgm2.a(CPlayerCommonHandEdit.o)
                 0x000000000000ae88                getDatRLE
                 0x000000000000aec2                getCompressedByte
@@ -503,6 +503,5 @@ songDat         0x000000000000209c       0x5c
                 0x00000000000020e8                sidNote
                 0x00000000000020f4                SidCtrl3
                 0x00000000000020f6                SidCtrl1
-                0x00000000000020f2                sidSave
                 0x00000000000020e4                sidVol
                 0x00000000000020f5                SidCtrl2

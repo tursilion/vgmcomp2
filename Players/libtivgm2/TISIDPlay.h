@@ -34,8 +34,11 @@ void StartSID(unsigned char *pSbf, uWordSize songNum);
 // Call this to stop the current song
 void StopSID();
 
-// this needs to be called 60 times per second by your system
-void SongSID();
+// Main loop - do not call this directly, use CALL_PLAYER_SID macro below
+void SIDLoop();
+
+// helpful wrapper
+#define isSIDPlaying ((sidNote[3]&SONGACTIVEACTIVE) != 0)
 
 // this array contains the current volume of each voice (ignoring mutes)
 // volume is in the most significant nibble. Note that sidVol[3] is unused.
@@ -56,5 +59,17 @@ extern uint16 sidNote[4];
 #define SONGACTIVEMUTE3  0x20
 #define SONGACTIVEMUTE4  0x10
 
+// Option 3: use the hand tuned asm code directly with register preservation
+// Have to mark all regs as clobbered. Determine vblank any way you like
+// (I recommend VDP_WAIT_VBLANK_CRU), and then include this define "CALL_PLAYER_SID;"
+// This is probably the safest for the hand-tuned code. GCC will decide whether
+// it needs to preserve any registers.
+#define CALL_PLAYER_SID \
+    __asm__(                                                        \
+        "bl @SIDLoop"                                               \
+        : /* no outputs */                                          \
+        : /* no arguments */                                        \
+        : "r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r12","r13","r14","r15","cc"   \
+        )
 
 #endif  // file include

@@ -9,20 +9,6 @@
 
 extern const unsigned char music[];
 
-// Option 3: use the hand tuned asm code directly with register preservation
-// Have to mark all regs as clobbered. Determine vblank any way you like
-// (I recommend VDP_WAIT_VBLANK_CRU), and then include this define "CALL_PLAYER;"
-// This is probably the safest for the hand-tuned code
-// This calls both the SFX and the Music players
-#define CALL_PLAYER \
-    __asm__(                                                        \
-        "bl @SfxLoop\n\t"                                           \
-        "bl @SongLoop"                                              \
-        : /* no outputs */                                          \
-        : /* no arguments */                                        \
-        : "r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r12","r13","r14","r15","cc"   \
-        )
-
 int main() {
 	unsigned char oldkey = 0;					// prevent key repeat
 	unsigned char isPlaying = 0;				// remember if we are playing a song so we can call mute on end
@@ -61,9 +47,9 @@ int main() {
 
 	// now we can main loop
 	for (;;) {
-        // wait for vertical blank, then run the player
-        VDP_WAIT_VBLANK_CRU;
-        CALL_PLAYER;
+        vdpwaitvint();      // wait for an interrupt with ints enabled - console clears it
+        CALL_PLAYER_SFX;    // must be first
+        CALL_PLAYER_SN;
 
 		// check for end of song, and mute audio if so (only if we were
 		// playing, this way it doesn't interfere with sound effects)
@@ -71,7 +57,7 @@ int main() {
 		// sound generators running at the end. I did this instead of
 		// patching the songs to demonstrate how to deal with it.
 		if (isPlaying) {
-            if (!(songNote[3]&SONGACTIVEACTIVE))  {
+            if (!isSNPlaying) {
 				isPlaying=0;
 				MUTE_SOUND();
 			}
