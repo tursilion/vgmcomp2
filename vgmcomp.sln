@@ -34,7 +34,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CPlayer", "CPlayer", "{009F
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LICENSE", "LICENSE", "{8F2A78CE-93B2-45DB-964B-40991EEAD2DC}"
 	ProjectSection(SolutionItems) = preProject
-		PublicDomain.txt = PublicDomain.txt
+		PublicDomainMostly.txt = PublicDomainMostly.txt
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prepare4AY", "prepare4AY\prepare4AY.vcxproj", "{066D0D1B-F97E-424E-910A-58E8D5587935}"
@@ -145,6 +145,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TISNSID", "TISNSID", "{D009
 		Players\Samples\TISNSID\wbsid.c = Players\Samples\TISNSID\wbsid.c
 		Players\Samples\TISNSID\wbsn.c = Players\Samples\TISNSID\wbsn.c
 	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mod2psg", "mod2psg\mod2psg.vcxproj", "{A8AE6659-CFC8-45AB-8292-867E4236C223}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -282,6 +284,14 @@ Global
 		{01263202-227D-4316-8459-25D35EFCD16E}.Release|Win32.Build.0 = Release|Win32
 		{01263202-227D-4316-8459-25D35EFCD16E}.Release|x64.ActiveCfg = Release|x64
 		{01263202-227D-4316-8459-25D35EFCD16E}.Release|x64.Build.0 = Release|x64
+		{A8AE6659-CFC8-45AB-8292-867E4236C223}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A8AE6659-CFC8-45AB-8292-867E4236C223}.Debug|Win32.Build.0 = Debug|Win32
+		{A8AE6659-CFC8-45AB-8292-867E4236C223}.Debug|x64.ActiveCfg = Debug|x64
+		{A8AE6659-CFC8-45AB-8292-867E4236C223}.Debug|x64.Build.0 = Debug|x64
+		{A8AE6659-CFC8-45AB-8292-867E4236C223}.Release|Win32.ActiveCfg = Release|Win32
+		{A8AE6659-CFC8-45AB-8292-867E4236C223}.Release|Win32.Build.0 = Release|Win32
+		{A8AE6659-CFC8-45AB-8292-867E4236C223}.Release|x64.ActiveCfg = Release|x64
+		{A8AE6659-CFC8-45AB-8292-867E4236C223}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

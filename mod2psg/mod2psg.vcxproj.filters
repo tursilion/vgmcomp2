@@ -1,0 +1,156 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="modplug">
+      <UniqueIdentifier>{c9035045-696a-4993-93d0-05e5bec47782}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modplug\libmodplug">
+      <UniqueIdentifier>{31feac2a-5db5-48ee-b7e1-1ea5bb80c748}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="mod2psg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\fastmix.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_669.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_abc.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_amf.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_ams.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_dbm.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_dmf.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_dsm.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_far.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_it.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_j2b.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_mdl.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_med.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_mid.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_mod.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_mt2.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_mtm.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_okt.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_pat.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_psm.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_ptm.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_s3m.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_stm.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_ult.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_umx.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_wav.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\load_xm.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\mmcmp.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\modplug.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\snd_dsp.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\snd_flt.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\snd_fx.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\sndfile.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+    <ClCompile Include="modplug\sndmix.cpp">
+      <Filter>modplug</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="modplug\libmodplug\it_defs.h">
+      <Filter>modplug\libmodplug</Filter>
+    </ClInclude>
+    <ClInclude Include="modplug\libmodplug\sndfile.h">
+      <Filter>modplug\libmodplug</Filter>
+    </ClInclude>
+    <ClInclude Include="modplug\libmodplug\stdafx.h">
+      <Filter>modplug\libmodplug</Filter>
+    </ClInclude>
+    <ClInclude Include="modplug\load_pat.h">
+      <Filter>modplug</Filter>
+    </ClInclude>
+    <ClInclude Include="modplug\modplug.h">
+      <Filter>modplug</Filter>
+    </ClInclude>
+    <ClInclude Include="modplug\tables.h">
+      <Filter>modplug</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="modplug\AUTHORS">
+      <Filter>modplug</Filter>
+    </None>
+    <None Include="modplug\config.h.in">
+      <Filter>modplug</Filter>
+    </None>
+    <None Include="modplug\COPYING">
+      <Filter>modplug</Filter>
+    </None>
+    <None Include="modplug\README">
+      <Filter>modplug</Filter>
+    </None>
+  </ItemGroup>
+</Project>

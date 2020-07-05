@@ -15,5 +15,5 @@ Current Exceptions:
     You'll find the required "COPYING" file in that folder. This was because I didn't want to write a SID chip 
     emulator.
 
-    That said, the CPlayer files are therefore dual licensed - GPLv2 when part of PCAY or PCSID and Public 
-    Domain when they are not. :p
+    That said, the /CPlayer/ files are therefore dual licensed - GPLv2 when part of PCAY or PCSID and Public 
+    Domain when they are not. :p 

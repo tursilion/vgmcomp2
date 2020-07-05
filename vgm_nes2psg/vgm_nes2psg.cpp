@@ -734,7 +734,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM NES - v20200615\n");
+	printf("Import VGM NES - v20200704\n");
 
 	if (argc < 2) {
 		printf("vgm_nes2psg [-q] [-d <n>] [-o <n>] [-add <n>] [-triangle <n>] [-enableperiodic] [-disabledmcvolhack] [-dmcnoise|-dmcnone] [-ignoreweird] <filename>\n");
@@ -795,7 +795,7 @@ int main(int argc, char* argv[])
                 printf("output channel must be 1 (sq), 2 (sq), 3 (tri), 4 (noise) or 5 (dmc) (6-10 for second chip)\n");
                 return -1;
             }
-            printf("Output ONLY channel %d: ", debug);
+            printf("Output ONLY channel %d: ", output);
             switch(output) {
                 case 1: printf("Square 1\n"); break;
                 case 2: printf("Square 2\n"); break;

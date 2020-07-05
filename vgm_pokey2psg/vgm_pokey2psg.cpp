@@ -443,7 +443,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM Pokey - v20200615\n");
+	printf("Import VGM Pokey - v20200704\n");
 
 	if (argc < 2) {
 		printf("vgm_pokey2psg [-q] [-d] [-o <n>] [-disableperiodic] [-ignorehighpass] [-ignoreweird] <filename>\n");
@@ -483,7 +483,7 @@ int main(int argc, char* argv[])
                 printf("output channel must be 1-8. (9-16 for second chip).\nTones and noises are split: odd channels are tone, even channels are noise.\n");
                 return -1;
             }
-            printf("Output ONLY channel %d: %s%d", debug, output&1?"Tone":"Noise", output/2);
+            printf("Output ONLY channel %d: %s%d", output, output&1?"Tone":"Noise", output/2);
         } else if (0 == strcmp(argv[arg], "-disableperiodic")) {
             disablePeriodic = true;
         } else if (0 == strcmp(argv[arg], "-ignorehighpass")) {

@@ -857,7 +857,7 @@ int main(int argc, char *argv[])
     int delay = 16;
     int sbfsong = 0;
 
-	printf("VGMComp Test Player - v20200626\n");
+	printf("VGMComp Test Player - v20200705\n");
 
 	if (argc < 2) {
 		printf("testPlayPSG [-ay|-sn|-sid] [-forcenoise x] [-sbfsong x] [-hidenotes] [-heatmap] [<file prefix> | <file.sbf> | <track1> <track2> ...]\n");
@@ -955,8 +955,8 @@ int main(int argc, char *argv[])
 
         FILE *fp=fopen(namebuf, "rb");
         if (NULL == fp) {
-            printf("Failed to open '%s', code %d\n", namebuf, errno);
-            return 1;
+            // doesn't exist, trying the looser test
+            break;
         }
 
         // check if it's an SBF file first

@@ -268,7 +268,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM PSG - v20200615\n");
+	printf("Import VGM PSG - v20200704\n");
 
 	if (argc < 2) {
 		printf("vgm_psg2psg [-q] [-d] [-o <n>] [-add <n>] [-notunenoise] [-noscalefreq] [-ignoreweird] <filename>\n");
@@ -309,7 +309,7 @@ int main(int argc, char* argv[])
                 printf("output channel must be 1-3 (tone), or 4 (noise) (5-8 for second chip)\n");
                 return -1;
             }
-            printf("Output ONLY channel %d: ", debug);
+            printf("Output ONLY channel %d: ", output);
             switch(output) {
                 case 1: printf("Tone 1\n"); break;
                 case 2: printf("Tone 2\n"); break;
