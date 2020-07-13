@@ -22,15 +22,21 @@ int addout = 0;                             // fixed value to add to the output 
 int channels = 0;                           // number of channels
 ModPlug_Settings settings;                  // MODPlug settings
 ModPlugFile *pMod;                          // the module object itself
-
-// frequency compensation for NTSC playback
-// note: true NTSC is 3.579545, but the TI-99 clocked at 3.579543. I've
-// compromised on this 99.9999% offset is compromised, to reduce error
-// on both TI and systems which used the correct clock like SMS).
-const double NTSC_COMP = (3579544.0 / 3546895.0);
+bool bAutoVol = true;                       // whether to automatically auto-volume
+double VolScale = 1.0;                      // song volume scale
+double FreqScale = 1.0;                     // song frequency scale
 
 int main(int argc, char *argv[]) {
-	printf("Import MOD tracker-style files - v20200704\n\n");
+	printf("Import MOD tracker-style files - v20200712\n\n");
+
+    // TODO: set up noise channels and output noises on them
+    // TODO: can we auto-detect noises? Certainly should be able to for MIDI, aren't they fixed?
+
+    // TODO options:
+    // - insvol (volume multiplier for instrument/sample, defaults to 1.0)
+    // - instune (frequency multiplier for instrument/sample, defaults to 1.0)
+    // - drumfreq (set a sample to a fixed drum frequency)
+    // - drums (list of noise channels)
 
 	if (argc < 2) {
 		printf("mod2psg [-q] [-d] [-o <n>] [-add <n>] <filename>\n");
@@ -38,13 +44,14 @@ int main(int argc, char *argv[]) {
         printf(" -d - enable parser debug output\n");
         printf(" -o <n> - output only channel <n> (1-max)\n");
         printf(" -add <n> - add 'n' to the output channel number (use for multiple chips, otherwise starts at zero)\n");
+        printf(" -vol <float> - scale song volume by float (1.0=no change, disables automatic volume scale)\n");
+        printf(" -tune <float> - scale song frequency by float (1.0=no change, 2.0=octave DOWN, 0.5=octave UP)\n");
 		printf(" <filename> - MOD file to read.\n");
         printf("\nmod2psg uses the ModPlug library and should be able to read anything it can.\n");
         printf("Supported types should be: ABC, MOD, S3M, XM, IT, 669, AMF, AMS, DBM, DMF, DSM, FAR,\n");
         printf("MDL, MED, MID, MTM, OKT, PTM, STM, ULT, UMX, MT2 and PSM.\n");
         printf("If you have Timidity .pat patches for MIDI, you can set the MMPAT_PATH_TO_CFG\n");
         printf("environment variable and it should be able to use them.\n");
-        printf("Will they help? I have no idea. ;)\n");
 		return -1;
 	}
     verbose = true;
@@ -72,6 +79,29 @@ int main(int argc, char *argv[]) {
             // we don't know how many channels there will be - check after loading the MOD
             output = atoi(argv[arg]);
             printf("Output ONLY channel %d\n", output);
+        } else if (0 == strcmp(argv[arg], "-vol")) {
+            ++arg;
+            if (arg+1 >= argc) {
+                printf("Not enough arguments for 'vol' option\n");
+                return -1;
+            }
+            bAutoVol = false;
+            if (1 != sscanf(argv[arg], "%lf", &VolScale)) {
+                printf("Failed to parse vol scale\n");
+                return -1;
+            }
+            printf("Setting volume scale to %lf\n", VolScale);
+        } else if (0 == strcmp(argv[arg], "-tune")) {
+            ++arg;
+            if (arg+1 >= argc) {
+                printf("Not enough arguments for 'tune' option\n");
+                return -1;
+            }
+            if (1 != sscanf(argv[arg], "%lf", &FreqScale)) {
+                printf("Failed to parse tune frequency scale\n");
+                return -1;
+            }
+            printf("Setting frequency scale to %lf\n", FreqScale);
 		} else {
 			printf("\rUnknown command '%s'\n", argv[arg]);
 			return -1;
@@ -210,35 +240,90 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    int rows = 0;
+    // looping on autovol with manual break
+    int rows;
     for (;;) {
-        char audioBuf[735*2];   // 735 16-bit mono samples
-        int ret = ModPlug_Read(pMod, audioBuf, sizeof(audioBuf));
-        if (ret < sizeof(audioBuf)) break;
+        int maxVol = 0;
 
-        // but what we want is the tracker information inside the mod...
-        for (int idx=0; idx<channels; ++idx) {
-            int period = pMod->mSoundFile.Chn[idx].nFinalPeriod;    // probably normally the same... but that's ok
-            // get the average volume over the period
-            int vol = pMod->mSoundFile.Chn[idx].nAvgCnt == 0 ? 0 : pMod->mSoundFile.Chn[idx].nAvgVol / pMod->mSoundFile.Chn[idx].nAvgCnt;    
-            // vol should already be in the 8 bit magnitude we expect
-            if (vol > 0xff) vol = 0xff;
-            // period is based on 3.5MHz, we want based on 111860.8Hz
-            // Adjust for NTSC clocking
-            period = (int)(period * NTSC_COMP + 0.5);
-            // PAL Amiga frequency used here, since most MODs are PAL
-            period /= (int)(3546895 / 111860.8 / 2);
-            if (fp[idx]) {
-                fprintf(fp[idx], "0x%08X,0x%02X\n", period, vol);
-            }
-            // debug row if requested
-            if (debug) printf("P:%5d V:%5d - ", period, vol);
-            // reset the average counters for the next segment
-            pMod->mSoundFile.Chn[idx].nAvgVol = 0;
-            pMod->mSoundFile.Chn[idx].nAvgCnt = 0;
+        ModPlug_Seek(pMod, 0);
+        rows = 0;
+
+        if (bAutoVol) {
+            if (verbose) printf("Scanning for volume...\n");
         }
-        if (debug) printf("\n");
-        ++rows;
+
+        for (;;) {
+            char audioBuf[735*2];   // 735 16-bit mono samples
+            int ret = ModPlug_Read(pMod, audioBuf, sizeof(audioBuf));
+            if (ret < sizeof(audioBuf)) break;
+
+            // but what we want is the tracker information inside the mod...
+            for (int idx=0; idx<channels; ++idx) {
+                // get the average volume over the period
+                int vol;
+                if (pMod->mSoundFile.Chn[idx].nAvgCnt == 0) {
+                    // no activity on channel
+                    vol = 0;
+                } else {
+                    // the result is a 16-bit magnitude (0-65535)
+                    double tmpVol = ((double)pMod->mSoundFile.Chn[idx].nAvgVol / pMod->mSoundFile.Chn[idx].nAvgCnt) * VolScale;
+                    vol = (int)(tmpVol+0.5);
+                    // finally, shift 16 bits down to 8
+                    vol >>= 8;
+                }
+                // vol should already be in the 8 bit magnitude we expect
+                if (vol > 0xff) {
+                    if (vol > 255+25) {
+                        printf("Warning: clipping (%d vs 255)\n", vol);
+                    }
+                    vol = 0xff;
+                }
+
+                // now deal with the period
+                int period = pMod->mSoundFile.Chn[idx].nFinalPeriod;
+                // period is based on 3.5MHz, we want based on 111860.8Hz
+                // PAL Amiga frequency used here, since most MODs are PAL
+                // Not sure offhand why I need the /4, but it sounds right.
+                // It looks like the periods might be multiplied by 4 as they are loaded...?
+                period *= FreqScale;
+                period /= (int)(3546895 / 111860.8 / 4 + 0.5);
+                if (period == 0) {
+                    if (FreqScale < 1.0) {
+                        printf("Warning: period became zero - frequency scale too low\n");
+                    }
+                    // don't allow 0
+                    period = 1;
+                }
+
+                // and dump it to the file, if this isn't the auto pass
+                if (bAutoVol) {
+                    // autovol pass - check levels
+                    if (vol > maxVol) maxVol = vol;
+                } else {
+                    // fixed pass, write it out
+                    if (fp[idx]) {
+                        fprintf(fp[idx], "0x%08X,0x%02X\n", period, vol);
+                    }
+                    // debug row if requested
+                    if (debug) printf("P:%5d V:%5d - ", period, vol);
+                }
+                // reset the average counters for the next segment
+                pMod->mSoundFile.Chn[idx].nAvgVol = 0;
+                pMod->mSoundFile.Chn[idx].nAvgCnt = 0;
+            }
+            if ((debug)&&(!bAutoVol)) printf("\n");
+            ++rows;
+        }
+
+        if (bAutoVol) {
+            // calculate a volume scale ratio to max out the song, then repeat
+            VolScale = (double)255/maxVol;
+            bAutoVol = false;
+            printf("Calculated volume scale of %lf\n", VolScale);
+        } else {
+            // we're done, do break
+            break;
+        }
     }
 
     for (int idx=0; idx<channels; ++idx) {

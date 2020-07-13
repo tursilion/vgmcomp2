@@ -46,7 +46,7 @@
 
 #include "load_pat.h"
 
-#ifdef MSC_VER
+#ifdef _WIN32
 #define DIRDELIM		'\\'
 #define TIMIDITYCFG	"C:\\TIMIDITY\\TIMIDITY.CFG"
 #define PATHFORPAT	"C:\\TIMIDITY\\INSTRUMENTS"

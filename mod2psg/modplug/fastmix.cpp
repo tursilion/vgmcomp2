@@ -31,7 +31,6 @@ float MixFloatBuffer[MIXBUFFERSIZE*2];
 #pragma bss_seg()
 #endif
 
-
 extern LONG gnDryROfsVol;
 extern LONG gnDryLOfsVol;
 extern LONG gnRvbROfsVol;
@@ -501,7 +500,6 @@ CzWINDOWEDFIR sfir;
 // vl - left sample volume
 // vr - right sample volume (these should normally be the same for mono mixing)
 // input volumes are 16 bit * 12 bit, so total of 28 bit. We want 8 and magnitude.
-// TODO: outputs are still pretty quiet... should I increase them?
 // volume ranges from 0 - 0xFFFF
 // mixing attentuation is a 4 bit shift (divide by 16), so volume becomes 0-0xFFF
 // Ramp volume is volume left shifted by 12 (so, 0 to 0xFFF000)
@@ -520,15 +518,12 @@ void updateAvg(MODCHANNEL *pChn, int ivl, int ivr) {
     } else if (n > 0x07ffffff) {
 	    n = 0x07ffffff;
     }
-    // now scale from 28 bit down to 9 bits (not 8, cause we are losing the sign bit)
+    // now scale from 28 bit down to 17 bits (not 16, cause we are discarding the sign bit - result is 16)
     // I was previously going louder, because many MODs were quiet, but Splash Woman (probably
     // one of the hardest cases, being square waves) was clipping all over the place. So
     // I think that verifies my math and many MODs will just need to be amplified.
-    // TODO: we can apply user-specified scaling here so it is done before we lose the resolution
-    // TODO: can I come up with an automatic volume maximize?
-    // TODO: to help with both of the above, we should track the maximum applied volume (in the main code,
-    // NOT here), then we can calculate a ratio to reprocess, or just tell the user.
-    n >>= 19;
+    // We keep the extra resolution here to help with quiet notes
+    n >>= 11;
     // now try to calculate peak to peak
     // track to the lowest value
     if (n < pChn->nLastVol) {
@@ -541,9 +536,8 @@ void updateAvg(MODCHANNEL *pChn, int ivl, int ivr) {
     } else if (pChn->nLastVol < 0) {
         // peaked, record the difference
         int vol = n-pChn->nLastVol;
-        if (vol > 255) {
-            printf("Warning: clipping (%d vs 255)\n", vol);
-            vol = 255;
+        if (vol > 0xffff) {
+            vol = 0xffff;
         }
 
         // update stats
