@@ -497,50 +497,82 @@ CzWINDOWEDFIR sfir;
 // Tursi: original authors would hate me, putting a function in their mixer..
 // What is the range of the output volume? Is it 16 bit now?
 // but I do know it's centered on zero
-void updateAvg(MODCHANNEL *pChn, int vl, int vr) {
-    static int maxvol = 0;
-    
+// Inputs: pChn - channel being worked on
+// vl - left sample volume
+// vr - right sample volume (these should normally be the same for mono mixing)
+// input volumes are 16 bit * 12 bit, so total of 28 bit. We want 8 and magnitude.
+// TODO: outputs are still pretty quiet... should I increase them?
+// volume ranges from 0 - 0xFFFF
+// mixing attentuation is a 4 bit shift (divide by 16), so volume becomes 0-0xFFF
+// Ramp volume is volume left shifted by 12 (so, 0 to 0xFFF000)
+// Sample position is a 16.16 value, and is read in as a 16-bit signed value (8 bit is promoted)
+// Output value is sample (16bit) * volume (12 bit) - that should be the value I get
+void updateAvg(MODCHANNEL *pChn, int ivl, int ivr) {
+    int vl = ivl;
+    int vr = ivr;   // copies just for debug purposes
+
+    // average stereo back to mono
     int n = (vl+vr)/2;
-    // clipping
-    if (n < -0x08000000) {
-	    n = -0x08000000;
+
+    // clipping - making my life easy and ignoring -0x8000000
+    if (n < -0x07ffffff) {      // I think that this is the maximum
+	    n = -0x07ffffff;
     } else if (n > 0x07ffffff) {
 	    n = 0x07ffffff;
     }
-    int vol = n / 4096;	// 16-bit signed
-    if (vol < 0) vol=-vol;  // magnitude only
+    // now scale from 28 bit down to 9 bits (not 8, cause we are losing the sign bit)
+    // I was previously going louder, because many MODs were quiet, but Splash Woman (probably
+    // one of the hardest cases, being square waves) was clipping all over the place. So
+    // I think that verifies my math and many MODs will just need to be amplified.
+    // TODO: we can apply user-specified scaling here so it is done before we lose the resolution
+    // TODO: can I come up with an automatic volume maximize?
+    // TODO: to help with both of the above, we should track the maximum applied volume (in the main code,
+    // NOT here), then we can calculate a ratio to reprocess, or just tell the user.
+    n >>= 19;
+    // now try to calculate peak to peak
+    // track to the lowest value
+    if (n < pChn->nLastVol) {
+        // still counting down
+        pChn->nLastVol = n;
+        pChn->nLastDiff = 0;
+    } else if (n - pChn->nLastVol > pChn->nLastDiff) {
+        // now counting up
+        pChn->nLastDiff = n-pChn->nLastVol;
+    } else if (pChn->nLastVol < 0) {
+        // peaked, record the difference
+        int vol = n-pChn->nLastVol;
+        if (vol > 255) {
+            printf("Warning: clipping (%d vs 255)\n", vol);
+            vol = 255;
+        }
 
-    // remember loudest value
-    if (vol > maxvol) {
-        maxvol = vol;
+        // update stats
+        pChn->nAvgVol += vol;
+        pChn->nAvgCnt++; 
+
+        // reset counters
+        pChn->nLastDiff = 0;    // start new diff
+        pChn->nLastVol = 0;     // start new cycle when we go negative
     }
-
-    // update stats
-    pChn->nAvgVol += vol;
-    pChn->nAvgCnt++; 
-    pChn->nLastVol = 0;
-
-    // copy the global max to every channel for easy display
-    pChn->nMaxVol = maxvol;
 }
 
 #define SNDMIX_STOREMONOVOL\
 	pvol[0] += vol * pChn->nRightVol;\
 	pvol[1] += vol * pChn->nLeftVol;\
-    updateAvg(pChn, pvol[0], pvol[1]);\
+    updateAvg(pChn, vol * pChn->nRightVol, vol * pChn->nLeftVol);\
 	pvol += 2;
 
 #define SNDMIX_STORESTEREOVOL\
 	pvol[0] += vol_l * pChn->nRightVol;\
 	pvol[1] += vol_r * pChn->nLeftVol;\
-    updateAvg(pChn, pvol[0], pvol[1]);\
+    updateAvg(pChn, vol_l * pChn->nRightVol, vol_r * pChn->nLeftVol);\
 	pvol += 2;
 
 #define SNDMIX_STOREFASTMONOVOL\
 	int v = vol * pChn->nRightVol;\
 	pvol[0] += v;\
 	pvol[1] += v;\
-    updateAvg(pChn, pvol[0], pvol[1]);\
+    updateAvg(pChn, v, v);\
 	pvol += 2;
 
 #define SNDMIX_RAMPMONOVOL\
@@ -548,7 +580,7 @@ void updateAvg(MODCHANNEL *pChn, int vl, int vr) {
 	nRampRightVol += pChn->nRightRamp;\
 	pvol[0] += vol * (nRampRightVol >> VOLUMERAMPPRECISION);\
 	pvol[1] += vol * (nRampLeftVol >> VOLUMERAMPPRECISION);\
-    updateAvg(pChn, pvol[0], pvol[1]);\
+    updateAvg(pChn, vol * (nRampRightVol >> VOLUMERAMPPRECISION), vol * (nRampLeftVol >> VOLUMERAMPPRECISION));\
 	pvol += 2;
 
 #define SNDMIX_RAMPFASTMONOVOL\
@@ -556,7 +588,7 @@ void updateAvg(MODCHANNEL *pChn, int vl, int vr) {
 	int fastvol = vol * (nRampRightVol >> VOLUMERAMPPRECISION);\
 	pvol[0] += fastvol;\
 	pvol[1] += fastvol;\
-    updateAvg(pChn, pvol[0], pvol[1]);\
+    updateAvg(pChn, fastvol, fastvol);\
 	pvol += 2;
 
 #define SNDMIX_RAMPSTEREOVOL\
@@ -564,7 +596,7 @@ void updateAvg(MODCHANNEL *pChn, int vl, int vr) {
 	nRampRightVol += pChn->nRightRamp;\
 	pvol[0] += vol_l * (nRampRightVol >> VOLUMERAMPPRECISION);\
 	pvol[1] += vol_r * (nRampLeftVol >> VOLUMERAMPPRECISION);\
-    updateAvg(pChn, pvol[0], pvol[1]);\
+    updateAvg(pChn, vol_l * (nRampRightVol >> VOLUMERAMPPRECISION), vol_r * (nRampLeftVol >> VOLUMERAMPPRECISION));\
 	pvol += 2;
 
 
@@ -704,8 +736,6 @@ typedef VOID (MPPASMCALL * LPMIXINTERFACE)(MODCHANNEL *, int *, int *);
 void MPPASMCALL X86_InitMixBuffer(int *pBuffer, UINT nSamples);
 void MPPASMCALL X86_EndChannelOfs(MODCHANNEL *pChannel, int *pBuffer, UINT nSamples);
 void MPPASMCALL X86_StereoFill(int *pBuffer, UINT nSamples, LPLONG lpROfs, LPLONG lpLOfs);
-void X86_StereoMixToFloat(const int *, float *, float *, UINT nCount);
-void X86_FloatToStereoMix(const float *pIn1, const float *pIn2, int *pOut, UINT nCount);
 
 /////////////////////////////////////////////////////
 // Mono samples functions

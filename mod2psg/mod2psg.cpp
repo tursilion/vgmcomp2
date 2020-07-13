@@ -23,6 +23,12 @@ int channels = 0;                           // number of channels
 ModPlug_Settings settings;                  // MODPlug settings
 ModPlugFile *pMod;                          // the module object itself
 
+// frequency compensation for NTSC playback
+// note: true NTSC is 3.579545, but the TI-99 clocked at 3.579543. I've
+// compromised on this 99.9999% offset is compromised, to reduce error
+// on both TI and systems which used the correct clock like SMS).
+const double NTSC_COMP = (3579544.0 / 3546895.0);
+
 int main(int argc, char *argv[]) {
 	printf("Import MOD tracker-style files - v20200704\n\n");
 
@@ -213,22 +219,25 @@ int main(int argc, char *argv[]) {
         // but what we want is the tracker information inside the mod...
         for (int idx=0; idx<channels; ++idx) {
             int period = pMod->mSoundFile.Chn[idx].nFinalPeriod;    // probably normally the same... but that's ok
+            // get the average volume over the period
             int vol = pMod->mSoundFile.Chn[idx].nAvgCnt == 0 ? 0 : pMod->mSoundFile.Chn[idx].nAvgVol / pMod->mSoundFile.Chn[idx].nAvgCnt;    
-            if (debug) printf("P:%5d V:%5d - ", period, vol);
-            // volume is 15 bit positive only, convert to 8 bit positive only
-            vol /= 128;
+            // vol should already be in the 8 bit magnitude we expect
             if (vol > 0xff) vol = 0xff;
             // period is based on 3.5MHz, we want based on 111860.8Hz
+            // Adjust for NTSC clocking
+            period = (int)(period * NTSC_COMP + 0.5);
             // PAL Amiga frequency used here, since most MODs are PAL
             period /= (int)(3546895 / 111860.8 / 2);
             if (fp[idx]) {
                 fprintf(fp[idx], "0x%08X,0x%02X\n", period, vol);
             }
+            // debug row if requested
+            if (debug) printf("P:%5d V:%5d - ", period, vol);
+            // reset the average counters for the next segment
             pMod->mSoundFile.Chn[idx].nAvgVol = 0;
             pMod->mSoundFile.Chn[idx].nAvgCnt = 0;
         }
-        // volumes are 0-32767 (maybe 32768 - always check). Divide by 128 for 8-bit.
-        if (debug) printf("maxvol: %02X\n", pMod->mSoundFile.Chn[3].nMaxVol/128);
+        if (debug) printf("\n");
         ++rows;
     }
 

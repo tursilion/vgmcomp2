@@ -398,8 +398,8 @@ typedef struct _MODCHANNEL
     // Not in the cache listed...
     DWORD nAvgVol;
     DWORD nAvgCnt;
-    DWORD nMaxVol;
-    DWORD nLastVol;
+    int nLastVol;
+    int nLastDiff;
 	// Information not used in the mixer
 	signed char * pSample;
 	LONG nNewRightVol, nNewLeftVol;
