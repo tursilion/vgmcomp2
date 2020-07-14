@@ -15,5 +15,8 @@ Current Exceptions:
     You'll find the required "COPYING" file in that folder. This was because I didn't want to write a SID chip 
     emulator.
 
-    That said, the /CPlayer/ files are therefore dual licensed - GPLv2 when part of PCAY or PCSID and Public 
+    That said, the shared /CPlayer/ files are therefore dual licensed - GPLv2 when part of PCAY or PCSID and Public 
     Domain when they are not. :p 
+
+    mod2psg and the resulting mod2psg.exe contain KISS-FFT by Mark Borgerding, and his copyright notice must
+    be included. See mod2psg\kissfft\BSD-3-Clause. Obviously my PD assertion does not apply to KISS-FFT.

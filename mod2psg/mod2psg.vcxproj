@@ -72,11 +72,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>modplug\libmodplug;$(IncludePath)</IncludePath>
+    <IncludePath>modplug\libmodplug;kissfft;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>modplug\libmodplug;$(IncludePath)</IncludePath>
+    <IncludePath>modplug\libmodplug;kissfft;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -93,7 +93,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;MODPLUG_STATIC=1;VERSION=0.8.8.5;_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;MODPLUG_STATIC=1;VERSION=0.8.8.5;kiss_fft_scalar=float;KFVER=131;_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -110,7 +110,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;MODPLUG_STATIC=1;VERSION=0.8.8.5;_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;MODPLUG_STATIC=1;VERSION=0.8.8.5;kiss_fft_scalar=float;KFVER=131;_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -153,6 +153,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="kissfft\kiss_fft.c" />
+    <ClCompile Include="kissfft\kiss_fftr.c" />
     <ClCompile Include="mod2psg.cpp" />
     <ClCompile Include="modplug\fastmix.cpp" />
     <ClCompile Include="modplug\load_669.cpp" />
@@ -190,6 +192,12 @@
     <ClCompile Include="modplug\snd_fx.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="kissfft\kissfft.hh" />
+    <ClInclude Include="kissfft\kissfft_i32.hh" />
+    <ClInclude Include="kissfft\kiss_fft.h" />
+    <ClInclude Include="kissfft\kiss_fftr.h" />
+    <ClInclude Include="kissfft\kiss_fft_log.h" />
+    <ClInclude Include="kissfft\_kiss_fft_guts.h" />
     <ClInclude Include="modplug\libmodplug\it_defs.h" />
     <ClInclude Include="modplug\libmodplug\sndfile.h" />
     <ClInclude Include="modplug\libmodplug\stdafx.h" />
@@ -198,6 +206,9 @@
     <ClInclude Include="modplug\tables.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="kissfft\BSD-3-Clause" />
+    <None Include="kissfft\COPYING" />
+    <None Include="kissfft\README" />
     <None Include="modplug\AUTHORS" />
     <None Include="modplug\config.h.in" />
     <None Include="modplug\COPYING" />

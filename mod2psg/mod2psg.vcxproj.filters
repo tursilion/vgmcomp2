@@ -11,6 +11,9 @@
     <Filter Include="modplug\libmodplug">
       <UniqueIdentifier>{31feac2a-5db5-48ee-b7e1-1ea5bb80c748}</UniqueIdentifier>
     </Filter>
+    <Filter Include="kissfft">
+      <UniqueIdentifier>{b2a75fe2-0e63-4938-9cd8-1b22d4bc32fe}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="mod2psg.cpp">
@@ -118,6 +121,12 @@
     <ClCompile Include="modplug\sndmix.cpp">
       <Filter>modplug</Filter>
     </ClCompile>
+    <ClCompile Include="kissfft\kiss_fft.c">
+      <Filter>kissfft</Filter>
+    </ClCompile>
+    <ClCompile Include="kissfft\kiss_fftr.c">
+      <Filter>kissfft</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="modplug\libmodplug\it_defs.h">
@@ -138,6 +147,24 @@
     <ClInclude Include="modplug\tables.h">
       <Filter>modplug</Filter>
     </ClInclude>
+    <ClInclude Include="kissfft\_kiss_fft_guts.h">
+      <Filter>kissfft</Filter>
+    </ClInclude>
+    <ClInclude Include="kissfft\kiss_fft.h">
+      <Filter>kissfft</Filter>
+    </ClInclude>
+    <ClInclude Include="kissfft\kiss_fft_log.h">
+      <Filter>kissfft</Filter>
+    </ClInclude>
+    <ClInclude Include="kissfft\kissfft.hh">
+      <Filter>kissfft</Filter>
+    </ClInclude>
+    <ClInclude Include="kissfft\kissfft_i32.hh">
+      <Filter>kissfft</Filter>
+    </ClInclude>
+    <ClInclude Include="kissfft\kiss_fftr.h">
+      <Filter>kissfft</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="modplug\AUTHORS">
@@ -151,6 +178,15 @@
     </None>
     <None Include="modplug\README">
       <Filter>modplug</Filter>
+    </None>
+    <None Include="kissfft\BSD-3-Clause">
+      <Filter>kissfft</Filter>
+    </None>
+    <None Include="kissfft\COPYING">
+      <Filter>kissfft</Filter>
+    </None>
+    <None Include="kissfft\README">
+      <Filter>kissfft</Filter>
     </None>
   </ItemGroup>
 </Project>

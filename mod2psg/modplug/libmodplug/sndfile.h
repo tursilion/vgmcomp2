@@ -319,6 +319,9 @@ typedef struct _MODINSTRUMENT
 	BYTE nVibSweep;
 	BYTE nVibDepth;
 	BYTE nVibRate;
+    int  SNR;
+    bool isNoise;
+    bool isNoiseForced;
 	CHAR name[22];
 } MODINSTRUMENT;
 

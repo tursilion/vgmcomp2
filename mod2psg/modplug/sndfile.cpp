@@ -1123,6 +1123,11 @@ UINT CSoundFile::ReadSample(MODINSTRUMENT *pIns, UINT nFlags, LPCSTR lpMemFile, 
 		pIns->nLength = 0;
 		return 0;
 	}
+
+    pIns->isNoise = false;  // assume tone
+    pIns->isNoiseForced = false;
+    pIns->SNR = 100;        // assume 100% pure
+
 	switch(nFlags)
 	{
 	// 1: 8-bit unsigned PCM data
