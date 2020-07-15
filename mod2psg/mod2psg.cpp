@@ -17,6 +17,8 @@ struct _ModPlugFile
 	CSoundFile mSoundFile;
 };
 
+#define MAXTICKS 432000					    // about 2 hrs, but arbitrary
+
 bool verbose = false;                       // emit more information
 bool debug = false;                         // dump parser data
 bool debug2 = false;                        // dump per row data
@@ -32,6 +34,8 @@ int snrcutoff = 70;                         // SNR cutoff for noise - less than 
 bool useDrums = false;                      // whether to look for DRUMS$ in the sample names
 const char *forceNoise = NULL;              // comma-separated list of samples to make noise
 const char *forceTone = NULL;               // comma-separated list of samples to make tone
+int outTone[MAX_CHANNELS*2][MAXTICKS];      // tone and volume for the song - first half are tones, second noise
+int outVol[MAX_CHANNELS*2][MAXTICKS];
 
 // Guesstimate the SNR of a sample from 0-100 (percent)
 // pSample is a pointer to sample data, uFlags describes it. len is number of samples
@@ -83,7 +87,15 @@ int guessSNR(int sampnum, void *pSample, int len, int nFlags) {
             }
         }
     }
-    // zero the rest of the buffer
+    // if len < 735 bytes, then duplicate it, as that's too short
+    if (len < 735) {
+        for (int idx=len; idx<735; ++idx) {
+            samp[idx] = samp[idx%len];
+        }
+        len = 735;
+    }
+
+    // zero the rest of the buffer (duplicating is much worse)
     for (int idx=len; idx<numSam; ++idx) {
         samp[idx]=0;
     }
@@ -182,6 +194,21 @@ int guessSNR(int sampnum, void *pSample, int len, int nFlags) {
     // as even twangy tones like electric guitar are pretty clean
     // away from their main harmonics...
 
+    // first, filter out the harmonics of maximum - nuke 300 buckets around each
+    // not sure if I should do the .5max or not...?
+    // skip if it's less than 10
+    if (maxpos >= 10) {
+        int idx = maxpos;
+        while (idx < numFft/2+1) {
+            for (int b = idx-150; b<idx+150; ++b) {
+                if ((b>=0)&&(b<numFft/2+1)) {
+                    kout[idx].r = kout[idx].i = 0;
+                }
+            }
+            idx+=maxpos;
+        }
+    }
+
     // count the number of buckets with low but present energy
     int count = 0;
     for (int idx=0; idx<numFft/2+1; ++idx) {
@@ -204,6 +231,7 @@ int main(int argc, char *argv[]) {
     // - insvol (volume multiplier for instrument/sample, defaults to 1.0)
     // - instune (frequency multiplier for instrument/sample, defaults to 1.0)
     // - drumfreq (set a sample to a fixed drum frequency)
+    // - make 'tune' for frequency only, and add a tunenoise which defaults to raising noises 1 octave
 
 	if (argc < 2) {
 		printf("mod2psg [-q] [-d] [-o <n>] [-add <n>] <filename>\n");
@@ -537,24 +565,10 @@ int main(int argc, char *argv[]) {
     // so that is what we'll run the MOD at. This way (hopefully) the original rate
     // (which is usually 50hz) comes through, giving us a free resample
 
-    // open a file for each channel
-    FILE *fp[MAX_CHANNELS];
-    for (int idx=0; idx<MAX_CHANNELS; ++idx) {
-        fp[idx] = NULL;
-    }
-    for (int idx=0; idx<channels; ++idx) {
-        char buf[128];
-        if ((output > 0) && (idx != output-1)) continue;
-        int n = idx + addout;
-        sprintf(buf, "%s_ton%02d.60hz", argv[arg], n);
-        fp[idx] = fopen(buf, "w");
-        if (NULL == fp[idx]) {
-            printf("Failed to open output file '%s', code %d\n", buf, errno);
-            return 1;
-        } else {
-            printf("Opened '%s' for output...\n", buf);
-        }
-    }
+    // MAX_CHANNELS is 128... I don't think the system will allow us to open
+    // 256 files, potentially. So we'll have to do it the other way
+    memset(outTone, 0, sizeof(outTone));
+    memset(outVol, 0, sizeof(outVol));
 
     // looping on autovol with manual break
     int rows;
@@ -564,8 +578,12 @@ int main(int argc, char *argv[]) {
         ModPlug_Seek(pMod, 0);
         rows = 0;
 
-        if (bAutoVol) {
-            if (verbose) printf("Scanning for volume...\n");
+        if (verbose) {
+            if (bAutoVol) {
+                printf("Scanning for volume...\n");
+            } else {
+                printf("Playing out song...\n");
+            }
         }
 
         for (;;) {
@@ -615,12 +633,26 @@ int main(int argc, char *argv[]) {
                     // autovol pass - check levels
                     if (vol > maxVol) maxVol = vol;
                 } else {
-                    // fixed pass, write it out
-                    if (fp[idx]) {
-                        fprintf(fp[idx], "0x%08X,0x%02X\n", period, vol);
+                    // fixed pass, save it off
+                    if (pMod->mSoundFile.Chn[idx].pInstrument != NULL) {
+                        if (pMod->mSoundFile.Chn[idx].pInstrument->isNoise) {
+                            outTone[idx+MAX_CHANNELS][rows] = period;
+                            outVol[idx+MAX_CHANNELS][rows] = vol;
+                            outTone[idx][rows] = 0;
+                            outVol[idx][rows] = 0;
+                            // debug row if requested
+                            if (debug2) printf("P:%5d V:%5d N - ", period, vol);
+                        } else {
+                            outTone[idx][rows] = period;
+                            outVol[idx][rows] = vol;
+                            outTone[idx+MAX_CHANNELS][rows] = 0;
+                            outVol[idx+MAX_CHANNELS][rows] = 0;
+                            // debug row if requested
+                            if (debug2) printf("P:%5d V:%5d   - ", period, vol);
+                        }
+                    } else {
+                        if (debug2) printf("P:%5d V:%5d ? - ", period, vol);
                     }
-                    // debug row if requested
-                    if (debug2) printf("P:%5d V:%5d - ", period, vol);
                 }
                 // reset the average counters for the next segment
                 pMod->mSoundFile.Chn[idx].nAvgVol = 0;
@@ -641,10 +673,36 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    for (int idx=0; idx<channels; ++idx) {
-        if (fp[idx]) {
-            fclose(fp[idx]);
+    // now write the data out
+    int channum = 0;
+    for (int idx=0; idx<MAX_CHANNELS*2; ++idx) {
+        // first check for any data in a row
+        bool data = false;
+        for (int r=0; r<rows; ++r) {
+            if (outVol[idx][r] > 0) {
+                data=true;
+                break;
+            }
         }
+        if (!data) continue;
+
+        char buf[128];
+        if (idx < MAX_CHANNELS) {
+            sprintf(buf, "%s_ton%02d.60hz", argv[arg], channum++);
+        } else {
+            sprintf(buf, "%s_noi%02d.60hz", argv[arg], channum++);
+        }
+
+        FILE *fp = fopen(buf, "w");
+        if (NULL == fp) {
+            printf("Failed to open output file %s, code %d\n", buf, errno);
+            return -1;
+        }
+        if (verbose) printf("-Writing channel %d as %s...\n", channum-1, buf);
+        for (int r=0; r<rows; ++r) {
+            fprintf(fp, "0x%08X,0x%02X\n", outTone[idx][r], outVol[idx][r]);
+        }
+        fclose(fp);
     }
 
     printf("Wrote %d rows...\n", rows);
