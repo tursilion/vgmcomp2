@@ -29,7 +29,7 @@ ModPlug_Settings settings;                  // MODPlug settings
 ModPlugFile *pMod;                          // the module object itself
 bool bAutoVol = true;                       // whether to automatically auto-volume
 double VolScale = 1.0;                      // song volume scale
-double FreqScale = 1.0;                     // song frequency scale
+double FreqScale = 2.0;                     // tone frequency scale
 double NoiseScale = 0.5;                    // noise frequency scale (0.5 = twice as high pitch)
 int snrcutoff = 70;                         // SNR cutoff for noise - less than this is considered noise
 bool useDrums = false;                      // whether to look for DRUMS$ in the sample names
@@ -247,7 +247,7 @@ int main(int argc, char *argv[]) {
         printf(" -speedscale <float> - scale song rate by float (1.0 = no change, 1.1=10%% faster, 0.9=10%% slower)\n");
         printf(" -vol <float> - scale song volume by float (1.0=no change, disables automatic volume scale)\n");
         printf(" -volins <instrument> <float> - scale a specific instrument by float (1.0=no change, 2.0=octave DOWN, 0.5=octave UP, default 1.0)\n");
-        printf(" -tunetone <float> - scale tone frequency by float (1.0=no change, 2.0=octave DOWN, 0.5=octave UP, default 1.0)\n");
+        printf(" -tunetone <float> - scale tone frequency by float (1.0=no change, 2.0=octave DOWN, 0.5=octave UP, default 2.0)\n");
         printf(" -tunenoise <float> - scale noise frequency by float (1.0=no change, 2.0=octave DOWN, 0.5=octave UP, default 0.5)\n");
         printf(" -tuneins <instrument> <float> - scale a specific instrument by float (1.0=no change, 2.0=octave DOWN, 0.5=octave UP, default 1.0)\n");
         printf(" -snr <int> - SNR ratio from 1-100 - SNR less than this will be treated as noise (use -d to see estimates)\n");
