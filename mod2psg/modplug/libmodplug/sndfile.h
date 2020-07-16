@@ -319,9 +319,12 @@ typedef struct _MODINSTRUMENT
 	BYTE nVibSweep;
 	BYTE nVibDepth;
 	BYTE nVibRate;
-    int  SNR;
-    bool isNoise;
-    bool isNoiseForced;
+    int  SNR;               // my calculated SNR estimate
+    bool isNoise;           // whether we are supposed to treat this as noise
+    bool isNoiseForced;     // whether the user chose this, or we autodetected
+    double userTuning;      // ratio to scale this instrument's frequency by, per user
+    double userVolume;      // ratio to scale this instrument's volume by, per user
+    int fixedFreq;          // fixed frequency for this channel, per user (0 to ignore)
 	CHAR name[22];
 } MODINSTRUMENT;
 

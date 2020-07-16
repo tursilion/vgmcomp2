@@ -1127,6 +1127,9 @@ UINT CSoundFile::ReadSample(MODINSTRUMENT *pIns, UINT nFlags, LPCSTR lpMemFile, 
     pIns->isNoise = false;  // assume tone
     pIns->isNoiseForced = false;
     pIns->SNR = 100;        // assume 100% pure
+    pIns->userTuning = 1.0; // no frequency shift
+    pIns->userVolume = 1.0; // no volume scale
+    pIns->fixedFreq = 0;    // no fixed freq
 
 	switch(nFlags)
 	{

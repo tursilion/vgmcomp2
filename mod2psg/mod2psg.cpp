@@ -30,12 +30,17 @@ ModPlugFile *pMod;                          // the module object itself
 bool bAutoVol = true;                       // whether to automatically auto-volume
 double VolScale = 1.0;                      // song volume scale
 double FreqScale = 1.0;                     // song frequency scale
+double NoiseScale = 0.5;                    // noise frequency scale (0.5 = twice as high pitch)
 int snrcutoff = 70;                         // SNR cutoff for noise - less than this is considered noise
 bool useDrums = false;                      // whether to look for DRUMS$ in the sample names
 const char *forceNoise = NULL;              // comma-separated list of samples to make noise
 const char *forceTone = NULL;               // comma-separated list of samples to make tone
 int outTone[MAX_CHANNELS*2][MAXTICKS];      // tone and volume for the song - first half are tones, second noise
 int outVol[MAX_CHANNELS*2][MAXTICKS];
+double insTune[MAX_INSTRUMENTS];            // tuning for each instrument (1.0 by default)
+double insVol[MAX_INSTRUMENTS];             // volume for each instrument (1.0 by default)
+int fixedFreq[MAX_INSTRUMENTS];             // fixed frequency per instrument (0 to disable, only useful for noise)
+double songSpeedScale = 1.0;                // changes the samples per frame to adjust speed
 
 // Guesstimate the SNR of a sample from 0-100 (percent)
 // pSample is a pointer to sample data, uFlags describes it. len is number of samples
@@ -223,28 +228,33 @@ int guessSNR(int sampnum, void *pSample, int len, int nFlags) {
 }
 
 int main(int argc, char *argv[]) {
-	printf("Import MOD tracker-style files - v20200714\n\n");
+	printf("Import MOD tracker-style files - v20200716\n\n");
 
-    // TODO: set up noise channels and output noises on them
-
-    // TODO options:
-    // - insvol (volume multiplier for instrument/sample, defaults to 1.0)
-    // - instune (frequency multiplier for instrument/sample, defaults to 1.0)
-    // - drumfreq (set a sample to a fixed drum frequency)
-    // - make 'tune' for frequency only, and add a tunenoise which defaults to raising noises 1 octave
+    for (int idx=0; idx<MAX_INSTRUMENTS; ++idx) {
+        insTune[idx] = 1.0;
+        insVol[idx] = 1.0;
+        fixedFreq[idx] = 0;
+    }
 
 	if (argc < 2) {
-		printf("mod2psg [-q] [-d] [-o <n>] [-add <n>] <filename>\n");
+		printf("mod2psg [-q] [-d] [-o <n>] [-add <n>] [-speedscale <n>] [-vol <n>] [-volins <ins> <n>]\n");
+        printf("        [-tunetone <n>] [-tunenoise <n>] [-tuneins <ins> <n>] [-snr <n>] [-usedrums]\n");
+        printf("        [-forcenoise <str>] [-forcetone <str>] [-forcefreq <ins> <n>] <filename>\n");
 		printf(" -q - quieter verbose data\n");
         printf(" -d - enable parser debug output\n");
         printf(" -o <n> - output only channel <n> (1-max)\n");
         printf(" -add <n> - add 'n' to the output channel number (use for multiple chips, otherwise starts at zero)\n");
+        printf(" -speedscale <float> - scale song rate by float (1.0 = no change, 1.1=10%% faster, 0.9=10%% slower)\n");
         printf(" -vol <float> - scale song volume by float (1.0=no change, disables automatic volume scale)\n");
-        printf(" -tune <float> - scale song frequency by float (1.0=no change, 2.0=octave DOWN, 0.5=octave UP)\n");
+        printf(" -volins <instrument> <float> - scale a specific instrument by float (1.0=no change, 2.0=octave DOWN, 0.5=octave UP, default 1.0)\n");
+        printf(" -tunetone <float> - scale tone frequency by float (1.0=no change, 2.0=octave DOWN, 0.5=octave UP, default 1.0)\n");
+        printf(" -tunenoise <float> - scale noise frequency by float (1.0=no change, 2.0=octave DOWN, 0.5=octave UP, default 0.5)\n");
+        printf(" -tuneins <instrument> <float> - scale a specific instrument by float (1.0=no change, 2.0=octave DOWN, 0.5=octave UP, default 1.0)\n");
         printf(" -snr <int> - SNR ratio from 1-100 - SNR less than this will be treated as noise (use -d to see estimates)\n");
         printf(" -usedrums - read the old DRUMS$ tag from the sample name from the old mod2psg - no autodetection\n");
         printf(" -forcenoise <str> - 'str' is a comma-separated list of sample indexes to make noise, no spaces!\n");
         printf(" -forcetone <str> - 'str' is a comma-separated list of sample indexes to make tone, no spaces!\n");
+        printf(" -forcefreq <instrument> <freq> - force an instrument to always use a fixed frequency (may be helpful for noise)\n");
 		printf(" <filename> - MOD file to read.\n");
         printf("\nmod2psg uses the ModPlug library and should be able to read anything it can.\n");
         printf("Supported types should be: ABC, MOD, S3M, XM, IT, 669, AMF, AMS, DBM, DMF, DSM, FAR,\n");
@@ -326,17 +336,107 @@ int main(int argc, char *argv[]) {
                 return -1;
             }
             printf("Setting volume scale to %lf\n", VolScale);
-        } else if (0 == strcmp(argv[arg], "-tune")) {
+        } else if (0 == strcmp(argv[arg], "-speedscale")) {
             ++arg;
             if (arg+1 >= argc) {
-                printf("Not enough arguments for 'tune' option\n");
+                printf("Not enough arguments for 'speedscale' option\n");
+                return -1;
+            }
+            bAutoVol = false;
+            if (1 != sscanf(argv[arg], "%lf", &songSpeedScale)) {
+                printf("Failed to parse speedscale\n");
+                return -1;
+            }
+            printf("Setting song speed scale to %lf\n", songSpeedScale);
+        } else if (0 == strcmp(argv[arg], "-tunetone")) {
+            ++arg;
+            if (arg+1 >= argc) {
+                printf("Not enough arguments for 'tunetone' option\n");
                 return -1;
             }
             if (1 != sscanf(argv[arg], "%lf", &FreqScale)) {
                 printf("Failed to parse tune frequency scale\n");
                 return -1;
             }
-            printf("Setting frequency scale to %lf\n", FreqScale);
+            printf("Setting tone scale to %lf\n", FreqScale);
+        } else if (0 == strcmp(argv[arg], "-tunenoise")) {
+            ++arg;
+            if (arg+1 >= argc) {
+                printf("Not enough arguments for 'tunenoise' option\n");
+                return -1;
+            }
+            if (1 != sscanf(argv[arg], "%lf", &NoiseScale)) {
+                printf("Failed to parse noise frequency scale\n");
+                return -1;
+            }
+            printf("Setting noise scale to %lf\n", NoiseScale);
+        } else if (0 == strcmp(argv[arg], "-tuneins")) {
+            ++arg;
+            if (arg+2 >= argc) {
+                printf("Not enough arguments for 'tuneins' option\n");
+                return -1;
+            }
+            int ins;
+            if (1 != sscanf(argv[arg], "%d", &ins)) {
+                printf("Failed to parse instrument frequency index\n");
+                return -1;
+            }
+            if ((ins < 0) || (ins >= MAX_INSTRUMENTS)) {
+                printf("Instrument %d is out of range for tuneins.\n", ins);
+                return -1;
+            }
+            ++arg;
+            if (1 != sscanf(argv[arg], "%lf", &insTune[ins])) {
+                printf("Failed to parse instrument frequency scale\n");
+                return -1;
+            }
+            printf("Setting instrument %d scale to %lf\n", ins, insTune[ins]);
+        } else if (0 == strcmp(argv[arg], "-volins")) {
+            ++arg;
+            if (arg+2 >= argc) {
+                printf("Not enough arguments for 'volins' option\n");
+                return -1;
+            }
+            int ins;
+            if (1 != sscanf(argv[arg], "%d", &ins)) {
+                printf("Failed to parse instrument volume index\n");
+                return -1;
+            }
+            if ((ins < 0) || (ins >= MAX_INSTRUMENTS)) {
+                printf("Instrument %d is out of range for volins.\n", ins);
+                return -1;
+            }
+            ++arg;
+            if (1 != sscanf(argv[arg], "%lf", &insVol[ins])) {
+                printf("Failed to parse instrument volume scale\n");
+                return -1;
+            }
+            printf("Setting instrument %d volume scale to %lf\n", ins, insVol[ins]);
+        } else if (0 == strcmp(argv[arg], "-forcefreq")) {
+            ++arg;
+            if (arg+2 >= argc) {
+                printf("Not enough arguments for 'forcefreq' option\n");
+                return -1;
+            }
+            int ins;
+            if (1 != sscanf(argv[arg], "%d", &ins)) {
+                printf("Failed to parse instrument forcefreq index\n");
+                return -1;
+            }
+            if ((ins < 0) || (ins >= MAX_INSTRUMENTS)) {
+                printf("Instrument %d is out of range for forcefreq.\n", ins);
+                return -1;
+            }
+            ++arg;
+            if (1 != sscanf(argv[arg], "%d", &fixedFreq[ins])) {
+                printf("Failed to parse instrument force frequency\n");
+                return -1;
+            }
+            if ((fixedFreq[ins] < 1) || (fixedFreq[ins] > 0xfff)) {
+                printf("Force frequency of 0x%03X is out of range for all chips\n", fixedFreq[ins]);
+                return -1;
+            }
+            printf("Setting instrument %d force frequency to %d\n", ins, fixedFreq[ins]);
 		} else {
 			printf("\rUnknown command '%s'\n", argv[arg]);
 			return -1;
@@ -400,7 +500,7 @@ int main(int argc, char *argv[]) {
     case MOD_TYPE_DSM:  printf("DSM\n"); break;
     case MOD_TYPE_MDL:  printf("MDL\n"); break;
     case MOD_TYPE_OKT:  printf("OKT\n"); break;
-    case MOD_TYPE_MID:  printf("MID\n"); break;
+    case MOD_TYPE_MID:  printf("MID (**warning** Probably will not work)\n"); break;
     case MOD_TYPE_DMF:  printf("DMF\n"); break;
     case MOD_TYPE_PTM:  printf("PTM\n"); break;
     case MOD_TYPE_DBM:  printf("DBM\n"); break;
@@ -498,13 +598,26 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // we need to copy scale values onto the instruments, cause we don't
+    // have indexes at the point where it matters, only pointers
+    for (int idx=0; idx<MAX_INSTRUMENTS; ++idx) {
+        MODINSTRUMENT *pIns = &pMod->mSoundFile.Ins[idx];
+        if (NULL == pIns) continue;
+        pIns->userTuning = insTune[idx];
+        pIns->userVolume = insVol[idx];
+        pIns->fixedFreq = fixedFreq[idx];
+    }
+
     // go through the internal converted instruments (which may be
     // instruments, samples, or both in the source file) and FFT
     // the sample data to see what we have.
     for (int idx = 0; idx<MAX_INSTRUMENTS; ++idx) {
         MODINSTRUMENT *pIns = &pMod->mSoundFile.Ins[idx];
         if (NULL == pIns) continue;
-        if (NULL == pIns->pSample) continue;
+        if (NULL == pIns->pSample) {
+            pIns->isNoiseForced = true;
+            continue;
+        }
         if (strlen(pIns->name) == 0) {
             char buf[32];
             ModPlug_SampleName(pMod, idx, buf);
@@ -587,9 +700,33 @@ int main(int argc, char *argv[]) {
         }
 
         for (;;) {
-            char audioBuf[735*2];   // 735 16-bit mono samples
-            int ret = ModPlug_Read(pMod, audioBuf, sizeof(audioBuf));
-            if (ret < sizeof(audioBuf)) break;
+            static char *audioBuf = NULL;
+            static int audioBufSize = 0;
+            if (NULL == audioBuf) {
+                audioBufSize = int(735*songSpeedScale)*2;
+                audioBuf = (char*)malloc(audioBufSize);
+                if (debug2) {
+                    // reset the file
+                    FILE *fp = fopen("modsound.wav", "wb");
+                    if (NULL != fp) {
+                        fwrite("RIFF\0\0\0\0WAVEfmt \x10\0\0\0\x1\0\x1\0\x44\xac\0\0\x44\xac\0\0\x10\0\x10\0data\0\0\0\0",
+                            1,44,fp);
+                        fclose(fp);
+                    }
+                }
+            }
+            int ret = ModPlug_Read(pMod, audioBuf, audioBufSize);
+            if (ret < audioBufSize) break;
+
+            // dump the MOD data
+            if (debug2) {
+                // reset the file
+                FILE *fp = fopen("modsound.wav", "ab");
+                if (NULL != fp) {
+                    fwrite(audioBuf, 1, audioBufSize, fp);
+                    fclose(fp);
+                }
+            }
 
             // but what we want is the tracker information inside the mod...
             for (int idx=0; idx<channels; ++idx) {
@@ -601,16 +738,15 @@ int main(int argc, char *argv[]) {
                 } else {
                     // the result is a 16-bit magnitude (0-65535)
                     double tmpVol = ((double)pMod->mSoundFile.Chn[idx].nAvgVol / pMod->mSoundFile.Chn[idx].nAvgCnt) * VolScale;
+                    // scale per instrument
+                    if ((pMod->mSoundFile.Chn[idx].pInstrument != NULL) && (tmpVol > 0)) {
+                        tmpVol *= pMod->mSoundFile.Chn[idx].pInstrument->userVolume;
+                    }
+                    // round and clip
                     vol = (int)(tmpVol+0.5);
+                    if (vol > 0xffff) vol = 0xffff;
                     // finally, shift 16 bits down to 8
                     vol >>= 8;
-                }
-                // vol should already be in the 8 bit magnitude we expect
-                if (vol > 0xff) {
-                    if (vol > 255+25) {
-                        printf("Warning: clipping (%d vs 255)\n", vol);
-                    }
-                    vol = 0xff;
                 }
 
                 // now deal with the period
@@ -619,13 +755,37 @@ int main(int argc, char *argv[]) {
                 // PAL Amiga frequency used here, since most MODs are PAL
                 // Not sure offhand why I need the /4, but it sounds right.
                 // It looks like the periods might be multiplied by 4 as they are loaded...?
-                period = (int)((double)period * FreqScale / (3546895 / 111860.8 / 4) + 0.5);
-                if (period == 0) {
-                    if (FreqScale < 1.0) {
-                        printf("Warning: period became zero - frequency scale too low\n");
+                if ((pMod->mSoundFile.Chn[idx].pInstrument != NULL) && (period > 0)) {
+                    if (pMod->mSoundFile.Chn[idx].pInstrument->isNoise) {
+                        // scale by noise
+                        period = (int)((double)period * NoiseScale * 
+                                    pMod->mSoundFile.Chn[idx].pInstrument->userTuning / 
+                                    (3546895 / 111860.8 / 4) + 0.5);
+                        if (period == 0) {
+                            if (NoiseScale < 1.0) {
+                                printf("Warning: period became zero - noise scale too low\n");
+                            }
+                            // don't allow 0
+                            period = 1;
+                        }
+                    } else {
+                        // same scale, but by tone
+                        period = (int)((double)period * FreqScale *
+                            pMod->mSoundFile.Chn[idx].pInstrument->userTuning /
+                            (3546895 / 111860.8 / 4) + 0.5);
+                        if (period == 0) {
+                            if (FreqScale < 1.0) {
+                                printf("Warning: period became zero - frequency scale too low\n");
+                            }
+                            // don't allow 0
+                            period = 1;
+                        }
                     }
-                    // don't allow 0
-                    period = 1;
+                }
+
+                // fixed frequency
+                if ((pMod->mSoundFile.Chn[idx].pInstrument != NULL) && (pMod->mSoundFile.Chn[idx].pInstrument->fixedFreq != 0)) {
+                    period = pMod->mSoundFile.Chn[idx].pInstrument->fixedFreq;
                 }
 
                 // and dump it to the file, if this isn't the auto pass
