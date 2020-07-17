@@ -734,7 +734,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM NES - v20200704\n");
+	printf("Import VGM NES - v20200716\n");
 
 	if (argc < 2) {
 		printf("vgm_nes2psg [-q] [-d <n>] [-o <n>] [-add <n>] [-triangle <n>] [-enableperiodic] [-disabledmcvolhack] [-dmcnoise|-dmcnone] [-ignoreweird] <filename>\n");
@@ -1869,6 +1869,26 @@ int main(int argc, char* argv[])
             myprintf("Skipping frequency scale...");
         }
 	}
+
+    // delete all old output files
+    {
+        char strout[1024];
+
+        // noises
+        for (int idx=0; idx<100; ++idx) {
+            // create a filename
+            sprintf(strout, "%s_noi%02d.60hz", argv[arg], idx);
+            // nuke it, if it exists
+            remove(strout);
+        }
+        // tones
+        for (int idx=0; idx<100; ++idx) {
+            // create a filename
+            sprintf(strout, "%s_ton%02d.60hz", argv[arg], idx);
+            // nuke it, if it exists
+            remove(strout);
+        }
+    }
 
     // data is entirely stored in VGMStream[ch][tick]
     // [ch] the channel, and is tone/vol/tone/vol/tone/vol/noise/vol

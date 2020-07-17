@@ -25,6 +25,7 @@ static int Envelope [16][128];
 
 
 /* AY volume table (c) by V_Soft and Lion 17 */
+// Tursi note: this is really close to Matt's values
 static int Lion17_AY_table [16] =
   { 0, 513, 828, 1239, 1923, 3238, 4926, 9110,
     10344, 17876, 24682, 30442, 38844, 47270, 56402, 65535};

@@ -33,13 +33,13 @@ double FreqScale = 2.0;                     // tone frequency scale
 double NoiseScale = 0.5;                    // noise frequency scale (0.5 = twice as high pitch)
 int snrcutoff = 70;                         // SNR cutoff for noise - less than this is considered noise
 bool useDrums = false;                      // whether to look for DRUMS$ in the sample names
-const char *forceNoise = NULL;              // comma-separated list of samples to make noise
-const char *forceTone = NULL;               // comma-separated list of samples to make tone
 int outTone[MAX_CHANNELS*2][MAXTICKS];      // tone and volume for the song - first half are tones, second noise
 int outVol[MAX_CHANNELS*2][MAXTICKS];
 double insTune[MAX_INSTRUMENTS];            // tuning for each instrument (1.0 by default)
 double insVol[MAX_INSTRUMENTS];             // volume for each instrument (1.0 by default)
 int fixedFreq[MAX_INSTRUMENTS];             // fixed frequency per instrument (0 to disable, only useful for noise)
+bool forceNoise[MAX_INSTRUMENTS];           // whether to force noise
+bool forceTone[MAX_INSTRUMENTS];            // whether to force tone
 double songSpeedScale = 1.0;                // changes the samples per frame to adjust speed
 
 // Guesstimate the SNR of a sample from 0-100 (percent)
@@ -234,6 +234,8 @@ int main(int argc, char *argv[]) {
         insTune[idx] = 1.0;
         insVol[idx] = 1.0;
         fixedFreq[idx] = 0;
+        forceNoise[idx] = false;
+        forceTone[idx] = false;
     }
 
 	if (argc < 2) {
@@ -252,8 +254,8 @@ int main(int argc, char *argv[]) {
         printf(" -tuneins <instrument> <float> - scale a specific instrument by float (1.0=no change, 2.0=octave DOWN, 0.5=octave UP, default 1.0)\n");
         printf(" -snr <int> - SNR ratio from 1-100 - SNR less than this will be treated as noise (use -d to see estimates)\n");
         printf(" -usedrums - read the old DRUMS$ tag from the sample name from the old mod2psg - no autodetection\n");
-        printf(" -forcenoise <str> - 'str' is a comma-separated list of sample indexes to make noise, no spaces!\n");
-        printf(" -forcetone <str> - 'str' is a comma-separated list of sample indexes to make tone, no spaces!\n");
+        printf(" -forcenoise <instrument> - specify the instrument index to force as noise, repeat as needed\n");
+        printf(" -forcetone <instrument> - specify the instrument index to force as tone, repeat as needed\n");
         printf(" -forcefreq <instrument> <freq> - force an instrument to always use a fixed frequency (may be helpful for noise)\n");
 		printf(" <filename> - MOD file to read.\n");
         printf("\nmod2psg uses the ModPlug library and should be able to read anything it can.\n");
@@ -307,14 +309,24 @@ int main(int argc, char *argv[]) {
                 return -1;
             }
             ++arg;
-            forceNoise = argv[arg];
+            int x = atoi(argv[arg]);
+            if ((x<0)||(x>=MAX_INSTRUMENTS)) {
+                printf("Instrument %d is out of range for forcenoise\n", x);
+                return -1;
+            }
+            forceNoise[x] = true;
         } else if (0 == strcmp(argv[arg], "-forcetone")) {
             if (arg+1 >= argc) {
                 printf("Not enough arguments for -forcetone parameter.\n");
                 return -1;
             }
             ++arg;
-            forceTone = argv[arg];
+            int x = atoi(argv[arg]);
+            if ((x<0)||(x>=MAX_INSTRUMENTS)) {
+                printf("Instrument %d is out of range for forcetone\n", x);
+                return -1;
+            }
+            forceTone[x] = true;
         } else if (0 == strcmp(argv[arg], "-o")) {
             if (arg+1 >= argc) {
                 printf("Not enough arguments for -o parameter.\n");
@@ -557,46 +569,6 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-    if (NULL != forceNoise) {
-        while (forceNoise) {
-            int x;
-            if (1 != sscanf(forceNoise, "%d", &x)) {
-                printf("Parse error reading forceNoise list\n");
-                return -1;
-            }
-            if (x > MAX_INSTRUMENTS) {
-                printf("%d is too large an instrument number for forceNoise\n",x);
-                return -1;
-            }
-            MODINSTRUMENT *pIns = &pMod->mSoundFile.Ins[x];
-            if (NULL != pIns) {
-                pIns->isNoiseForced = true;
-                pIns->isNoise = true;
-            }
-            forceNoise = strchr(forceNoise, ',');
-            if (forceNoise) ++forceNoise;
-        }
-    }
-    if (NULL != forceTone) {
-        while (forceTone) {
-            int x;
-            if (1 != sscanf(forceTone, "%d", &x)) {
-                printf("Parse error reading forceTone list\n");
-                return -1;
-            }
-            if (x > MAX_INSTRUMENTS) {
-                printf("%d is too large an instrument number for forceTone\n",x);
-                return -1;
-            }
-            MODINSTRUMENT *pIns = &pMod->mSoundFile.Ins[x];
-            if (NULL != pIns) {
-                pIns->isNoiseForced = true;
-                pIns->isNoise = false;
-            }
-            forceTone = strchr(forceTone, ',');
-            if (forceTone) ++forceTone;
-        }
-    }
 
     // we need to copy scale values onto the instruments, cause we don't
     // have indexes at the point where it matters, only pointers
@@ -606,6 +578,14 @@ int main(int argc, char *argv[]) {
         pIns->userTuning = insTune[idx];
         pIns->userVolume = insVol[idx];
         pIns->fixedFreq = fixedFreq[idx];
+        if (forceNoise[idx]) {
+            pIns->isNoiseForced = true;
+            pIns->isNoise = true;
+        }
+        if (forceTone[idx]) {
+            pIns->isNoiseForced = true;
+            pIns->isNoise = false;
+        }
     }
 
     // go through the internal converted instruments (which may be
@@ -830,6 +810,26 @@ int main(int argc, char *argv[]) {
         } else {
             // we're done, do break
             break;
+        }
+    }
+
+    // delete all old output files
+    {
+        char strout[1024];
+
+        // noises
+        for (int idx=0; idx<100; ++idx) {
+            // create a filename
+            sprintf(strout, "%s_noi%02d.60hz", argv[arg], idx);
+            // nuke it, if it exists
+            remove(strout);
+        }
+        // tones
+        for (int idx=0; idx<100; ++idx) {
+            // create a filename
+            sprintf(strout, "%s_ton%02d.60hz", argv[arg], idx);
+            // nuke it, if it exists
+            remove(strout);
         }
     }
 

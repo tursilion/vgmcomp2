@@ -15,12 +15,28 @@ FILE *fp[MAXCHANNELS];
 // codes for noise processing
 #define NOISE_MASK     0x00FFF
 
-// lookup table to map PSG volume to linear 8-bit. AY is assumed close enough.
+// lookup table to map PSG volume to linear 8-bit. Matt H generated this
+// table from his accurate AY emulation
 // mapVolume assumes the order of this table for mute suppression
 unsigned char volumeTable[16] = {
-	254,202,160,128,100,80,64,
+#if 1
+    // AY table by Matt - pure logarithmic - some debate whether
+    // this matches hardware (the step from 0 to 2 - matches the
+    // datasheet curve but everyone else says there's a jump there)
+    255,181,128,90,64,45,32,
+    23,
+    16,11,8,6,4,3,2,0
+#elif 0
+    // curve by V_Soft and Lion17 (converted to 8 bit)
+    254, 220, 185, 147, 119, 96, 70,
+    40,
+    36,19,13,8,5,3,2,0
+#else
+    // SN table
+    254,202,160,128,100,80,64,
 	50,
 	40,32,24,20,16,12,10,0
+#endif
 };
 
 // return absolute value
@@ -64,7 +80,7 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 AY Prep Tool - v20200621\n\n");
+	printf("VGMComp2 AY Prep Tool - v20200716\n\n");
 
     if (argc < 6) {
         printf("prepare4AY <tone1> <tone2> <tone3> <noise> <output>\n");
