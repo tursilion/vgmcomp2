@@ -317,7 +317,7 @@ bool processNew(int str) {
 }
 
 int main(int argc, char *argv[]) {
-	printf("VGMComp2 Stream Analysis Tool - v20200626\n\n");
+	printf("VGMComp2 Stream Analysis Tool - v20200718\n\n");
 
     if (argc < 3) {
         printf("AnalyzeStream <name.sbf> <stream index (0-based)> [-old]\n");
@@ -341,6 +341,10 @@ int main(int argc, char *argv[]) {
 
     int str = atoi(argv[2]);
     printf("Processing stream %d\n", str);
+    if (str < 0) {
+        printf("Illegal stream index.\n");
+        return 1;
+    }
 
     if ((argc > 3) && (0 == strcmp(argv[3], "-old"))) {
         if (!processOld(str)) {

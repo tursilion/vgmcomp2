@@ -1,0 +1,121 @@
+// mergenoise.cpp : Defines the entry point for the console application.
+// merge two noise channels into one by taking the loudest
+// could merge tone channels too, but that's less useful
+
+#include "stdafx.h"
+#include <stdio.h>
+#include <errno.h>
+#include <limits.h>
+
+#define MAXTICKS 432000					    // about 2 hrs, but arbitrary
+#define MAXCHANNELS 4
+int VGMDAT[MAXCHANNELS][MAXTICKS];
+int VGMVOL[MAXCHANNELS][MAXTICKS];
+FILE *fp[2];
+
+// for noise, mute can't be determined via frequency, only by volume
+
+int main(int argc, char *argv[])
+{
+	printf("VGMComp2 Noise Merge Tool - v20200718\n\n");
+
+    if (argc < 3) {
+        printf("mergenoise <chan1> <chan2> <output>\n");
+        printf("Merges by taking the louder of the two channels.\n");
+        return 1;
+    }
+
+    // open up the files requested
+    int arg = 1;
+    for (int idx=0; idx<2; ++idx) {
+        fp[idx] = fopen(argv[arg], "r");
+        if (NULL == fp[idx]) {
+            printf("Failed to open file '%s' for channel %d, code %d\n", argv[arg], idx, errno);
+            return 1;
+        }
+        printf("Opened channel %d: %s\n", idx, argv[arg]);
+        ++arg;
+    }
+
+    // read until one of the channels ends
+    bool cont = true;
+    int row = 0;
+    while (cont) {
+        for (int idx=0; idx<2; ++idx) {
+            char buf[128];
+
+            if (feof(fp[idx])) {
+                cont = false;
+                break;
+            }
+
+            if (NULL == fgets(buf, 128, fp[idx])) {
+                cont = false;
+                break;
+            }
+            if (2 != sscanf(buf, "0x%X,0x%X", &VGMDAT[idx][row], &VGMVOL[idx][row])) {
+                if (2 != sscanf(buf, "%d,%d", &VGMDAT[idx][row], &VGMVOL[idx][row])) {
+                    printf("Failed to parse line %d for channel %d\n", row+1, idx);
+                    cont = false;
+                    break;
+                }
+            }
+        }
+        if (cont) ++row;
+    }
+
+    for (int idx=0; idx<2; ++idx) {
+        if (NULL != fp[idx]) {
+            fclose(fp[idx]);
+            fp[idx] = NULL;
+        }
+    }
+
+    printf("Imported %d rows\n", row);
+
+    // merge the second channel into the first one, then output that
+    // to the output file. Just a straight alternate of the tones.
+    // Even lines, chan 1, odd lines, chan 2, but only if one isn't muted
+    // So.. 
+    // 1) if channel 2 is mute, do nothing
+    // 2) if channel 1 is mute, merge channel 2
+    // 3) merge channel 2 only if it's louder than channel 1
+    int movedNotes = 0;
+    int overriddenNotes = 0;
+
+    for (int idx = 0; idx<row; ++idx) {
+        if (VGMVOL[1][idx] > 0) {
+            if ((VGMVOL[0][idx] == 0)||(VGMVOL[1][idx] > VGMVOL[0][idx])) {
+                // see which one it was
+                if (VGMVOL[0][idx] == 0) {
+                    ++movedNotes;
+                } else {
+                    ++overriddenNotes;
+                }
+                // copy channel 2 to channel 1
+                VGMVOL[0][idx] = VGMVOL[1][idx];
+                VGMDAT[0][idx] = VGMDAT[1][idx];
+            }
+        }
+    }
+
+    printf("%d tones moved      (non-lossy)\n", movedNotes);
+    printf("%d tones overridden (lossy)\n", overriddenNotes);
+
+    // now we just have to spit the data back out to a new file
+    FILE *fout = fopen(argv[arg], "w");
+    if (NULL == fout) {
+        printf("Failed to open output file '%s', err %d\n", argv[arg], errno);
+        return 1;
+    }
+
+    for (int idx=0; idx<row; ++idx) {
+        fprintf(fout, "0x%05X,0x%X\n", VGMDAT[0][idx], VGMVOL[0][idx]);
+    }
+    fclose(fout);
+
+    printf("** DONE **\n");
+    
+    return 0;
+}
+

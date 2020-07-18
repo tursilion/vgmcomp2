@@ -64,6 +64,7 @@ extern uint16 songNote[4];
 // this flag contains 1 if playing, zero if stopped
 // you can also stop (or pause!) a song by setting it to zero
 // This byte also continues the mute bits as defined below.
+#define songActive (songNote[3]&0xff)
 
 // we define bits for songActive per LSB 8-bits
 #define SONGACTIVEACTIVE 0x01

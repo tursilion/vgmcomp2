@@ -51,7 +51,7 @@ SongLoop()
     Return:  void
     Inputs:  none
     Purpose: Run one frame of the current song. Returns quickly if no song is active.
-    C okay?: No. Use CALL_PLAYER_SN macro.
+    C okay?: ** No ** Use CALL_PLAYER_SN macro.
     Asm?   : no input values.
              no return value.
              corrupts all registers but r10. Modifies all data structures.
@@ -101,7 +101,7 @@ SIDLoop()
     Return:  void
     Inputs:  none
     Purpose: Run one frame of the current song. Returns quickly if no song is active.
-    C okay?: No. Use CALL_PLAYER_SID macro.
+    C okay?: ** No **. Use CALL_PLAYER_SID macro.
     Asm?   : no input values.
              no return value.
              corrupts all registers but r10. Modifies all data structures.
@@ -153,7 +153,7 @@ SfxLoop()
     Inputs:  none
     Purpose: Run one frame of the current song. Returns quickly if no song is active.
     Note:    For proper use, call before SongLoop()
-    C okay?: No. Use CALL_PLAYER_SFX macro.
+    C okay?: ** No **. Use CALL_PLAYER_SFX macro.
     Asm?   : no input values.
              no return value.
              corrupts all registers but r10. Modifies all data structures.
@@ -310,7 +310,7 @@ sfxWorkBuf
 ADVANCED: Using the console interrupt hook
 -------------------------------------------
 
-The system is currently build to be called manually from whichever approach you choose. If you prefer to call from the user interrupt hook, however, you will need to build a small assembly function to wrap the main call. If the player uses the GPLWS, the console will crash on return, so you need to use any other workspace, then go back to the original before returning:
+The system is currently built to be called manually from whichever approach you choose. If you prefer to call from the user interrupt hook, however, you will need to build a small assembly function to wrap the main call. If the player uses the GPLWS, the console will crash on return, so you need to use any other workspace, then go back to the original before returning (note that as written, the player expects >8300 to be its workspace):
 
     DEF INTCALL
 INTCALL
