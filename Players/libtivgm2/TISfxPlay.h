@@ -8,7 +8,7 @@
 // pSbf - pointer to song block data
 // songNum - which song to play (starts at 0)
 // pri - priority to play (lower number = higher priority)
-void StartSfx(unsigned char *pSbf, uWordSize songNum, uWordSize pri);
+void StartSfx(const unsigned char *pSbf, uWordSize songNum, uWordSize pri);
 
 // Call this to stop the current sfx
 void StopSfx();

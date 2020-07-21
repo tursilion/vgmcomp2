@@ -57,7 +57,7 @@ int mapVolume(int nTmp) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 SID Prep Tool - v20200625\n\n");
+	printf("VGMComp2 SID Prep Tool - v20200720\n\n");
 
     if (argc < 5) {
         printf("prepare4SID <tone1|noise1> <tone2|noise2> <tone3|noise3> <output>\n");
@@ -122,7 +122,13 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        if (cont) ++row;
+        if (cont) {
+            ++row;
+            if (row >= MAXTICKS-4) {
+                printf("Maximum song length reached, truncating.\n");
+                break;
+            }
+        }
     }
 
     for (int idx=0; idx<3; ++idx) {

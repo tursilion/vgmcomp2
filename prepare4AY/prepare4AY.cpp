@@ -80,7 +80,7 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 AY Prep Tool - v20200716\n\n");
+	printf("VGMComp2 AY Prep Tool - v20200720\n\n");
 
     if (argc < 6) {
         printf("prepare4AY <tone1> <tone2> <tone3> <noise> <output>\n");
@@ -142,7 +142,13 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        if (cont) ++row;
+        if (cont) {
+            ++row;
+            if (row >= MAXTICKS-4) {
+                printf("Maximum song length reached, truncating.\n");
+                break;
+            }
+        }
     }
 
     for (int idx=0; idx<4; ++idx) {

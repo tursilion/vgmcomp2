@@ -271,7 +271,7 @@ bool loadDataCSV(FILE *fp, int &chan, int &cnt, int column, bool noise, bool sca
 
 // extract a byte from the buffer, range check it, and
 // add an address to the heatmap adr table (not called in realtime code)
-unsigned char getBufferByte(int cnt, unsigned char *buf, int adr, int maxbytes) {
+unsigned char getBufferByte(int cnt, const unsigned char *buf, int adr, int maxbytes) {
     int idx;
 
     // either of these tripping likely indicates a bug or a corrupt file...
@@ -307,7 +307,7 @@ unsigned char getBufferByte(int cnt, unsigned char *buf, int adr, int maxbytes) 
 // unpack a stream byte - offset and maxbytes are used to write a scaled
 // address for the heatmap to display later
 // cnt is row count, and maxbytes is used for scaling, max size of data
-int getCompressedByte(STREAM *str, unsigned char *buf, int cnt, int maxbytes) {
+int getCompressedByte(STREAM *str, const unsigned char *buf, int cnt, int maxbytes) {
     // bytes left in the current stream?
     if (str->curBytes > 0) {
         --str->curBytes;

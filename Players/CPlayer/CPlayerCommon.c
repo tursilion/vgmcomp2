@@ -21,20 +21,20 @@
 // output date (say, for banking or split memory), you
 // can do the work here.
 // (buf is passed in just in case it's useful to have the base)
-static inline uint8 getBufferByte(uint8 *buf, uint8 *adr) {
+static inline uint8 getBufferByte(const uint8 *buf, const uint8 *adr) {
     (void)buf;
     return *adr;
 }
 
-static uint8 getDatInline(STREAM *str, uint8 *buf) {
+static uint8 getDatInline(STREAM *str, const uint8 *buf) {
     // just pull a string of bytes
     return getBufferByte(buf, str->curPtr++);
 }
-static uint8 getDatRLE(STREAM *str, uint8 *buf) {
+static uint8 getDatRLE(STREAM *str, const uint8 *buf) {
     // pull the single byte - no increment
     return getBufferByte(buf, str->curPtr);
 }
-static uint8 getDatRLE32(STREAM *str, uint8 *buf) {
+static uint8 getDatRLE32(STREAM *str, const uint8 *buf) {
     // pull the last four bytes over and over
     // mainPtr is assumed already incremented
     if (str->curPtr == str->mainPtr) {
@@ -42,7 +42,7 @@ static uint8 getDatRLE32(STREAM *str, uint8 *buf) {
     }
     return getBufferByte(buf, str->curPtr++);
 }
-static uint8 getDatRLE16(STREAM *str, uint8 *buf) {
+static uint8 getDatRLE16(STREAM *str, const uint8 *buf) {
     // pull the last two bytes over and over
     // mainPtr is assumed already incremented
     if (str->curPtr == str->mainPtr) {
@@ -50,7 +50,7 @@ static uint8 getDatRLE16(STREAM *str, uint8 *buf) {
     }
     return getBufferByte(buf, str->curPtr++);
 }
-static uint8 getDatRLE24(STREAM *str, uint8 *buf) {
+static uint8 getDatRLE24(STREAM *str, const uint8 *buf) {
     // pull the last three bytes over and over
     // mainPtr is assumed already incremented
     if (str->curPtr == str->mainPtr) {
@@ -62,7 +62,7 @@ static uint8 getDatRLE24(STREAM *str, uint8 *buf) {
 // unpack a stream byte - offset and maxbytes are used to write a scaled
 // address for the heatmap to display later
 // cnt is row count, and maxbytes is used for scaling, max size of data
-uint8 getCompressedByte(STREAM *str, uint8 *buf) {
+uint8 getCompressedByte(STREAM *str, const uint8 *buf) {
     unsigned char x,x1,x2;
 
     // bytes left in the current stream?

@@ -34,9 +34,9 @@ typedef unsigned int uWordSize; // most efficient word size, 8 bits or more unsi
 // structure for unpacking a stream of data
 typedef struct STRTYPE STREAM;
 struct STRTYPE {
-    uint8 *curPtr;       // where are are currently getting data from
-    uint8 *mainPtr;      // the main index in the decompression. If 0, we are done.
-    uint8 (*curType)(STREAM*, uint8*);    // function pointer to get data for the type
+    const uint8 *curPtr;       // where are are currently getting data from
+    const uint8 *mainPtr;      // the main index in the decompression. If 0, we are done.
+    uint8 (*curType)(STREAM*, const uint8*);    // function pointer to get data for the type
     uWordSize curBytes;   // current bytes left
     // post compression data
     uWordSize framesLeft; // number of frames left on the current RLE (not used for tone channels)
@@ -45,7 +45,7 @@ struct STRTYPE {
 // Call this function to prepare to play
 // pSbf - pointer to song block data
 // songNum - which song to play (starts at 0)
-void StartSong(unsigned char *pSbf, uWordSize songNum);
+void StartSong(const unsigned char *pSbf, uWordSize songNum);
 
 // Call this to stop the current song
 void StopSong();
@@ -54,7 +54,7 @@ void StopSong();
 void SongLoop();
 
 // Don't call this, it's for use by the unpack codes
-uint8 getCompressedByte(STREAM *str, uint8 *buf);
+uint8 getCompressedByte(STREAM *str, const uint8 *buf);
 
 // this array contains the current volume of each voice (ignoring mutes)
 // Sound chip specific, but in both cases that means 0x0 is maximum and 0xF

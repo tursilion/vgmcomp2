@@ -8,16 +8,16 @@
 #include <limits.h>
 
 #define MAXTICKS 432000					    // about 2 hrs, but arbitrary
-#define MAXCHANNELS 4
+#define MAXCHANNELS 2
 int VGMDAT[MAXCHANNELS][MAXTICKS];
 int VGMVOL[MAXCHANNELS][MAXTICKS];
-FILE *fp[2];
+FILE *fp[MAXCHANNELS];
 
 // for noise, mute can't be determined via frequency, only by volume
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Noise Merge Tool - v20200718\n\n");
+	printf("VGMComp2 Noise Merge Tool - v20200720\n\n");
 
     if (argc < 3) {
         printf("mergenoise <chan1> <chan2> <output>\n");
@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
 
     // open up the files requested
     int arg = 1;
-    for (int idx=0; idx<2; ++idx) {
+    for (int idx=0; idx<MAXCHANNELS; ++idx) {
         fp[idx] = fopen(argv[arg], "r");
         if (NULL == fp[idx]) {
             printf("Failed to open file '%s' for channel %d, code %d\n", argv[arg], idx, errno);
@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     bool cont = true;
     int row = 0;
     while (cont) {
-        for (int idx=0; idx<2; ++idx) {
+        for (int idx=0; idx<MAXCHANNELS; ++idx) {
             char buf[128];
 
             if (feof(fp[idx])) {
@@ -61,10 +61,16 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        if (cont) ++row;
+        if (cont) {
+            ++row;
+            if (row >= MAXTICKS-4) {
+                printf("Maximum song length reached, truncating.\n");
+                break;
+            }
+        }
     }
 
-    for (int idx=0; idx<2; ++idx) {
+    for (int idx=0; idx<MAXCHANNELS; ++idx) {
         if (NULL != fp[idx]) {
             fclose(fp[idx]);
             fp[idx] = NULL;

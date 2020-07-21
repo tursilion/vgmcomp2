@@ -30,7 +30,7 @@ struct STRTYPE {
 // Call this function to prepare to play
 // pSbf - pointer to song block data
 // songNum - which song to play (starts at 0)
-void StartSong(unsigned char *pSbf, uWordSize songNum);
+void StartSong(const unsigned char *pSbf, uWordSize songNum);
 
 // Call this to stop the current song
 void StopSong();

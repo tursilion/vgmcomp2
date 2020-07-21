@@ -9,7 +9,7 @@
 #include <vdp.h>
 #endif
 
-extern uint8 getCompressedByte(STREAM *str, uint8 *buf);
+extern uint8 getCompressedByte(STREAM *str, const uint8 *buf);
 STREAM test;
 
 // disable this if you are not using the TI hand-rolled assembly

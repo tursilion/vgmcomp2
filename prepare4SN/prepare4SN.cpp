@@ -10,7 +10,7 @@
 #define MAXCHANNELS 4
 int VGMDAT[MAXCHANNELS][MAXTICKS];
 int VGMVOL[MAXCHANNELS][MAXTICKS];
-FILE *fp[4];
+FILE *fp[MAXCHANNELS];
 
 // codes for noise processing (if not periodic (types 0-3), it's white noise (types 4-7))
 // only NOISE_TRIGGER makes it to the output file
@@ -66,7 +66,7 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 PSG Prep Tool - v20200621\n\n");
+	printf("VGMComp2 PSG Prep Tool - v20200720\n\n");
 
     if (argc < 6) {
         printf("prepare4SN <tone1> <tone2> <tone3> <noise> <output>\n");
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
     // continue only if at least one opens!
     bool cont = false;
 
-    for (int idx=0; idx<4; ++idx) {
+    for (int idx=0; idx<MAXCHANNELS; ++idx) {
         if ((argv[idx+1][0]=='-')&&(argv[idx+1][1]=='\0')) {
             printf("Channel %d (%s) free\n", idx, idx == 3 ? "noise":"tone");
             fp[idx] = NULL;
@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
     // read until one of the channels ends
     int row = 0;
     while (cont) {
-        for (int idx=0; idx<4; ++idx) {
+        for (int idx=0; idx<MAXCHANNELS; ++idx) {
             if (NULL == fp[idx]) {
                 VGMDAT[idx][row]=1;
                 VGMVOL[idx][row]=0;
@@ -128,10 +128,16 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        if (cont) ++row;
+        if (cont) {
+            ++row;
+            if (row >= MAXTICKS-4) {
+                printf("Maximum song length reached, truncating.\n");
+                break;
+            }
+        }
     }
 
-    for (int idx=0; idx<4; ++idx) {
+    for (int idx=0; idx<MAXCHANNELS; ++idx) {
         if (NULL != fp[idx]) {
             fclose(fp[idx]);
             fp[idx] = NULL;

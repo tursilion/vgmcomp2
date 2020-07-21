@@ -29,7 +29,7 @@ typedef unsigned char uWordSize;// most efficient word size, 8 bits or more unsi
 // Call this function to prepare to play
 // pSbf - pointer to song block data
 // songNum - which song to play (starts at 0)
-void StartSID(unsigned char *pSbf, uWordSize songNum);
+void StartSID(const unsigned char *pSbf, uWordSize songNum);
 
 // Call this to stop the current song
 void StopSID();

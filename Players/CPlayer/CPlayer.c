@@ -80,7 +80,7 @@ uint8 songVol[4];
 uint16 songNote[4];
 
 // this holds onto the currently playing song pointer
-uint8* workBuf;
+const uint8* workBuf;
 
 // local stream data
 // 4 tone, 4 vol, 1 time
@@ -109,7 +109,7 @@ static inline uint16 tonetable(uWordSize y) {
 #endif
 }
 
-static uint8 getDatZero(STREAM *str, uint8 *buf) {
+static uint8 getDatZero(STREAM *str, const uint8 *buf) {
     (void)str;
     (void)buf;
     return 0;
@@ -118,7 +118,7 @@ static uint8 getDatZero(STREAM *str, uint8 *buf) {
 // Call this function to prepare to play
 // pSbf - pointer to song block data
 // songNum - which song to play (starts at 0)
-void StartSong(unsigned char *buf, uWordSize sbfsong) {
+void StartSong(const unsigned char *buf, uWordSize sbfsong) {
     // load all the initial pointers for a song and set songActive
     uint16 streamoffset=((uint16)buf[0]<<8)+buf[1];
 
