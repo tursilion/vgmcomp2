@@ -12,22 +12,26 @@
 int VGMDAT[MAXCHANNELS][MAXTICKS];
 int VGMVOL[MAXCHANNELS][MAXTICKS];
 FILE *fp[MAXCHANNELS];
+const char *szFilename[MAXCHANNELS];
+
+#define RENAME ".merge.old"
 
 // for noise, mute can't be determined via frequency, only by volume
-
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Noise Merge Tool - v20200720\n\n");
+	printf("VGMComp2 Noise Merge Tool - v20200721\n\n");
 
     if (argc < 3) {
-        printf("mergenoise <chan1> <chan2> <output>\n");
-        printf("Merges by taking the louder of the two channels.\n");
+        printf("mergenoise <chan1> <chan2>\n");
+        printf("Merges chan2 into chan 1 by taking the louder of the two channels.\n");
+        printf("Original files are renamed to " RENAME "\n");
         return 1;
     }
 
-    // open up the files requested
+    // check arguments
     int arg = 1;
     for (int idx=0; idx<MAXCHANNELS; ++idx) {
+        szFilename[idx] = argv[arg];
         fp[idx] = fopen(argv[arg], "r");
         if (NULL == fp[idx]) {
             printf("Failed to open file '%s' for channel %d, code %d\n", argv[arg], idx, errno);
@@ -74,6 +78,13 @@ int main(int argc, char *argv[])
         if (NULL != fp[idx]) {
             fclose(fp[idx]);
             fp[idx] = NULL;
+            // since we were successful, also rename the source files
+            char buf[1024];
+            sprintf(buf, "%s" RENAME, szFilename[idx]);
+            if (rename(szFilename[idx], buf)) {
+                printf("Error renaming '%s' to '%s', code %d\n", szFilename[idx], buf, errno);
+                return 1;
+            }
         }
     }
 
@@ -109,14 +120,15 @@ int main(int argc, char *argv[])
     printf("%d tones overridden (lossy)\n", overriddenNotes);
 
     // now we just have to spit the data back out to a new file
-    FILE *fout = fopen(argv[arg], "w");
+    FILE *fout = fopen(szFilename[0], "w");
     if (NULL == fout) {
-        printf("Failed to open output file '%s', err %d\n", argv[arg], errno);
+        printf("Failed to open output file '%s', err %d\n", szFilename[0], errno);
         return 1;
     }
+    printf("Writing: %s\n", szFilename[0]);
 
     for (int idx=0; idx<row; ++idx) {
-        fprintf(fout, "0x%05X,0x%X\n", VGMDAT[0][idx], VGMVOL[0][idx]);
+        fprintf(fout, "0x%08X,0x%02X\n", VGMDAT[0][idx], VGMVOL[0][idx]);
     }
     fclose(fout);
 

@@ -12,6 +12,9 @@
 int VGMDAT[MAXCHANNELS][MAXTICKS];
 int VGMVOL[MAXCHANNELS][MAXTICKS];
 FILE *fp[MAXCHANNELS];
+const char *szFilename[MAXCHANNELS];
+
+#define RENAME ".arp.old"
 
 // codes for noise processing (if not periodic (types 0-3), it's white noise (types 4-7))
 // only NOISE_TRIGGER makes it to the output file
@@ -29,17 +32,20 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Arpeggio Tool - v20200720\n\n");
+	printf("VGMComp2 Arpeggio Tool - v20200721\n\n");
 
     if (argc < 3) {
-        printf("arptones <chan1> <chan2> <output>\n");
-        printf("  Performs an arpeggio where appropriate of two channels.\n");
+        printf("arptones <chan1> <chan2>\n");
+        printf("Performs an arpeggio where appropriate of two channels.\n");
+        printf("chan2 is merged into chan1, alternating when conflicting.\n");
+        printf("Original files are renamed to " RENAME "\n");
         return 1;
     }
 
-    // open up the files requested
+    // check arguments
     int arg = 1;
     for (int idx=0; idx<MAXCHANNELS; ++idx) {
+        szFilename[idx] = argv[arg];
         fp[idx] = fopen(argv[arg], "r");
         if (NULL == fp[idx]) {
             printf("Failed to open file '%s' for channel %d, code %d\n", argv[arg], idx, errno);
@@ -86,6 +92,13 @@ int main(int argc, char *argv[])
         if (NULL != fp[idx]) {
             fclose(fp[idx]);
             fp[idx] = NULL;
+            // since we were successful, also rename the source files
+            char buf[1024];
+            sprintf(buf, "%s" RENAME, szFilename[idx]);
+            if (rename(szFilename[idx], buf)) {
+                printf("Error renaming '%s' to '%s', code %d\n", szFilename[idx], buf, errno);
+                return 1;
+            }
         }
     }
 
@@ -121,14 +134,15 @@ int main(int argc, char *argv[])
     printf("%d tones arped   (lossy)\n", arpedNotes);
 
     // now we just have to spit the data back out to a new file
-    FILE *fout = fopen(argv[arg], "w");
+    FILE *fout = fopen(szFilename[0], "w");
     if (NULL == fout) {
-        printf("Failed to open output file '%s', err %d\n", argv[arg], errno);
+        printf("Failed to open output file '%s', err %d\n", szFilename[0], errno);
         return 1;
     }
+    printf("Writing: %s\n", szFilename[0]);
 
     for (int idx=0; idx<row; ++idx) {
-        fprintf(fout, "0x%05X,0x%X\n", VGMDAT[0][idx], VGMVOL[0][idx]);
+        fprintf(fout, "0x%08X,0x%02X\n", VGMDAT[0][idx], VGMVOL[0][idx]);
     }
     fclose(fout);
 

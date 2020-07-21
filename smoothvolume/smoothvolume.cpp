@@ -13,6 +13,7 @@
 int VGMDAT[MAXCHANNELS][MAXTICKS];
 int VGMVOL[MAXCHANNELS][MAXTICKS];
 FILE *fp[MAXCHANNELS];
+const char *szFilename[MAXCHANNELS];
 
 enum {
     MODE_AVERAGE,
@@ -21,19 +22,22 @@ enum {
 };
 int mode = MODE_AVERAGE;
 
+#define RENAME ".smooth.old"
+
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Volume Smoothing Tool - v20200720\n\n");
+	printf("VGMComp2 Volume Smoothing Tool - v20200721\n\n");
 
-    if (argc < 3) {
-        printf("smoothvolume [-hermite|-cubic] <channel input> <channel output>\n");
+    if (argc < 2) {
+        printf("smoothvolume [-hermite|-cubic] <channel input>\n");
         printf("Performs a smoothing function on the volume component.\n");
+        printf("Original file is renamed to " RENAME "\n");
         printf("-hermite - Use a Hermite interpolation instead of average\n");
         printf("-cubic - use a cubic interpolation instead of average\n");
         return 1;
     }
 
-    // open up the file requested
+    // check arguments
     int arg = 1;
     while (argv[arg][0] == '-') {
         if (0 == strcmp(argv[arg], "-hermite")) {
@@ -48,6 +52,7 @@ int main(int argc, char *argv[])
 
     // open input file(s)
     for (int idx=0; idx<MAXCHANNELS; ++idx) {
+        szFilename[idx] = argv[arg];
         fp[idx] = fopen(argv[arg], "r");
         if (NULL == fp[idx]) {
             printf("Failed to open file '%s' for channel %d, code %d\n", argv[arg], idx, errno);
@@ -94,6 +99,13 @@ int main(int argc, char *argv[])
         if (NULL != fp[idx]) {
             fclose(fp[idx]);
             fp[idx] = NULL;
+            // since we were successful, also rename the source files
+            char buf[1024];
+            sprintf(buf, "%s" RENAME, szFilename[idx]);
+            if (rename(szFilename[idx], buf)) {
+                printf("Error renaming '%s' to '%s', code %d\n", szFilename[idx], buf, errno);
+                return 1;
+            }
         }
     }
 
@@ -171,14 +183,15 @@ int main(int argc, char *argv[])
     printf("%d volumes clipped\n", clipped);
 
     // now we just have to spit the data back out to a new file
-    FILE *fout = fopen(argv[arg], "w");
+    FILE *fout = fopen(szFilename[0], "w");
     if (NULL == fout) {
-        printf("Failed to open output file '%s', err %d\n", argv[arg], errno);
+        printf("Failed to open output file '%s', err %d\n", szFilename[0], errno);
         return 1;
     }
+    printf("Writing: %s\n", szFilename[0]);
 
     for (int idx=0; idx<row; ++idx) {
-        fprintf(fout, "0x%05X,0x%X\n", VGMDAT[0][idx], VGMVOL[0][idx]);
+        fprintf(fout, "0x%08X,0x%02X\n", VGMDAT[0][idx], VGMVOL[0][idx]);
     }
     fclose(fout);
 
