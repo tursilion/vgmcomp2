@@ -61,10 +61,11 @@ static const unsigned char backref2[] =
                                         '1','2','3','4','5','6','7','8','9','0',
                                         '9','8','7','6','5','4' };
 
-void runTest(const char *name, const unsigned char *buf, const char *tst) {
+void runTest(const char *name, const unsigned char *buf, const unsigned char *tst) {
     unsigned char x;
     int flag;
 
+    x = 0;
     test.mainPtr = (uint8*)buf;
     test.curPtr = 0;
     test.curBytes = 0;

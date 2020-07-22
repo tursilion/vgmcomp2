@@ -158,6 +158,22 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Converters", "Converters", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tools", "Tools", "{9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "arp3tones", "arp3tones\arp3tones.vcxproj", "{A66C117C-4FFD-4ACD-8F28-271BD074FA1C}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cleardupes", "cleardupes\cleardupes.vcxproj", "{8CEB3E5A-E4F9-4192-A995-15931D679455}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libcolecovgm2", "libcolecovgm2", "{B63EF47F-D767-4CD1-BD3F-6AE36A776FE8}"
+	ProjectSection(SolutionItems) = preProject
+		Players\libcolecovgm2\ColecoAYPlay.h = Players\libcolecovgm2\ColecoAYPlay.h
+		Players\libcolecovgm2\ColecoPlayerAY.c = Players\libcolecovgm2\ColecoPlayerAY.c
+		Players\libcolecovgm2\ColecoPlayerSFX.c = Players\libcolecovgm2\ColecoPlayerSFX.c
+		Players\libcolecovgm2\ColecoPlayerSN.c = Players\libcolecovgm2\ColecoPlayerSN.c
+		Players\libcolecovgm2\ColecoSfxPlay.h = Players\libcolecovgm2\ColecoSfxPlay.h
+		Players\libcolecovgm2\ColecoSNPlay.h = Players\libcolecovgm2\ColecoSNPlay.h
+		Players\libcolecovgm2\Makefile = Players\libcolecovgm2\Makefile
+		Players\libcolecovgm2\readme.txt = Players\libcolecovgm2\readme.txt
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -326,6 +342,22 @@ Global
 		{D03EC33C-76CE-4FD5-A9B6-87AA9B631E6D}.Release|Win32.Build.0 = Release|Win32
 		{D03EC33C-76CE-4FD5-A9B6-87AA9B631E6D}.Release|x64.ActiveCfg = Release|x64
 		{D03EC33C-76CE-4FD5-A9B6-87AA9B631E6D}.Release|x64.Build.0 = Release|x64
+		{A66C117C-4FFD-4ACD-8F28-271BD074FA1C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A66C117C-4FFD-4ACD-8F28-271BD074FA1C}.Debug|Win32.Build.0 = Debug|Win32
+		{A66C117C-4FFD-4ACD-8F28-271BD074FA1C}.Debug|x64.ActiveCfg = Debug|x64
+		{A66C117C-4FFD-4ACD-8F28-271BD074FA1C}.Debug|x64.Build.0 = Debug|x64
+		{A66C117C-4FFD-4ACD-8F28-271BD074FA1C}.Release|Win32.ActiveCfg = Release|Win32
+		{A66C117C-4FFD-4ACD-8F28-271BD074FA1C}.Release|Win32.Build.0 = Release|Win32
+		{A66C117C-4FFD-4ACD-8F28-271BD074FA1C}.Release|x64.ActiveCfg = Release|x64
+		{A66C117C-4FFD-4ACD-8F28-271BD074FA1C}.Release|x64.Build.0 = Release|x64
+		{8CEB3E5A-E4F9-4192-A995-15931D679455}.Debug|Win32.ActiveCfg = Debug|Win32
+		{8CEB3E5A-E4F9-4192-A995-15931D679455}.Debug|Win32.Build.0 = Debug|Win32
+		{8CEB3E5A-E4F9-4192-A995-15931D679455}.Debug|x64.ActiveCfg = Debug|x64
+		{8CEB3E5A-E4F9-4192-A995-15931D679455}.Debug|x64.Build.0 = Debug|x64
+		{8CEB3E5A-E4F9-4192-A995-15931D679455}.Release|Win32.ActiveCfg = Release|Win32
+		{8CEB3E5A-E4F9-4192-A995-15931D679455}.Release|Win32.Build.0 = Release|Win32
+		{8CEB3E5A-E4F9-4192-A995-15931D679455}.Release|x64.ActiveCfg = Release|x64
+		{8CEB3E5A-E4F9-4192-A995-15931D679455}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -357,6 +389,9 @@ Global
 		{FC94BE80-16DB-4078-9172-18F1246D0778} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 		{765A133F-BE53-48E0-B1E0-2394188F9794} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 		{D03EC33C-76CE-4FD5-A9B6-87AA9B631E6D} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
+		{A66C117C-4FFD-4ACD-8F28-271BD074FA1C} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
+		{8CEB3E5A-E4F9-4192-A995-15931D679455} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
+		{B63EF47F-D767-4CD1-BD3F-6AE36A776FE8} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

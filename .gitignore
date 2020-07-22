@@ -355,3 +355,7 @@ test/
 *.bin
 *.elf
 *.60hz
+players/libcolecovgm2/*.asm
+*.lst
+*.rel
+*.sym

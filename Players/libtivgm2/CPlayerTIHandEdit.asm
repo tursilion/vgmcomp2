@@ -91,7 +91,7 @@ SongLoop
 * load some default values for the whole call
     mov  r11,@retSave       * save the return address
 	li   r13,getCompressedByte  * store address of getCompressedByte
-    li   r8,>8400           * address of the sound chip (warning: don't move too much, my sample code relies on this offset)
+    li   r8,>8400           * address of the sound chip (warning: don''t move too much, my sample code relies on this offset)
     li   r6,>0100           * 1 in a byte for byte math
 
 	mov  @strDat+66,r1      * timestream mainPtr

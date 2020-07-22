@@ -76,6 +76,8 @@ extern uint8 songVol[4];
 extern uint16 songNote[4];
 
 // songActive is the LSB of songNote[3]
+#define songActive (songNote[3]&0xff)
+
 // this flag contains 1 if playing, zero if stopped
 // you can also stop (or pause!) a song by setting it to zero
 // This byte also continues the mute bits as defined below.

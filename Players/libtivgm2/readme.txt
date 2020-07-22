@@ -25,7 +25,7 @@ INTERMEDIATE: available functions
 
 SN Playback: Header: TISNPlay.h
 -------------------------------
-StartSong(unsigned char *pSbf, uWordSize songNum)
+StartSong(const unsigned char *pSbf, uWordSize songNum)
     File:    CPlayerTIHandEdit.asm
     Return:  void
     Inputs:  pSbf - pointer to the song bank being started
@@ -75,7 +75,7 @@ CALL_PLAYER_SN
 
 SID Playback: Header: TISIDPlay.h
 -------------------------------
-StartSID(unsigned char *pSbf, uWordSize songNum)
+StartSID(const unsigned char *pSbf, uWordSize songNum)
     File:    CSIDPlayTIHandEdit.asm
     Return:  void
     Inputs:  pSbf - pointer to the song bank being started
@@ -125,7 +125,7 @@ CALL_PLAYER_SID
 
 SFX Playback: Header: TISfxPlay.h
 ---------------------------------
-StartSfx(unsigned char *pSbf, uWordSize songNum, uWordSize pri)
+StartSfx(const unsigned char *pSbf, uWordSize songNum, uWordSize pri)
     File:    CPlayerTISfx.asm
     Return:  void
     Inputs:  pSbf - pointer to the song bank being started
@@ -363,7 +363,7 @@ ADVANCED: Stream unpack function
 
 There is a single shared function used for unpacking all the data by all the players.
 
-getCompressedByte(STREAM *str, uint8 *buf);
+getCompressedByte(STREAM *str, const uint8 *buf);
     Header:  multiple
     File:    CPlayerCommonHandEdit.asm
     Return:  BYTE
@@ -377,7 +377,7 @@ getCompressedByte(STREAM *str, uint8 *buf);
 
 If you want to be able to call this function from C, the following wrapper is used successfully in CPlayerTest.c:
 
-uint8 __attribute__ ((noinline)) getCompressedByteWrap(STREAM *str, uint8 *buf) {
+uint8 __attribute__ ((noinline)) getCompressedByteWrap(STREAM *str, const uint8 *buf) {
     __asm__(                                                        \
         "mov r1,r15\n\t"                                            \
         "dect r10\n\t"                                              \

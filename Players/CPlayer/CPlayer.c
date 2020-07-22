@@ -80,7 +80,8 @@ uint8 songVol[4];
 uint16 songNote[4];
 
 // this holds onto the currently playing song pointer
-const uint8* workBuf;
+#define workBufName SONG_PREFIX ## workBuf
+const uint8* workBufName;
 
 // local stream data
 // 4 tone, 4 vol, 1 time
@@ -90,22 +91,22 @@ static STREAM strDat[9];
 // y - tone to look up
 static inline uint16 tonetable(uWordSize y) {
     // lookup from buf, or look up from variable, it amounts to the same code
-    uint16 toneoffset = (workBuf[2]<<8) + workBuf[3];
+    uint16 toneoffset = (workBufName[2]<<8) + workBufName[3];
 #ifdef USE_AY_PSG
     // note that I am flipping the byte order here so that the trigger
     // nibble is in the MSB returned. This means the first byte (nibble) is
     // actually for the SECOND register.
     //             LSB, coarse reg, 1st - MSB, fine reg, 2nd (4 bits)
-    return (uint16)workBuf[toneoffset+y*2] + ((workBuf[toneoffset+y*2+1]&0xf)<<8);
+    return (uint16)workBufName[toneoffset+y*2] + ((workBufName[toneoffset+y*2+1]&0xf)<<8);
 #endif
 #ifdef USE_SN_PSG
     //             MSB, fine tune, 1st (4 bits)     LSB, coarse tune, 2nd
-    return ((uint16)(workBuf[toneoffset+y*2]&0xf)<<8) + (workBuf[toneoffset+y*2+1]);
+    return ((uint16)(workBufName[toneoffset+y*2]&0xf)<<8) + (workBufName[toneoffset+y*2+1]);
 #endif
 #ifdef USE_SID_PSG
     // Note I am flipping the order here to properly read the little endian data
     // 16-bit LE     MSB, Freq HI, 8 bits              LSB, Freq LO, 8 bits
-    return ((uint16)(workBuf[toneoffset+y*2+1])<<8) + (workBuf[toneoffset+y*2]);
+    return ((uint16)(workBufName[toneoffset+y*2+1])<<8) + (workBufName[toneoffset+y*2]);
 #endif
 }
 
@@ -147,7 +148,7 @@ void StartSong(const unsigned char *buf, uWordSize sbfsong) {
 	// fix noise tone so LSB is set up for song active
     // note that we also clear the mute flags, on purpose!
     songNote[3] = 0x0100 | SONGACTIVEACTIVE;
-    workBuf = buf;
+    workBufName = buf;
 }
 
 // Call this to stop the current song
@@ -179,7 +180,7 @@ void SongLoop() {
             outSongActive = true;
         } else {
             // timestream data
-            x = getCompressedByte(&strDat[8], workBuf);
+            x = getCompressedByte(&strDat[8], workBufName);
             if (strDat[8].mainPtr) {
                 outSongActive = true;
                 // song not over, x is valid
@@ -187,7 +188,7 @@ void SongLoop() {
                 if (x&0x80) {
                     // voice 0
                     if (strDat[0].mainPtr) {
-                        y = getCompressedByte(&strDat[0], workBuf);
+                        y = getCompressedByte(&strDat[0], workBufName);
                         if (strDat[0].mainPtr) {
                             // look up frequency table
                             songNote[0] = tonetable(y);
@@ -222,7 +223,7 @@ void SongLoop() {
                 if (x&0x40) {
                     // voice 1
                     if (strDat[1].mainPtr) {
-                        y = getCompressedByte(&strDat[1], workBuf);
+                        y = getCompressedByte(&strDat[1], workBufName);
                         if (strDat[1].mainPtr) {
                             // look up frequency table
                             songNote[1] = tonetable(y);
@@ -257,7 +258,7 @@ void SongLoop() {
                 if (x&0x20) {
                     // voice 2
                     if (strDat[2].mainPtr) {
-                        y = getCompressedByte(&strDat[2], workBuf);
+                        y = getCompressedByte(&strDat[2], workBufName);
                         if (strDat[2].mainPtr) {
                             // look up frequency table
                             songNote[2] = tonetable(y);
@@ -293,7 +294,7 @@ void SongLoop() {
                 if (x&0x10) {
                     // noise
                     if (strDat[3].mainPtr) {
-                        y = getCompressedByte(&strDat[3], workBuf);
+                        y = getCompressedByte(&strDat[3], workBufName);
                         if (strDat[3].mainPtr) {
 #ifdef USE_SN_PSG
                             // PSG - store command in frequency
@@ -330,7 +331,7 @@ void SongLoop() {
                 --strDat[str].framesLeft;
                 outSongActive = true;
             } else {
-                x = getCompressedByte(&strDat[str], workBuf);
+                x = getCompressedByte(&strDat[str], workBufName);
                 if (strDat[str].mainPtr) {
                     outSongActive = true;
                     strDat[str].framesLeft = x&0xf;

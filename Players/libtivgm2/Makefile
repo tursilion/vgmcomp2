@@ -13,6 +13,7 @@ CC=$(TMS9900_DIR)/tms9900-gcc
 AR=$(TMS9900_DIR)/tms9900-ar
 ELF2EA5=$(ELF2EA5_DIR)/elf2ea5
 EA5_SPLIT=$(EA5_SPLIT_DIR)/ea5split
+CP=/bin/cp
 
 LDFLAGS_EA5=\
   --section-start .text=a000 --section-start .data=2080 -M
@@ -25,7 +26,7 @@ NAME=libtivgm2.a
 
 C_FLAGS=-O2 -std=c99 -s --save-temp -I./ -fno-builtin -DBUILD_TI99
 LIBPATH=-L$(LIBTI99) -L.
-INCPATH=-I$(LIBTI99)
+INCPATH=-I$(LIBTI99) -I../CPlayer
 
 # List of compiled objects used in executable
 OBJECT_LIST=\
@@ -33,7 +34,7 @@ OBJECT_LIST=\
   CPlayerTIHandEdit.o	\
   CPlayerTISfx.o	\
   CSIDPlayTIHandEdit.o	\
-  ../CPlayer/CPlayerTest.o
+  CPlayerTest.o
 
 # Recipe to compile the library and samples
 all: library samples
@@ -69,7 +70,11 @@ tisnsid: library
 	-make -C ../Samples/TISID/ clean
 	-make -C ../Samples/TISNSFX/ clean
 	-make -C ../Samples/TISNSID/ clean
-	-make -C ../CPlayer/ clean
+
+# Recipe for imported file
+CPlayerTest.o: ../CPlayer/CPlayerTest.c
+	$(CP) ../CPlayer/CPlayerTest.c .
+	$(CC) -c CPlayerTest.c $(INCPATH) $(C_FLAGS) -o CPlayerTest.o
 
 # Recipe to compile all assembly files
 %.o: %.asm
