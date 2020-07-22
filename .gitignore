@@ -359,3 +359,4 @@ players/libcolecovgm2/*.asm
 *.lst
 *.rel
 *.sym
+*.map
