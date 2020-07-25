@@ -127,7 +127,7 @@ _main::
 ;colecosnplay.c:39: VDPWD = 0xd0;
 	ld	a, #0xd0
 	out	(_VDPWD), a
-;d:/work/coleco/libti99coleco/vdp.h:72: inline void VDP_SET_REGISTER(unsigned char r, unsigned char v)		{	VDPWA=(v); VDPWA=(0x80|(r)); }
+;d:/work/coleco/libti99coleco/vdp.h:71: inline void VDP_SET_REGISTER(unsigned char r, unsigned char v)		{	VDPWA=(v); VDPWA=(0x80|(r)); }
 	ld	a, #0x02
 	out	(_VDPWA), a
 	ld	a, #0x87
@@ -154,7 +154,7 @@ _main::
 	ld	a, 1 (iy)
 	adc	a, #0x02
 	ld	c, a
-;d:/work/coleco/libti99coleco/vdp.h:65: inline void VDP_SET_ADDRESS_WRITE(unsigned int x)					{	VDPWA=((x)&0xff); VDPWA=(((x)>>8)|0x40); }
+;d:/work/coleco/libti99coleco/vdp.h:64: inline void VDP_SET_ADDRESS_WRITE(unsigned int x)					{	VDPWA=((x)&0xff); VDPWA=(((x)>>8)|0x40); }
 	ld	a, b
 	out	(_VDPWA), a
 	ld	a, c
@@ -364,7 +364,7 @@ _main::
 	ld	hl, (#_songNote + 6)
 	bit	0, l
 	jp	NZ,00127$
-;d:/work/coleco/libti99coleco/vdp.h:72: inline void VDP_SET_REGISTER(unsigned char r, unsigned char v)		{	VDPWA=(v); VDPWA=(0x80|(r)); }
+;d:/work/coleco/libti99coleco/vdp.h:71: inline void VDP_SET_REGISTER(unsigned char r, unsigned char v)		{	VDPWA=(v); VDPWA=(0x80|(r)); }
 	ld	a, #0x03
 	out	(_VDPWA), a
 	ld	a, #0x87
@@ -388,7 +388,7 @@ _main::
 	call	_StartSong
 	pop	af
 	inc	sp
-;d:/work/coleco/libti99coleco/vdp.h:72: inline void VDP_SET_REGISTER(unsigned char r, unsigned char v)		{	VDPWA=(v); VDPWA=(0x80|(r)); }
+;d:/work/coleco/libti99coleco/vdp.h:71: inline void VDP_SET_REGISTER(unsigned char r, unsigned char v)		{	VDPWA=(v); VDPWA=(0x80|(r)); }
 	ld	a, #0x02
 	out	(_VDPWA), a
 	ld	a, #0x87

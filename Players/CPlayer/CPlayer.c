@@ -148,7 +148,11 @@ void StartSong(const unsigned char *buf, uWordSize sbfsong) {
     // default settings
     for (int idx=0; idx<4; ++idx) {
         songNote[idx] = 1;
+#ifdef USE_SN_PSG
+        songVol[idx] = (0x9F+idx*0x20);
+#else
         songVol[idx] = 0;
+#endif
     }
 	// fix noise tone so LSB is set up for song active
     // note that we also clear the mute flags, on purpose!

@@ -620,7 +620,7 @@ _main::
 	pop	ix
 	ret
 ___str_0:
-	.ascii "Music:"
+	.ascii "Music V2:"
 	.db 0x0a
 	.db 0x0a
 	.db 0x00
