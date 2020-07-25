@@ -7,4 +7,7 @@
 #define CALL_PLAYER_SN \
     SongLoop();
 
+// helpful wrapper
+#define isSNPlaying ((songNote[3]&SONGACTIVEACTIVE) != 0)
+
 #endif  // file include
