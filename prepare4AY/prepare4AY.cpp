@@ -20,9 +20,7 @@ FILE *fp[MAXCHANNELS];
 // mapVolume assumes the order of this table for mute suppression
 unsigned char volumeTable[16] = {
 #if 1
-    // AY table by Matt - pure logarithmic - some debate whether
-    // this matches hardware (the step from 0 to 2 - matches the
-    // datasheet curve but everyone else says there's a jump there)
+    // AY table by Matt - pure logarithmic
     255,181,128,90,64,45,32,
     23,
     16,11,8,6,4,3,2,0
@@ -176,6 +174,7 @@ int main(int argc, char *argv[])
         for (int ch = 0; ch < 4; ++ch) {
             VGMVOL[ch][idx] = mapVolume(VGMVOL[ch][idx]);
         }
+        // volume is now 0 (mute) to 15 (loudest)
 
         // the clipping is simple enough too
         for (int ch = 0; ch < 4; ++ch) {
@@ -202,15 +201,15 @@ int main(int argc, char *argv[])
             // we're muted, nothing to be mapped - turn off all noise
             // we also turn the tone back on, but it's in charge of that
             // any note we moved should be back if it didn't change
-            out = 0x0e;     // all noise muted, tone active
+            out = 0x0e;     // all noise muted, all tone active (0x38 >> 2)
         } else {
             // check for a matching volume
             if (VGMVOL[0][idx] == noiseVol) {
-                out = 0x0c;     // play on channel A
+                out = 0x0c;     // play on channel A (30 >> 2)
             } else if (VGMVOL[1][idx] == noiseVol) {
-                out = 0x0a;     // play on channel B
+                out = 0x0a;     // play on channel B (28 >> 2)
             } else if (VGMVOL[2][idx] == noiseVol) {
-                out = 0x06;     // play on channel C
+                out = 0x06;     // play on channel C (18 >> 2)
             }
 
             if (-1 == out) {
@@ -235,7 +234,7 @@ int main(int argc, char *argv[])
                     }
                     // channel 2 is ready to use, grab it's volume and mute it's tone
                     VGMVOL[2][idx] = noiseVol;    // give it our volume
-                    out = 0x07;                   // noise on C, tone C muted
+                    out = 0x07;                   // noise on C, tone C muted (1c>>2)
                 }
             }
 

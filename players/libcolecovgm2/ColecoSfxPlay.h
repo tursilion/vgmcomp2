@@ -35,9 +35,34 @@ extern uint8 sfx_songVol[4];
 // player requires those nibbles to write the data back.
 extern uint16 sfx_songNote[4];
 
-// use to run the main loop
-#define CALL_PLAYER_SFX \
-    songNote[3] &= 0xff00;  \
-    sfx_SongLoop();
+// tracks the current sfxPriority (only if isSFXPlaying is true)
+extern unsigned char sfxPriority;
+
+// helpful wrapper
+#define isSFXPlaying ((sfx_songNote[3]&SONGACTIVEACTIVE) != 0)
+
+// use to run the main loop - songNote[3]'s LSB is
+// the songActive flag, we are zeroing out the mutes here
+// As bytes are written, the mutes are re-added
+// by WRITE_BYTE_TO_SOUND_CHIP
+// If the SFX ends, we undo the mutes
+#define CALL_PLAYER_SFX  \
+if (isSFXPlaying) {  \
+    unsigned char x = songNote[3]&0xff; /*lsb*/  \
+    sfx_songNote[3] &= 0xff01;  \
+    sfx_SongLoop();         \
+    if (!isSFXPlaying) {    \
+        if (x&0x80) { SOUND=songNote[0]>>8; SOUND=songNote[0]&0xff; SOUND=songVol[0]; } \
+        if (x&0x40) { SOUND=songNote[1]>>8; SOUND=songNote[1]&0xff; SOUND=songVol[1]; } \
+        if (x&0x20) { SOUND=songNote[2]>>8; SOUND=songNote[2]&0xff; SOUND=songVol[2]; } \
+        if (x&0x10) { SOUND=songNote[3]; SOUND=songVol[3]; } \
+        songNote[3] = (songNote[3]&0xff00)|(songNote[3]&0x01); \
+    } else { \
+        songNote[3] = (songNote[3]&0xff00)|(sfx_songNote[3]&0xfe)|(songNote[3]&0x01); \
+    }   \
+}
+
+// wrapper function to handle priorities
+void StartSfx(unsigned char* music, unsigned char song, unsigned char priority);
 
 #endif  // file include

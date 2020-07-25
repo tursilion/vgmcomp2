@@ -18,7 +18,6 @@ inline void faster_hexprint2(int x) {
 int main() {
     // set screen
     set_graphics(VDP_MODE1_SPRMAG);
-    VDP_SET_REGISTER(VDP_REG_COL,COLOR_LTBLUE);
     charset();
     vdpmemset(gColor, 0xe0, 32);
 
@@ -45,7 +44,7 @@ int main() {
     // start the song
     StartSong((unsigned char*)mysong, 0);
 
-    // now play it - space to loop
+    // now play it - fire to loop
     for (;;) {
         vdpwaitvint();      // wait for an interrupt with ints enabled - console clears it
         CALL_PLAYER_SN;

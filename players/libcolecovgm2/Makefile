@@ -30,7 +30,7 @@ library: $(OBJECT_LIST)
 	$(RM) *.rel *.map *.lst *.lnk *.sym *.asm *~ *.o *.obj *.ihx *.sprite.* *.rom *.rel *.a *.lib
 
 # Recipe to import foreign files
-CPlayerCommon.rel: ..\CPlayer\CPlayerCommon.c
+CPlayerCommon.rel: ..\CPlayer\CPlayerCommon.c ..\CPlayer\CPlayer.c
 	$(CP) ..\CPlayer\CPlayerCommon.c .
 	$(CC) -c CPlayerCommon.c $(CFLAGS) -o CPlayerCommon.rel
 CPlayerTest.rel: ..\CPlayer\CPlayerTest.c

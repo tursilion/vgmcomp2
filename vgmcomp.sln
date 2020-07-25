@@ -174,6 +174,49 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libcolecovgm2", "libcolecov
 		Players\libcolecovgm2\readme.txt = Players\libcolecovgm2\readme.txt
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ColecoSN", "ColecoSN", "{35244252-61B0-4B77-BC8C-465B3E1CB613}"
+	ProjectSection(SolutionItems) = preProject
+		Players\Samples\ColecoSN\colecosnplay.c = Players\Samples\ColecoSN\colecosnplay.c
+		Players\Samples\ColecoSN\crt0.s = Players\Samples\ColecoSN\crt0.s
+		Players\Samples\ColecoSN\Makefile = Players\Samples\ColecoSN\Makefile
+		Players\Samples\ColecoSN\sil_nes.c = Players\Samples\ColecoSN\sil_nes.c
+		Players\Samples\ColecoSN\sil_nes.vgz.psg = Players\Samples\ColecoSN\sil_nes.vgz.psg
+		Players\Samples\ColecoSN\sil_nes.vgz.sbf = Players\Samples\ColecoSN\sil_nes.vgz.sbf
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ColecoAY", "ColecoAY", "{C1801B5E-7B34-4713-BEB6-8F783E262F3D}"
+	ProjectSection(SolutionItems) = preProject
+		Players\Samples\ColecoAY\ab.psgay = Players\Samples\ColecoAY\ab.psgay
+		Players\Samples\ColecoAY\ab.sbfay = Players\Samples\ColecoAY\ab.sbfay
+		Players\Samples\ColecoAY\ab_ay.c = Players\Samples\ColecoAY\ab_ay.c
+		Players\Samples\ColecoAY\colecoayplay.c = Players\Samples\ColecoAY\colecoayplay.c
+		Players\Samples\ColecoAY\crt0.s = Players\Samples\ColecoAY\crt0.s
+		Players\Samples\ColecoAY\Makefile = Players\Samples\ColecoAY\Makefile
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "scalepitch", "scalepitch\scalepitch.vcxproj", "{DF4D72FB-CA12-4716-B537-D583CC0FC2EB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ColecoSNAY", "ColecoSNAY", "{DE26F071-E6A0-4A2C-8B61-973533647F93}"
+	ProjectSection(SolutionItems) = preProject
+		Players\Samples\ColecoSNAY\colecosnayplay.c = Players\Samples\ColecoSNAY\colecosnayplay.c
+		Players\Samples\ColecoSNAY\crt0.s = Players\Samples\ColecoSNAY\crt0.s
+		Players\Samples\ColecoSNAY\Makefile = Players\Samples\ColecoSNAY\Makefile
+		Players\Samples\ColecoSNAY\readme.txt = Players\Samples\ColecoSNAY\readme.txt
+		Players\Samples\ColecoSNAY\wb.psgay = Players\Samples\ColecoSNAY\wb.psgay
+		Players\Samples\ColecoSNAY\wb.psgsn = Players\Samples\ColecoSNAY\wb.psgsn
+		Players\Samples\ColecoSNAY\wb_psg2.vgz = Players\Samples\ColecoSNAY\wb_psg2.vgz
+		Players\Samples\ColecoSNAY\wbay.c = Players\Samples\ColecoSNAY\wbay.c
+		Players\Samples\ColecoSNAY\wbsn.c = Players\Samples\ColecoSNAY\wbsn.c
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ColecoSNSFX", "ColecoSNSFX", "{4B994E02-3A1D-458C-8D1D-999524E76ADD}"
+	ProjectSection(SolutionItems) = preProject
+		Players\Samples\ColecoSNSFX\crt0.s = Players\Samples\ColecoSNSFX\crt0.s
+		Players\Samples\ColecoSNSFX\demomusic.c = Players\Samples\ColecoSNSFX\demomusic.c
+		Players\Samples\ColecoSNSFX\Makefile = Players\Samples\ColecoSNSFX\Makefile
+		Players\Samples\ColecoSNSFX\snsfxplay.c = Players\Samples\ColecoSNSFX\snsfxplay.c
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -358,6 +401,14 @@ Global
 		{8CEB3E5A-E4F9-4192-A995-15931D679455}.Release|Win32.Build.0 = Release|Win32
 		{8CEB3E5A-E4F9-4192-A995-15931D679455}.Release|x64.ActiveCfg = Release|x64
 		{8CEB3E5A-E4F9-4192-A995-15931D679455}.Release|x64.Build.0 = Release|x64
+		{DF4D72FB-CA12-4716-B537-D583CC0FC2EB}.Debug|Win32.ActiveCfg = Debug|Win32
+		{DF4D72FB-CA12-4716-B537-D583CC0FC2EB}.Debug|Win32.Build.0 = Debug|Win32
+		{DF4D72FB-CA12-4716-B537-D583CC0FC2EB}.Debug|x64.ActiveCfg = Debug|x64
+		{DF4D72FB-CA12-4716-B537-D583CC0FC2EB}.Debug|x64.Build.0 = Debug|x64
+		{DF4D72FB-CA12-4716-B537-D583CC0FC2EB}.Release|Win32.ActiveCfg = Release|Win32
+		{DF4D72FB-CA12-4716-B537-D583CC0FC2EB}.Release|Win32.Build.0 = Release|Win32
+		{DF4D72FB-CA12-4716-B537-D583CC0FC2EB}.Release|x64.ActiveCfg = Release|x64
+		{DF4D72FB-CA12-4716-B537-D583CC0FC2EB}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -392,6 +443,11 @@ Global
 		{A66C117C-4FFD-4ACD-8F28-271BD074FA1C} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 		{8CEB3E5A-E4F9-4192-A995-15931D679455} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 		{B63EF47F-D767-4CD1-BD3F-6AE36A776FE8} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
+		{35244252-61B0-4B77-BC8C-465B3E1CB613} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
+		{C1801B5E-7B34-4713-BEB6-8F783E262F3D} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
+		{DF4D72FB-CA12-4716-B537-D583CC0FC2EB} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
+		{DE26F071-E6A0-4A2C-8B61-973533647F93} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
+		{4B994E02-3A1D-458C-8D1D-999524E76ADD} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

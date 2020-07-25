@@ -56,14 +56,20 @@
 #error Define USE_SN_PSG **OR** USE_AY_PSG **OR** USE_SID_PSG
 #endif
 
-#ifdef SONG_PREFIX
-#define MAKE_FN_NAME(x) SONG_PREFIX ## x
+#ifndef SONG_PREFIX
+#define SONG_PREFIX
+#endif
+
+// double indirection trick needed for expansion of SONG_PREFIX
+#define PASTER(x,y) x ## y
+#define EVALUATOR(x,y) PASTER(x,y)
+#define MAKE_FN_NAME(x) EVALUATOR(SONG_PREFIX,x)
 #define StartSong MAKE_FN_NAME(StartSong)
 #define StopSong  MAKE_FN_NAME(StopSong)
 #define SongLoop  MAKE_FN_NAME(SongLoop)
 #define songVol   MAKE_FN_NAME(songVol)
 #define songNote  MAKE_FN_NAME(songNote)
-#endif
+#define workBufName MAKE_FN_NAME(workBuf)
 
 // this array contains the current volume of each voice
 // Sound chip specific, but in both cases that means 0x0 is maximum and 0xF
@@ -80,7 +86,6 @@ uint8 songVol[4];
 uint16 songNote[4];
 
 // this holds onto the currently playing song pointer
-#define workBufName SONG_PREFIX ## workBuf
 const uint8* workBufName;
 
 // local stream data
@@ -211,10 +216,8 @@ void SongLoop() {
 #ifdef USE_AY_PSG
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 1, songNote[0]>>8);
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 0, songNote[0]&0xff);
-                        songNote[0] |= 0x8000;
 #endif
 #ifdef USE_SID_PSG
-                        // note that SID has no bits left for trigger flagging!
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 1, songNote[0]>>8);
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 0, songNote[0]&0xff);
 #endif
@@ -246,10 +249,8 @@ void SongLoop() {
 #ifdef USE_AY_PSG
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 3, songNote[1]>>8);
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 2, songNote[1]&0xff);
-                        songNote[1] |= 0xa000;
 #endif
 #ifdef USE_SID_PSG
-                        // note that SID has no bits left for trigger flagging!
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 8, songNote[1]>>8);
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 7, songNote[1]&0xff);
 #endif
@@ -281,10 +282,8 @@ void SongLoop() {
 #ifdef USE_AY_PSG
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 5, songNote[2]>>8);
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 4, songNote[2]&0xff);
-                        songNote[2] |= 0xc000;
 #endif
 #ifdef USE_SID_PSG
-                        // note that SID has no bits left for trigger flagging!
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 0xf, songNote[2]>>8);
                         WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 0xe, songNote[2]&0xff);
 #endif
@@ -308,22 +307,22 @@ void SongLoop() {
                             // AY - frequency is frequency (still fits in a byte, but 5 bits!)
                             WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 6, y);
                             // update the MSB only
-                            songNote[3] = (songNote[3]&0xff) | ((y | 0xE0)<<8);
+                            songNote[3] = (songNote[3]&0xff) | (y<<8);
 #endif
                         }   // no 'else' case on purpose, there's no usefully silent noise!
                     }
                 }
-#endif // SID
+#endif // not SID
             }
         }
     }
 
     // now handle the volume streams
+#ifdef USE_SN_PSG
     unsigned char flag=0x90;
-#ifdef USE_SID_PSG
-    for (str=4; str<7; ++str) {
-#else
     for (str=4; str<8; ++str) {
+#else
+    for (str=4; str<7; ++str) {
 #endif
         if (strDat[str].mainPtr != 0) {
             // check the RLE
@@ -337,7 +336,11 @@ void SongLoop() {
                     strDat[str].framesLeft = x&0xf;
                     x = ((x>>4)&0xf);
                 } else {
+#ifdef USE_SN_PSG
                     x = 0x0f;
+#else
+                    x = 0;
+#endif
                 }
 #ifdef USE_SN_PSG
                 x |= flag;
@@ -354,17 +357,45 @@ void SongLoop() {
                 } else {
                     WRITE_BYTE_TO_SOUND_CHIP(songNote[3], str+4, x);
                 }
-                songVol[str-4] = x | flag;
+                songVol[str-4] = x;
 #endif
 #ifdef USE_SID_PSG
                 // we CAN flag the trigger for SID though, though it's less useful on volume
                 WRITE_BYTE_TO_SOUND_CHIP(songNote[3], ((str-4)*7+6), (x<<4));   // sustain register in top bits
-                songVol[str-4] = x | flag;
+                songVol[str-4] = x;
 #endif
             }
         }
+#ifdef USE_SN_PSG
         flag += 0x20;
+#endif
     }
+
+#ifdef USE_AY_PSG
+    // special handling for noise channel (str == 7)
+    if (strDat[str].mainPtr != 0) {
+        // check the RLE
+        if (strDat[str].framesLeft) {
+            --strDat[str].framesLeft;
+            outSongActive = true;
+        } else {
+            x = getCompressedByte(&strDat[str], workBufName);
+            if (strDat[str].mainPtr) {
+                outSongActive = true;
+                strDat[str].framesLeft = x&0xf;
+                x = ((x>>2)&0x3c);
+            } else {
+                x = 0x38;
+            }
+            // special case - write to mixer
+            // bits go to noise mixer, all tones active
+            // (just luck that stream 7 goes to reg 7)
+            // this extra shift is a little miffy, we already shifted above...
+            WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 7, x);
+            songVol[str-4] = x|0x80;
+        }
+    }
+#endif
 
     if (!outSongActive) {
         songNote[3] &= 0xff00;     // clear the active bit AND clear all mutes

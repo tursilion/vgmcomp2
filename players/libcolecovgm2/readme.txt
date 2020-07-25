@@ -92,12 +92,15 @@ CALL_PLAYER_AY
 
 SFX Playback: Header: ColecoSfxPlay.h
 ---------------------------------
-sfx_StartSong(unsigned char *pSbf, uWordSize songNum, uWordSize pri)
-    File:    CPlayer.c
+sfx_StartSong(unsigned char *pSbf, uWordSize songNum)
+    DO NOT USE DIRECTLY, use StartSfx instead.
+
+StartSfx(unsigned char *pSbf, uWordSize songNum, uWordSize pri)
+    File:    ColecoPlayerSFX.c
     Return:  void
     Inputs:  pSbf - pointer to the song bank being started
              songNum - index of the song, starting with 0, to play. Note: no range checking!
-             pri - 8-bit priority of the SFX. If equal to or lower than currently playing SFX, returns without starting the new one. Otherwise, the new SFX will be started.
+             pri - 8-bit priority of the SFX. If equal to or lower than currently playing SFX, returns          without starting the new one. Otherwise, the new SFX will be started.
     Purpose: Initialize the player to begin playing a new SFX. Invalid data will probably just crash.
 
 sfx_StopSong()
@@ -256,3 +259,21 @@ getCompressedByte(STREAM *str, uint8 *buf);
     Inputs:  str - pointer to the stream object being decoded
              buf - pointer to the root of the song file (optional in most case)
     Purpose: extract the 'next' byte from a stream. If the stream ends, str->mainPtr is set to 0
+
+
+--------------------------------
+SN player timing (C code)
+--------------------------------
+
+Coleco Statistics:
+
+ROM size: 2142 bytes
+RAM usage:  86 bytes
+CPU usage (Silius): Min: 2170  Max: 23170  Avg: 8412 cycles
+                            9         102         37 scanlines
+
+One frame is about 59667 cycles. 262 scanlines so one scanline is about 227 cycles (closer 228).
+
+I would welcome someone who knows Z80 well enough to hand-optimize the asm code. The C performance
+is comparable to the TI version's C performance, so potentially we can double the performance
+with hand optimization. ;)

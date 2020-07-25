@@ -22,14 +22,11 @@ objs = crt0.rel colecosnplay.rel sil_nes.rel
 
 # makebin doesn't know you can start at $8000 instead of $0000, so we use dd to trim it
 all: buildcoleco
-	$(MB) -s 65536 crt0.ihx | $(DD) bs=32768 skip=1 of=player.rom
+	$(MB) -s 65536 crt0.ihx | $(DD) bs=32768 skip=1 of=playerSN.rom
 
 # this rule links the files into the ihx
 buildcoleco: $(objs)
 	$(CC) -mz80 --code-loc 0x8100 --data-loc 0x7000 $(LFLAGS) $(objs)
-
-# banks - all defined the same way, we just need to declare them
-BANKS = "-Wl -b_bank1=0xc000" "-Wl -b_bank2=0xc000"
 
 # clean up the build
 clean:

@@ -35,6 +35,9 @@ extern uint8 ay_songVol[4];
 // player requires those nibbles to write the data back.
 extern uint16 ay_songNote[4];
 
+// helpful wrapper
+#define isAYPlaying ((ay_songNote[3]&SONGACTIVEACTIVE) != 0)
+
 #define CALL_PLAYER_AY \
     ay_SongLoop();
 

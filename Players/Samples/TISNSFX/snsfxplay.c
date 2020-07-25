@@ -21,7 +21,7 @@ int main() {
 	charsetlc();
 
 	// put up the text menu
-	putstring("Music:\n\n");
+	putstring("Music V2:\n\n");
 	putstring(" A - Antarctic Adventure\n");
 	putstring(" B - California Games Title\n");
 	putstring(" C - Double Dragon\n");

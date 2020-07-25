@@ -497,6 +497,7 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
         curVol[idx] = 0;
     }
 
+    int mixerByte = 0xE;    // all tones on, all noises off by default - have to eval this every frame!
     bool done = false;
     while (!done) {
         // run until we have no more data
@@ -601,12 +602,20 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
                         if (testsid) {
                             // SID is linear, no need for lookup table
                             curVol[str-4] = ((x>>4)&0xf) * 17;
+                        } else if (testay) {
+                            if (str == 7) {
+                                mixerByte = ((x>>4)&0xf);
+                                curVol[str-4] = 0;
+                            } else {
+                                // volumes are inverted
+                                curVol[str-4] = volumeTable[15-((x>>4)&0xf)];
+                            }
                         } else {
                             curVol[str-4] = volumeTable[(x>>4)&0xf];
                         }
                     } else {
-                        // this is still okay for SID
-                        curVol[str-4] = volumeTable[15];
+                        // this is still okay for SID and AY both
+                        curVol[str-4] = 0;
                     }
                 }
             }
@@ -617,6 +626,15 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
             VGMDAT[chan+idx][cnt] = curFreq[idx];
             VGMVOL[chan+idx][cnt] = curVol[idx];
         }
+        if (testay) {
+            // update via the mixer byte - we change the output vol directly
+            // because we need to remember the actual volume for at least tone C
+            if ((mixerByte&0x08)==0) VGMVOL[chan+3][cnt] = VGMVOL[chan+2][cnt];    // channel C
+            if ((mixerByte&0x04)==0) VGMVOL[chan+3][cnt] = VGMVOL[chan+1][cnt];    // channel B
+            if ((mixerByte&0x02)==0) VGMVOL[chan+3][cnt] = VGMVOL[chan][cnt];      // channel A
+            if (mixerByte&0x01) VGMVOL[chan+2][cnt] = 0;                           // mute tone C
+        }
+
         // clear the trigger flag
         curFreq[3] &= ~NOISE_TRIGGER;
 
@@ -719,6 +737,11 @@ bool testAYData(int chan, int cnt) {
                 } else {
                     for (int c2=0; c2<chan; ++c2) {
                         if (c2 == ch) continue;
+                        if (VGMVOL[c2][row] == 0) {
+                            // we can map this, so it's okay
+                            match=true;
+                            break;
+                        }
                         if (VGMVOL[c2][row] == VGMVOL[ch][row]) {
                             match=true;
                             break;

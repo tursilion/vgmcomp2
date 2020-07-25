@@ -70,14 +70,9 @@ _main::
 	inc	sp
 	call	_set_graphics
 	inc	sp
-;d:/work/coleco/libti99coleco/vdp.h:72: inline void VDP_SET_REGISTER(unsigned char r, unsigned char v)		{	VDPWA=(v); VDPWA=(0x80|(r)); }
-	ld	a, #0x05
-	out	(_VDPWA), a
-	ld	a, #0x87
-	out	(_VDPWA), a
-;colecosnplay.c:22: charset();
+;colecosnplay.c:21: charset();
 	call	_charset
-;colecosnplay.c:23: vdpmemset(gColor, 0xe0, 32);
+;colecosnplay.c:22: vdpmemset(gColor, 0xe0, 32);
 	ld	hl, #0x0020
 	push	hl
 	ld	a, #0xe0
@@ -89,10 +84,10 @@ _main::
 	pop	af
 	pop	af
 	inc	sp
-;colecosnplay.c:36: for (unsigned char idx=0; idx<4; ++idx) {
+;colecosnplay.c:35: for (unsigned char idx=0; idx<4; ++idx) {
 	ld	c, #0x00
-00120$:
-;colecosnplay.c:37: sprite(idx, '1'+idx, COLOR_DKBLUE+idx, 21*8, idx*64+16);
+00119$:
+;colecosnplay.c:36: sprite(idx, '1'+idx, COLOR_DKBLUE+idx, 21*8, idx*64+16);
 	ld	a,c
 	cp	a,#0x04
 	jr	NC,00101$
@@ -125,11 +120,11 @@ _main::
 	pop	af
 	inc	sp
 	pop	bc
-;colecosnplay.c:36: for (unsigned char idx=0; idx<4; ++idx) {
+;colecosnplay.c:35: for (unsigned char idx=0; idx<4; ++idx) {
 	inc	c
-	jr	00120$
+	jr	00119$
 00101$:
-;colecosnplay.c:40: VDPWD = 0xd0;
+;colecosnplay.c:39: VDPWD = 0xd0;
 	ld	a, #0xd0
 	out	(_VDPWD), a
 ;d:/work/coleco/libti99coleco/vdp.h:72: inline void VDP_SET_REGISTER(unsigned char r, unsigned char v)		{	VDPWA=(v); VDPWA=(0x80|(r)); }
@@ -137,7 +132,7 @@ _main::
 	out	(_VDPWA), a
 	ld	a, #0x87
 	out	(_VDPWA), a
-;colecosnplay.c:46: StartSong((unsigned char*)mysong, 0);
+;colecosnplay.c:45: StartSong((unsigned char*)mysong, 0);
 	xor	a, a
 	push	af
 	inc	sp
@@ -146,12 +141,12 @@ _main::
 	call	_StartSong
 	pop	af
 	inc	sp
-00128$:
-;colecosnplay.c:50: vdpwaitvint();      // wait for an interrupt with ints enabled - console clears it
+00127$:
+;colecosnplay.c:49: vdpwaitvint();      // wait for an interrupt with ints enabled - console clears it
 	call	_vdpwaitvint
-;colecosnplay.c:51: CALL_PLAYER_SN;
+;colecosnplay.c:50: CALL_PLAYER_SN;
 	call	_SongLoop
-;colecosnplay.c:55: VDP_SET_ADDRESS_WRITE(VDP_SCREEN_POS(23,0)+gImage);
+;colecosnplay.c:54: VDP_SET_ADDRESS_WRITE(VDP_SCREEN_POS(23,0)+gImage);
 	ld	iy, #_gImage
 	ld	a, 0 (iy)
 	add	a, #0xe0
@@ -165,15 +160,15 @@ _main::
 	ld	a, c
 	or	a, #0x40
 	out	(_VDPWA), a
-;colecosnplay.c:58: for (unsigned char idx=0; idx<4; ++idx) {
+;colecosnplay.c:57: for (unsigned char idx=0; idx<4; ++idx) {
 	ld	bc, #_songVol+0
 	xor	a, a
 	ld	-1 (ix), a
-00123$:
+00122$:
 	ld	a, -1 (ix)
 	sub	a, #0x04
 	jr	NC,00102$
-;colecosnplay.c:59: int row = songNote[idx];
+;colecosnplay.c:58: int row = songNote[idx];
 	ld	l, -1 (ix)
 	ld	h, #0x00
 	add	hl, hl
@@ -204,10 +199,10 @@ _main::
 	call	_faster_hexprint
 	inc	sp
 	pop	bc
-;colecosnplay.c:62: VDPWD = ' ';
+;colecosnplay.c:61: VDPWD = ' ';
 	ld	a, #0x20
 	out	(_VDPWD), a
-;colecosnplay.c:63: faster_hexprint(songVol[idx]);
+;colecosnplay.c:62: faster_hexprint(songVol[idx]);
 	ld	l, -1 (ix)
 	ld	h, #0x00
 	add	hl, bc
@@ -218,20 +213,20 @@ _main::
 	call	_faster_hexprint
 	inc	sp
 	pop	bc
-;colecosnplay.c:64: VDPWD = ' ';
+;colecosnplay.c:63: VDPWD = ' ';
 	ld	a, #0x20
 	out	(_VDPWD), a
-;colecosnplay.c:58: for (unsigned char idx=0; idx<4; ++idx) {
+;colecosnplay.c:57: for (unsigned char idx=0; idx<4; ++idx) {
 	inc	-1 (ix)
-	jr	00123$
+	jr	00122$
 00102$:
-;colecosnplay.c:68: for (unsigned char idx=0; idx<4; ++idx) {
+;colecosnplay.c:67: for (unsigned char idx=0; idx<4; ++idx) {
 	ld	c, #0x00
-00126$:
+00125$:
 	ld	a, c
 	sub	a, #0x04
 	jp	NC, 00106$
-;colecosnplay.c:69: int row = songNote[idx];
+;colecosnplay.c:68: int row = songNote[idx];
 	ld	-4 (ix), c
 	xor	a, a
 	ld	-3 (ix), a
@@ -244,18 +239,18 @@ _main::
 	ld	-2 (ix), a
 	inc	hl
 	ld	a, (hl)
-;colecosnplay.c:74: row = ((((row&0x0f00)>>8)|((row&0x00ff)<<4))*2) / 9;
+;colecosnplay.c:73: row = ((((row&0x0f00)>>8)|((row&0x00ff)<<4))*2) / 9;
 	ld	-1 (ix), a
 	and	a, #0x0f
 	ld	e, a
 	rlc	a
 	sbc	a, a
 	ld	d, a
-;colecosnplay.c:71: if (idx != 3) {
+;colecosnplay.c:70: if (idx != 3) {
 	ld	a, c
 	sub	a, #0x03
 	jr	Z,00104$
-;colecosnplay.c:74: row = ((((row&0x0f00)>>8)|((row&0x00ff)<<4))*2) / 9;
+;colecosnplay.c:73: row = ((((row&0x0f00)>>8)|((row&0x00ff)<<4))*2) / 9;
 	ld	l, -2 (ix)
 	ld	h, #0x00
 	add	hl, hl
@@ -279,7 +274,7 @@ _main::
 	pop	bc
 	jr	00105$
 00104$:
-;colecosnplay.c:77: row = ((row&0x0f00)>>8)*11;
+;colecosnplay.c:76: row = ((row&0x0f00)>>8)*11;
 	ld	l, e
 	ld	h, d
 	add	hl, hl
@@ -288,7 +283,7 @@ _main::
 	add	hl, hl
 	add	hl, de
 00105$:
-;colecosnplay.c:79: vdpchar(gSprite+(idx<<2), row);    // first value in each sprite is row
+;colecosnplay.c:78: vdpchar(gSprite+(idx<<2), row);    // first value in each sprite is row
 	ld	b, l
 	pop	hl
 	push	hl
@@ -310,7 +305,7 @@ _main::
 	pop	af
 	inc	sp
 	pop	bc
-;colecosnplay.c:82: row = songVol[idx]&0xf;
+;colecosnplay.c:81: row = songVol[idx]&0xf;
 	ld	hl, #_songVol
 	ld	b, #0x00
 	add	hl, bc
@@ -318,7 +313,7 @@ _main::
 	and	a, #0x0f
 	ld	e, a
 	ld	d, #0x00
-;colecosnplay.c:83: vchar(7, (idx<<3)+6, 32, row);
+;colecosnplay.c:82: vchar(7, (idx<<3)+6, 32, row);
 	ld	a, c
 	add	a, a
 	add	a, a
@@ -342,7 +337,7 @@ _main::
 	inc	sp
 	pop	de
 	pop	bc
-;colecosnplay.c:84: vchar(row+7, (idx<<3)+6, 43, 15-row);
+;colecosnplay.c:83: vchar(row+7, (idx<<3)+6, 43, 15-row);
 	ld	hl, #0x000f
 	cp	a, a
 	sbc	hl, de
@@ -361,30 +356,30 @@ _main::
 	pop	af
 	inc	sp
 	pop	bc
-;colecosnplay.c:68: for (unsigned char idx=0; idx<4; ++idx) {
+;colecosnplay.c:67: for (unsigned char idx=0; idx<4; ++idx) {
 	inc	c
-	jp	00126$
+	jp	00125$
 00106$:
-;colecosnplay.c:88: if (!isSNPlaying) {
+;colecosnplay.c:87: if (!isSNPlaying) {
 	ld	hl, (#_songNote + 6)
 	bit	0, l
-	jp	NZ,00128$
+	jp	NZ,00127$
 ;d:/work/coleco/libti99coleco/vdp.h:72: inline void VDP_SET_REGISTER(unsigned char r, unsigned char v)		{	VDPWA=(v); VDPWA=(0x80|(r)); }
 	ld	a, #0x03
 	out	(_VDPWA), a
 	ld	a, #0x87
 	out	(_VDPWA), a
-;colecosnplay.c:90: kscan(1);
+;colecosnplay.c:89: kscan(1);
 	ld	a, #0x01
 	push	af
 	inc	sp
 	call	_kscan
 	inc	sp
-;colecosnplay.c:91: if (KSCAN_KEY == JOY_FIRE) {
+;colecosnplay.c:90: if (KSCAN_KEY == JOY_FIRE) {
 	ld	a,(#_KSCAN_KEY + 0)
 	sub	a, #0x12
-	jp	NZ,00128$
-;colecosnplay.c:92: StartSong((unsigned char*)mysong, 0);
+	jp	NZ,00127$
+;colecosnplay.c:91: StartSong((unsigned char*)mysong, 0);
 	xor	a, a
 	push	af
 	inc	sp
@@ -398,10 +393,10 @@ _main::
 	out	(_VDPWA), a
 	ld	a, #0x87
 	out	(_VDPWA), a
-;colecosnplay.c:93: VDP_SET_REGISTER(VDP_REG_COL,COLOR_MEDGREEN);
-;colecosnplay.c:98: return 0;
-;colecosnplay.c:99: }
-	jp	00128$
+;colecosnplay.c:92: VDP_SET_REGISTER(VDP_REG_COL,COLOR_MEDGREEN);
+;colecosnplay.c:97: return 0;
+;colecosnplay.c:98: }
+	jp	00127$
 	.area _CODE
 	.area _INITIALIZER
 	.area _CABS (ABS)
