@@ -164,6 +164,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cleardupes", "cleardupes\cl
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libcolecovgm2", "libcolecovgm2", "{B63EF47F-D767-4CD1-BD3F-6AE36A776FE8}"
 	ProjectSection(SolutionItems) = preProject
+		Players\libcolecovgm2\ColCPlayer.c = Players\libcolecovgm2\ColCPlayer.c
+		Players\libcolecovgm2\ColCPlayer.h = Players\libcolecovgm2\ColCPlayer.h
+		Players\libcolecovgm2\ColCPlayerCommon.c = Players\libcolecovgm2\ColCPlayerCommon.c
 		Players\libcolecovgm2\ColecoAYPlay.h = Players\libcolecovgm2\ColecoAYPlay.h
 		Players\libcolecovgm2\ColecoPlayerAY.c = Players\libcolecovgm2\ColecoPlayerAY.c
 		Players\libcolecovgm2\ColecoPlayerSFX.c = Players\libcolecovgm2\ColecoPlayerSFX.c

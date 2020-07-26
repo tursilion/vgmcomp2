@@ -260,6 +260,9 @@ getCompressedByte(STREAM *str, uint8 *buf);
              buf - pointer to the root of the song file (optional in most case)
     Purpose: extract the 'next' byte from a stream. If the stream ends, str->mainPtr is set to 0
 
+For performance, a global structure is used for the stream data, globalStr, which
+requires 8 bytes. This structure is accessed by getCompressedByteRaw, which is called
+by the above function.
 
 --------------------------------
 SN player timing (C code)
@@ -267,10 +270,13 @@ SN player timing (C code)
 
 Coleco Statistics:
 
-ROM size: 2142 bytes
-RAM usage:  86 bytes
-CPU usage (Silius): Min: 2170  Max: 23170  Avg: 8412 cycles
-                            9         102         37 scanlines
+          CPlayer           Optimized C
+ROM size: 2142 bytes        1945 bytes
+RAM usage:  86 bytes          96 bytes
+          9-102 avg 37      11-81 avg 30
+
+Optimized C: Min:  2550   Max: 18510   Avg: 6806  cycles
+                     11           81          30  scanlines
 
 One frame is about 59667 cycles. 262 scanlines so one scanline is about 227 cycles (closer 228).
 

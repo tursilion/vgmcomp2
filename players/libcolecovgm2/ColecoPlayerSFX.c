@@ -38,4 +38,4 @@ void StartSfx(unsigned char* music, unsigned char song, unsigned char priority) 
     SOUND=(x); songNote[3]|=(0x80>>(chan-1));
 
 // and now include the actual implementation
-#include "../CPlayer/CPlayer.c"
+#include "ColCPlayer.c"

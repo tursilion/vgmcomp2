@@ -2,7 +2,7 @@
 #define INCLUDE_COLECOAYPLAY_H
 
 // As long as BUILD_COLECO is set, we can just install this header directly
-#include "../CPlayer/CPlayer.h"
+#include "ColCPlayer.h"
 
 // but there are extra functions defined that we need to include
 // Call this function to prepare to play

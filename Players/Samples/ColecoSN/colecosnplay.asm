@@ -9,6 +9,7 @@
 ; Public variables in this module
 ;--------------------------------------------------------
 	.globl _main
+	.globl _PlayerUnitTest
 	.globl _kscan
 	.globl _charset
 	.globl _sprite
@@ -84,13 +85,38 @@ _main::
 	pop	af
 	pop	af
 	inc	sp
+;colecosnplay.c:26: PlayerUnitTest();
+	call	_PlayerUnitTest
+00121$:
+;colecosnplay.c:28: kscan(1);
+	ld	a, #0x01
+	push	af
+	inc	sp
+	call	_kscan
+	inc	sp
+;colecosnplay.c:29: if (KSCAN_KEY == JOY_FIRE) break;
+	ld	a,(#_KSCAN_KEY + 0)
+	sub	a, #0x12
+	jr	NZ,00121$
+;colecosnplay.c:31: vdpmemset(gImage, ' ', 768);
+	ld	hl, #0x0300
+	push	hl
+	ld	a, #0x20
+	push	af
+	inc	sp
+	ld	hl, (_gImage)
+	push	hl
+	call	_vdpmemset
+	pop	af
+	pop	af
+	inc	sp
 ;colecosnplay.c:35: for (unsigned char idx=0; idx<4; ++idx) {
 	ld	c, #0x00
-00119$:
+00124$:
 ;colecosnplay.c:36: sprite(idx, '1'+idx, COLOR_DKBLUE+idx, 21*8, idx*64+16);
 	ld	a,c
 	cp	a,#0x04
-	jr	NC,00101$
+	jr	NC,00104$
 	rrca
 	rrca
 	and	a, #0xc0
@@ -122,8 +148,8 @@ _main::
 	pop	bc
 ;colecosnplay.c:35: for (unsigned char idx=0; idx<4; ++idx) {
 	inc	c
-	jr	00119$
-00101$:
+	jr	00124$
+00104$:
 ;colecosnplay.c:39: VDPWD = 0xd0;
 	ld	a, #0xd0
 	out	(_VDPWD), a
@@ -141,7 +167,7 @@ _main::
 	call	_StartSong
 	pop	af
 	inc	sp
-00127$:
+00132$:
 ;colecosnplay.c:49: vdpwaitvint();      // wait for an interrupt with ints enabled - console clears it
 	call	_vdpwaitvint
 ;colecosnplay.c:50: CALL_PLAYER_SN;
@@ -164,10 +190,10 @@ _main::
 	ld	bc, #_songVol+0
 	xor	a, a
 	ld	-1 (ix), a
-00122$:
+00127$:
 	ld	a, -1 (ix)
 	sub	a, #0x04
-	jr	NC,00102$
+	jr	NC,00105$
 ;colecosnplay.c:58: int row = songNote[idx];
 	ld	l, -1 (ix)
 	ld	h, #0x00
@@ -218,14 +244,14 @@ _main::
 	out	(_VDPWD), a
 ;colecosnplay.c:57: for (unsigned char idx=0; idx<4; ++idx) {
 	inc	-1 (ix)
-	jr	00122$
-00102$:
+	jr	00127$
+00105$:
 ;colecosnplay.c:67: for (unsigned char idx=0; idx<4; ++idx) {
 	ld	c, #0x00
-00125$:
+00130$:
 	ld	a, c
 	sub	a, #0x04
-	jp	NC, 00106$
+	jp	NC, 00109$
 ;colecosnplay.c:68: int row = songNote[idx];
 	ld	-4 (ix), c
 	xor	a, a
@@ -249,7 +275,7 @@ _main::
 ;colecosnplay.c:70: if (idx != 3) {
 	ld	a, c
 	sub	a, #0x03
-	jr	Z,00104$
+	jr	Z,00107$
 ;colecosnplay.c:73: row = ((((row&0x0f00)>>8)|((row&0x00ff)<<4))*2) / 9;
 	ld	l, -2 (ix)
 	ld	h, #0x00
@@ -272,8 +298,8 @@ _main::
 	pop	af
 	pop	af
 	pop	bc
-	jr	00105$
-00104$:
+	jr	00108$
+00107$:
 ;colecosnplay.c:76: row = ((row&0x0f00)>>8)*11;
 	ld	l, e
 	ld	h, d
@@ -282,7 +308,7 @@ _main::
 	add	hl, de
 	add	hl, hl
 	add	hl, de
-00105$:
+00108$:
 ;colecosnplay.c:78: vdpchar(gSprite+(idx<<2), row);    // first value in each sprite is row
 	ld	b, l
 	pop	hl
@@ -358,12 +384,12 @@ _main::
 	pop	bc
 ;colecosnplay.c:67: for (unsigned char idx=0; idx<4; ++idx) {
 	inc	c
-	jp	00125$
-00106$:
+	jp	00130$
+00109$:
 ;colecosnplay.c:87: if (!isSNPlaying) {
 	ld	hl, (#_songNote + 6)
 	bit	0, l
-	jp	NZ,00127$
+	jp	NZ,00132$
 ;d:/work/coleco/libti99coleco/vdp.h:71: inline void VDP_SET_REGISTER(unsigned char r, unsigned char v)		{	VDPWA=(v); VDPWA=(0x80|(r)); }
 	ld	a, #0x03
 	out	(_VDPWA), a
@@ -378,7 +404,7 @@ _main::
 ;colecosnplay.c:90: if (KSCAN_KEY == JOY_FIRE) {
 	ld	a,(#_KSCAN_KEY + 0)
 	sub	a, #0x12
-	jp	NZ,00127$
+	jp	NZ,00132$
 ;colecosnplay.c:91: StartSong((unsigned char*)mysong, 0);
 	xor	a, a
 	push	af
@@ -396,7 +422,7 @@ _main::
 ;colecosnplay.c:92: VDP_SET_REGISTER(VDP_REG_COL,COLOR_MEDGREEN);
 ;colecosnplay.c:97: return 0;
 ;colecosnplay.c:98: }
-	jp	00127$
+	jp	00132$
 	.area _CODE
 	.area _INITIALIZER
 	.area _CABS (ABS)

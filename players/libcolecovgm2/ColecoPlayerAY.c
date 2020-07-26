@@ -22,4 +22,4 @@ volatile __sfr __at 0x51 AYDAT;
     AYADR=(chan); AYDAT=(x);
 
 // and now include the actual implementation
-#include "../CPlayer/CPlayer.c"
+#include "ColCPlayer.c"

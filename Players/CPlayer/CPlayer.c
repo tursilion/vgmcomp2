@@ -352,15 +352,7 @@ void SongLoop() {
                 songVol[str-4] = x;
 #endif
 #ifdef USE_AY_PSG
-                if (str == 7) {
-                    // special case - write to mixer
-                    // bits go to noise mixer, all tones active
-                    // (just luck that stream 7 goes to reg 7)
-                    // this extra shift is a little miffy, we already shifted above...
-                    WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 7, (x<<2)&0x3C);
-                } else {
-                    WRITE_BYTE_TO_SOUND_CHIP(songNote[3], str+4, x);
-                }
+                WRITE_BYTE_TO_SOUND_CHIP(songNote[3], str+4, x);
                 songVol[str-4] = x;
 #endif
 #ifdef USE_SID_PSG
@@ -377,16 +369,16 @@ void SongLoop() {
 
 #ifdef USE_AY_PSG
     // special handling for noise channel (str == 7)
-    if (strDat[str].mainPtr != 0) {
+    if (strDat[7].mainPtr != 0) {
         // check the RLE
-        if (strDat[str].framesLeft) {
-            --strDat[str].framesLeft;
+        if (strDat[7].framesLeft) {
+            --strDat[7].framesLeft;
             outSongActive = true;
         } else {
-            x = getCompressedByte(&strDat[str], workBufName);
-            if (strDat[str].mainPtr) {
+            x = getCompressedByte(&strDat[7], workBufName);
+            if (strDat[7].mainPtr) {
                 outSongActive = true;
-                strDat[str].framesLeft = x&0xf;
+                strDat[7].framesLeft = x&0xf;
                 x = ((x>>2)&0x3c);
             } else {
                 x = 0x38;
@@ -396,7 +388,7 @@ void SongLoop() {
             // (just luck that stream 7 goes to reg 7)
             // this extra shift is a little miffy, we already shifted above...
             WRITE_BYTE_TO_SOUND_CHIP(songNote[3], 7, x);
-            songVol[str-4] = x|0x80;
+            songVol[7-4] = x|0x80;
         }
     }
 #endif

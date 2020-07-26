@@ -21,7 +21,7 @@ int main() {
     charset();
     vdpmemset(gColor, 0xe0, 32);
 
-#if 0
+#if 1
     // see what's broken
     PlayerUnitTest();
     for (;;) {

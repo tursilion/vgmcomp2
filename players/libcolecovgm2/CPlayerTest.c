@@ -92,7 +92,7 @@ void runTest(const char *name, const unsigned char *buf, const unsigned char *ts
         printf("Remaining string: %s\n", tst);
     }
     if (x != 0) {
-        printf("%d data bytes remained\n", test.curBytes);
+        printf("%d data bytes remained (x=%c)\n", test.curBytes, x);
     }
 }
 

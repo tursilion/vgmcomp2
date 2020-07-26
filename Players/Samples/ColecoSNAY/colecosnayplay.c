@@ -2,9 +2,6 @@
 // This is the music player for the SN76489 AND AY-3-8910 chip (SGM) together
 // requires libti99coleco and libcolecovgm2
 
-// Unfortunately, this is currently too slow to be very practical,
-// it barely manages to pull off this viz...
-
 #include <ColecoSNPlay.h>
 #include <ColecoAYPlay.h>
 #include <sound.h>

@@ -360,3 +360,5 @@ players/libcolecovgm2/*.asm
 *.rel
 *.sym
 *.map
+*.ihx
+*.noi
