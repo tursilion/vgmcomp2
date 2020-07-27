@@ -220,6 +220,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ColecoSNSFX", "ColecoSNSFX"
 		Players\Samples\ColecoSNSFX\snsfxplay.c = Players\Samples\ColecoSNSFX\snsfxplay.c
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "QuickPlayer", "Players\Samples\QuickPlayer\QuickPlayer.vcxproj", "{15667BC9-8FD1-4A29-94B4-22B568B5DDA6}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "quickplayercmd", "Players\Samples\quickplayercmd\quickplayercmd.vcxproj", "{7DB268DF-D117-40C0-97C8-9137C4BE3984}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -412,6 +416,18 @@ Global
 		{DF4D72FB-CA12-4716-B537-D583CC0FC2EB}.Release|Win32.Build.0 = Release|Win32
 		{DF4D72FB-CA12-4716-B537-D583CC0FC2EB}.Release|x64.ActiveCfg = Release|x64
 		{DF4D72FB-CA12-4716-B537-D583CC0FC2EB}.Release|x64.Build.0 = Release|x64
+		{15667BC9-8FD1-4A29-94B4-22B568B5DDA6}.Debug|Win32.ActiveCfg = Debug|Win32
+		{15667BC9-8FD1-4A29-94B4-22B568B5DDA6}.Debug|Win32.Build.0 = Debug|Win32
+		{15667BC9-8FD1-4A29-94B4-22B568B5DDA6}.Debug|x64.ActiveCfg = Debug|Win32
+		{15667BC9-8FD1-4A29-94B4-22B568B5DDA6}.Release|Win32.ActiveCfg = Release|Win32
+		{15667BC9-8FD1-4A29-94B4-22B568B5DDA6}.Release|Win32.Build.0 = Release|Win32
+		{15667BC9-8FD1-4A29-94B4-22B568B5DDA6}.Release|x64.ActiveCfg = Release|Win32
+		{7DB268DF-D117-40C0-97C8-9137C4BE3984}.Debug|Win32.ActiveCfg = Debug|Win32
+		{7DB268DF-D117-40C0-97C8-9137C4BE3984}.Debug|Win32.Build.0 = Debug|Win32
+		{7DB268DF-D117-40C0-97C8-9137C4BE3984}.Debug|x64.ActiveCfg = Debug|Win32
+		{7DB268DF-D117-40C0-97C8-9137C4BE3984}.Release|Win32.ActiveCfg = Release|Win32
+		{7DB268DF-D117-40C0-97C8-9137C4BE3984}.Release|Win32.Build.0 = Release|Win32
+		{7DB268DF-D117-40C0-97C8-9137C4BE3984}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -451,6 +467,8 @@ Global
 		{DF4D72FB-CA12-4716-B537-D583CC0FC2EB} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 		{DE26F071-E6A0-4A2C-8B61-973533647F93} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
 		{4B994E02-3A1D-458C-8D1D-999524E76ADD} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
+		{15667BC9-8FD1-4A29-94B4-22B568B5DDA6} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
+		{7DB268DF-D117-40C0-97C8-9137C4BE3984} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

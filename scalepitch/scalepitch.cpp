@@ -20,7 +20,7 @@ const char *szFilename[MAXCHANNELS];
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Pitch Scaling Tool - v20200724\n\n");
+	printf("VGMComp2 Pitch Scaling Tool - v20200726\n\n");
 
     if (argc < 2) {
         printf("scalepitch <scale> <channel input>\n");
@@ -35,6 +35,10 @@ int main(int argc, char *argv[])
     int arg = 1;
     while (argv[arg][0] == '-') {
         ++arg;
+        if (arg >= argc) {
+            printf("out of arguments\n");
+            return 1;
+        }
     }
 
     if (arg>=argc) {

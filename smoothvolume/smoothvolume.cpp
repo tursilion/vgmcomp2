@@ -26,7 +26,7 @@ int mode = MODE_AVERAGE;
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Volume Smoothing Tool - v20200721\n\n");
+	printf("VGMComp2 Volume Smoothing Tool - v20200726\n\n");
 
     if (argc < 2) {
         printf("smoothvolume [-hermite|-cubic] <channel input>\n");
@@ -48,6 +48,10 @@ int main(int argc, char *argv[])
             printf("Using Cubic interpolation\n");
         }
         ++arg;
+        if (arg >= argc) {
+            printf("out of arguments\n");
+            return 1;
+        }
     }
 
     // open input file(s)
