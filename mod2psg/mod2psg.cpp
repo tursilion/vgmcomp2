@@ -228,7 +228,7 @@ int guessSNR(int sampnum, void *pSample, int len, int nFlags) {
 }
 
 int main(int argc, char *argv[]) {
-	printf("Import MOD tracker-style files - v20200716\n\n");
+	printf("Import MOD tracker-style files - v20200729\n\n");
 
     for (int idx=0; idx<MAX_INSTRUMENTS; ++idx) {
         insTune[idx] = 1.0;
@@ -354,7 +354,6 @@ int main(int argc, char *argv[]) {
                 printf("Not enough arguments for 'speedscale' option\n");
                 return -1;
             }
-            bAutoVol = false;
             if (1 != sscanf(argv[arg], "%lf", &songSpeedScale)) {
                 printf("Failed to parse speedscale\n");
                 return -1;
@@ -465,6 +464,11 @@ int main(int argc, char *argv[]) {
     settings.mResamplingMode = MODPLUG_RESAMPLE_FIR;
     settings.mLoopCount = 0;
     ModPlug_SetSettings(&settings);
+
+    if (arg >= argc) {
+        printf("Not enough arguments for filename.\n");
+        return 1;
+    }
 
     // load the data
     {
@@ -662,6 +666,7 @@ int main(int argc, char *argv[]) {
     // 256 files, potentially. So we'll have to do it the other way
     memset(outTone, 0, sizeof(outTone));
     memset(outVol, 0, sizeof(outVol));
+    int wavelen = 0;
 
     // looping on autovol with manual break
     int rows;
@@ -700,11 +705,12 @@ int main(int argc, char *argv[]) {
 
             // dump the MOD data
             if (debug2) {
-                // reset the file
+                // append the file
                 FILE *fp = fopen("modsound.wav", "ab");
                 if (NULL != fp) {
                     fwrite(audioBuf, 1, audioBufSize, fp);
                     fclose(fp);
+                    wavelen += audioBufSize;
                 }
             }
 
@@ -866,6 +872,27 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Wrote %d rows...\n", rows);
+
+    if ((debug2)&&(wavelen > 0)) {
+        // patch the output wave file
+        FILE *fp = fopen("sidsound.wav", "rb+");
+        if (NULL != fp) {
+            fseek(fp, 40, SEEK_SET);
+            fputc(wavelen%0xff, fp);
+            fputc((wavelen>>8)&0xff, fp);
+            fputc((wavelen>>16)&0xff, fp);
+            fputc((wavelen>>24)&0xff, fp);
+
+            fseek(fp, 4, SEEK_SET);
+            wavelen+=44;    // add size of header
+            fputc(wavelen%0xff, fp);
+            fputc((wavelen>>8)&0xff, fp);
+            fputc((wavelen>>16)&0xff, fp);
+            fputc((wavelen>>24)&0xff, fp);
+            fclose(fp);
+        }
+    }
+
     printf("\n** DONE **\n");
     return 0;
 }

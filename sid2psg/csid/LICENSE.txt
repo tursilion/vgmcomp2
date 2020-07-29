@@ -1,0 +1,7 @@
+Original post by Hermit on 13 Feb 2017 appears to give permission:
+
+"Feel free to use the code (e.g. creating .so/.dll of it or link statically) in your own production, or enjoy playing tunes from scripts if you like."
+
+and in the source:
+
+"License: WTF - Do what the fuck you want with this code, but I please mention me as its original author."

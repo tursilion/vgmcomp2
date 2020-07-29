@@ -20,3 +20,8 @@ Current Exceptions:
 
     mod2psg and the resulting mod2psg.exe contain KISS-FFT by Mark Borgerding, and his copyright notice must
     be included. See mod2psg\kissfft\BSD-3-Clause. Obviously my PD assertion does not apply to KISS-FFT.
+
+    sid2psg contains csid, which is licensed under the "WTF" license, which simply requests that I mention
+    it was created by Hermit (Mihaly Horvath). It's thus not quite PD. Unfortunately his website seems to 
+    be gone. Thank you Hermit!
+

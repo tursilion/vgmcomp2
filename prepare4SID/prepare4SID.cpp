@@ -157,12 +157,15 @@ int main(int argc, char *argv[])
         for (int ch = 0; ch < 3; ++ch) {
             VGMVOL[ch][idx] = mapVolume(VGMVOL[ch][idx]);
 
-            // the current shift rates are based on the SN standard shift, we need
-            // to adapt them to the SID shifts. This is the ratio.
+            // the TI SID blaster is using an exactly 1MHZ clock, so it's not
+            // the same as the real C64 at .985248 (PAL) or 1.022727 (NTSC).
+            // Since we have the math, we might as well use it. ;) The old
+            // 0.0596 was an approximation that actually matched 1MHz.
             // SN HZ = 111860.8/code
-            // SID code = hz/0.0596
-            // convert newcode = (111860.8/code)/0.0596
-            VGMDAT[ch][idx] = int(((111860.8/VGMDAT[ch][idx]) / 0.0596) + 0.5);
+            // CONSTANT = 256^3 / CLOCK
+            // SID code = hz * CONSTANT
+            // newcode = (111860.8/code) * (16777216 / CLOCK)
+            VGMDAT[ch][idx] = int((111860.8/VGMDAT[ch][idx]) * (16777216.0 / 1000000) + 0.5);
             // In fairness, the range makes it down to about 29 SN ticks, which
             // is only 7 notes off the end of the E/A table
             if (VGMDAT[ch][idx] > 0xffff) {
