@@ -226,6 +226,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "quickplayercmd", "Players\S
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sid2psg", "sid2psg\sid2psg.vcxproj", "{D24ECB66-303C-4E77-AF14-3088486A38F7}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "voice2psg", "voice2psg\voice2psg.vcxproj", "{11BBB2DD-B55E-4B54-B24D-448B74E994E2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -438,6 +440,14 @@ Global
 		{D24ECB66-303C-4E77-AF14-3088486A38F7}.Release|Win32.Build.0 = Release|Win32
 		{D24ECB66-303C-4E77-AF14-3088486A38F7}.Release|x64.ActiveCfg = Release|x64
 		{D24ECB66-303C-4E77-AF14-3088486A38F7}.Release|x64.Build.0 = Release|x64
+		{11BBB2DD-B55E-4B54-B24D-448B74E994E2}.Debug|Win32.ActiveCfg = Debug|Win32
+		{11BBB2DD-B55E-4B54-B24D-448B74E994E2}.Debug|Win32.Build.0 = Debug|Win32
+		{11BBB2DD-B55E-4B54-B24D-448B74E994E2}.Debug|x64.ActiveCfg = Debug|x64
+		{11BBB2DD-B55E-4B54-B24D-448B74E994E2}.Debug|x64.Build.0 = Debug|x64
+		{11BBB2DD-B55E-4B54-B24D-448B74E994E2}.Release|Win32.ActiveCfg = Release|Win32
+		{11BBB2DD-B55E-4B54-B24D-448B74E994E2}.Release|Win32.Build.0 = Release|Win32
+		{11BBB2DD-B55E-4B54-B24D-448B74E994E2}.Release|x64.ActiveCfg = Release|x64
+		{11BBB2DD-B55E-4B54-B24D-448B74E994E2}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -480,6 +490,7 @@ Global
 		{15667BC9-8FD1-4A29-94B4-22B568B5DDA6} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 		{7DB268DF-D117-40C0-97C8-9137C4BE3984} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 		{D24ECB66-303C-4E77-AF14-3088486A38F7} = {C61D286B-17D5-4238-AB62-DF4DF9865169}
+		{11BBB2DD-B55E-4B54-B24D-448B74E994E2} = {C61D286B-17D5-4238-AB62-DF4DF9865169}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

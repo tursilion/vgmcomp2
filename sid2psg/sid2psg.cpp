@@ -34,7 +34,7 @@ extern unsigned char memory[65536];         // C64 memory array
 extern unsigned char envcnt[9];             // per channel envelope level (0-256)
 
 int main(int argc, char *argv[]) {
-	printf("Import C64 SID files - v20200729\n\n");
+	printf("Import C64 SID files - v20200730\n\n");
 
 	if (argc < 2) {
 		printf("sid2psg [-q] [-d] [-o <n>] [-add <n>] [-speedscale <n>] [-subtune <n>] <-len <n>> <filename>\n");
@@ -138,7 +138,7 @@ int main(int argc, char *argv[]) {
 
     // check output
     channels = SIDamount*6;
-    if (output > channels) {
+    if (output-addout > channels) {
         printf("Output channel %d does not exist in module.\n", output);
         return 1;
     }
@@ -258,7 +258,7 @@ int main(int argc, char *argv[]) {
     }
 
     // now write the data out
-    int channum = 0;
+    int channum = addout;
     for (int idx=0; idx<MAX_CHANNELS; ++idx) {
         // first check for any data in a row
         bool data = false;
@@ -276,6 +276,8 @@ int main(int argc, char *argv[]) {
         } else {
             sprintf(buf, "%s_noi%02d.60hz", argv[arg], channum++);
         }
+
+        if ((output != 0) && (channum-1 != output)) continue;
 
         FILE *fp = fopen(buf, "w");
         if (NULL == fp) {

@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="kissfft">
+      <UniqueIdentifier>{3739182d-deb8-4ab3-b809-187940eb16dc}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="voice2psg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="convertsound.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kissfft\kiss_fft.c">
+      <Filter>kissfft</Filter>
+    </ClCompile>
+    <ClCompile Include="kissfft\kiss_fftr.c">
+      <Filter>kissfft</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="kissfft\_kiss_fft_guts.h">
+      <Filter>kissfft</Filter>
+    </ClInclude>
+    <ClInclude Include="kissfft\kiss_fft.h">
+      <Filter>kissfft</Filter>
+    </ClInclude>
+    <ClInclude Include="kissfft\kiss_fft_log.h">
+      <Filter>kissfft</Filter>
+    </ClInclude>
+    <ClInclude Include="kissfft\kiss_fftr.h">
+      <Filter>kissfft</Filter>
+    </ClInclude>
+    <ClInclude Include="kissfft\kissfft.hh">
+      <Filter>kissfft</Filter>
+    </ClInclude>
+    <ClInclude Include="kissfft\kissfft_i32.hh">
+      <Filter>kissfft</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="kissfft\BSD-3-Clause">
+      <Filter>kissfft</Filter>
+    </None>
+    <None Include="kissfft\COPYING">
+      <Filter>kissfft</Filter>
+    </None>
+    <None Include="kissfft\README">
+      <Filter>kissfft</Filter>
+    </None>
+  </ItemGroup>
+</Project>

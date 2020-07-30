@@ -228,7 +228,7 @@ int guessSNR(int sampnum, void *pSample, int len, int nFlags) {
 }
 
 int main(int argc, char *argv[]) {
-	printf("Import MOD tracker-style files - v20200729\n\n");
+	printf("Import MOD tracker-style files - v20200730\n\n");
 
     for (int idx=0; idx<MAX_INSTRUMENTS; ++idx) {
         insTune[idx] = 1.0;
@@ -653,7 +653,7 @@ int main(int argc, char *argv[]) {
     }
 
     // check output
-    if (output > channels) {
+    if (output-addout > channels) {
         printf("Output channel %d does not exist in module.\n", output);
         return 1;
     }
@@ -840,7 +840,7 @@ int main(int argc, char *argv[]) {
     }
 
     // now write the data out
-    int channum = 0;
+    int channum = addout;
     for (int idx=0; idx<MAX_CHANNELS*2; ++idx) {
         // first check for any data in a row
         bool data = false;
@@ -858,6 +858,8 @@ int main(int argc, char *argv[]) {
         } else {
             sprintf(buf, "%s_noi%02d.60hz", argv[arg], channum++);
         }
+
+        if ((output != 0) && (channum-1 != output)) continue;
 
         FILE *fp = fopen(buf, "w");
         if (NULL == fp) {
