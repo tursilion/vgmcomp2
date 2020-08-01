@@ -801,36 +801,39 @@ bool testSNData(int chan, int cnt) {
     // test the song itself
     for (int row=0; row<cnt; ++row) {
         for (int ch=0; ch<chan; ++ch) {
-            if (isNoise[ch]) {
-                // noise frequency must be 0x000-0x3ff, and exactly match either a fixed
-                // rate or literally channel 2. Volume is unrestricted
-                if ((VGMDAT[ch][row] < 0) || ((VGMDAT[ch][row]&NOISE_MASK) > 0x3ff)) {
-                    printf("Noise frequency out of range for SN on row %d - got 0x%02X\n", row, VGMDAT[ch][row]);
-                    return false;
-                }
-                bool match = false;
-                switch (VGMDAT[ch][row]&NOISE_MASK) {
-                    case 16:
-                    case 32:
-                    case 64:
+            if (VGMVOL[ch][row] > 0) {
+                if (isNoise[ch]) {
+                    continue;
+                    // noise frequency must be 0x000-0x3ff, and exactly match either a fixed
+                    // rate or literally channel 2. Volume is unrestricted
+                    if ((VGMDAT[ch][row] < 0) || ((VGMDAT[ch][row]&NOISE_MASK) > 0x3ff)) {
+                        printf("Noise frequency (ch %d) out of range for SN on row %d - got 0x%02X\n", ch, row, VGMDAT[ch][row]);
+                        return false;
+                    }
+                    bool match = false;
+                    switch (VGMDAT[ch][row]&NOISE_MASK) {
+                        case 16:
+                        case 32:
+                        case 64:
+                            match = true;
+                    }
+                    if ((VGMDAT[ch][row]&NOISE_MASK) == VGMDAT[2][row]) {
+                        match=true;
+                    }
+                    if (VGMVOL[ch][row] == 0) {
+                        // ignore it if it's muted, this may be a disabled channel
                         match = true;
-                }
-                if ((VGMDAT[ch][row]&NOISE_MASK) == VGMDAT[2][row]) {
-                    match=true;
-                }
-                if (VGMVOL[ch][row] == 0) {
-                    // ignore it if it's muted, this may be a disabled channel
-                    match = true;
-                }
-                if (!match) {
-                    printf("Noise volume has no matching frequency for PSG on row %d. Got 0x%03X, must match 0x010, 0x020, 0x040 or chan 2 0x%03X\n", row, VGMDAT[ch][row], VGMDAT[2][row]);
-                    return false;
-                }
-            } else {
-                // tone frequency must be 0x000-0x3FF. Volume is unrestricted
-                if ((VGMDAT[ch][row] < 0) || (VGMDAT[ch][row] > 0x3ff)) {
-                    printf("Tone frequency out of range for SN (0-0x3ff) on row %d - got 0x%03X\n", row, VGMDAT[ch][row]);
-                    return false;
+                    }
+                    if (!match) {
+                        printf("Noise volume (ch %d) has no matching frequency for PSG on row %d. Got 0x%03X, must match 0x010, 0x020, 0x040 or chan 2 0x%03X\n", ch, row, VGMDAT[ch][row], VGMDAT[2][row]);
+                        return false;
+                    }
+                } else {
+                    // tone frequency must be 0x000-0x3FF. Volume is unrestricted
+                    if ((VGMDAT[ch][row] < 0) || (VGMDAT[ch][row] > 0x3ff)) {
+                        printf("Tone frequency (ch %d) out of range for SN (0-0x3ff) on row %d - got 0x%03X\n", ch, row, VGMDAT[ch][row]);
+                        return false;
+                    }
                 }
             }
         }
@@ -880,7 +883,7 @@ int main(int argc, char *argv[])
     int delay = 16;
     int sbfsong = 0;
 
-	printf("VGMComp Test Player - v20200705\n");
+	printf("VGMComp Test Player - v20200730\n");
 
 	if (argc < 2) {
 		printf("testPlayPSG [-ay|-sn|-sid] [-forcenoise x] [-sbfsong x] [-hidenotes] [-heatmap] [<file prefix> | <file.sbf> | <track1> <track2> ...]\n");

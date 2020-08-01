@@ -153,6 +153,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ArtragMatlab\sn76489.cpp" />
     <ClCompile Include="convertsound.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
@@ -170,9 +171,14 @@
     <ClInclude Include="kissfft\_kiss_fft_guts.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="ArtragMatlab\sn76489.m" />
     <None Include="kissfft\BSD-3-Clause" />
     <None Include="kissfft\COPYING" />
     <None Include="kissfft\README" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ArtragMatlab\matlab_readme.txt" />
+    <Text Include="ArtragMatlab\readme.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

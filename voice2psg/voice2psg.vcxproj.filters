@@ -8,6 +8,9 @@
     <Filter Include="kissfft">
       <UniqueIdentifier>{3739182d-deb8-4ab3-b809-187940eb16dc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ArtragMatlab">
+      <UniqueIdentifier>{1c96078c-fb91-4b78-bc34-3fbd83949acc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="voice2psg.cpp">
@@ -21,6 +24,9 @@
     </ClCompile>
     <ClCompile Include="kissfft\kiss_fftr.c">
       <Filter>kissfft</Filter>
+    </ClCompile>
+    <ClCompile Include="ArtragMatlab\sn76489.cpp">
+      <Filter>ArtragMatlab</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -53,5 +59,16 @@
     <None Include="kissfft\README">
       <Filter>kissfft</Filter>
     </None>
+    <None Include="ArtragMatlab\sn76489.m">
+      <Filter>ArtragMatlab</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ArtragMatlab\matlab_readme.txt">
+      <Filter>ArtragMatlab</Filter>
+    </Text>
+    <Text Include="ArtragMatlab\readme.txt">
+      <Filter>ArtragMatlab</Filter>
+    </Text>
   </ItemGroup>
 </Project>
