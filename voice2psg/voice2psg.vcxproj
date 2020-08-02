@@ -93,7 +93,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;MODPLUG_STATIC=1;VERSION=0.8.8.5;kiss_fft_scalar=float;KFVER=131;_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;USE_KISS_FFT;_CRT_SECURE_NO_WARNINGS;kiss_fft_scalar=double;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -110,7 +110,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;MODPLUG_STATIC=1;VERSION=0.8.8.5;kiss_fft_scalar=float;KFVER=131;_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;USE_KISS_FFT;_CRT_SECURE_NO_WARNINGS;kiss_fft_scalar=double;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -153,32 +153,40 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="ArtragMatlab\sn76489.cpp" />
-    <ClCompile Include="convertsound.cpp">
+    <ClCompile Include="Gist\core\CoreFrequencyDomainFeatures.cpp" />
+    <ClCompile Include="Gist\core\CoreTimeDomainFeatures.cpp" />
+    <ClCompile Include="Gist\fft\AccelerateFFT.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="kissfft\kiss_fft.c" />
-    <ClCompile Include="kissfft\kiss_fftr.c" />
+    <ClCompile Include="Gist\fft\WindowFunctions.cpp" />
+    <ClCompile Include="Gist\Gist.cpp" />
+    <ClCompile Include="Gist\mfcc\MFCC.cpp" />
+    <ClCompile Include="Gist\onset-detection-functions\OnsetDetectionFunction.cpp" />
+    <ClCompile Include="Gist\pitch\Yin.cpp" />
+    <ClCompile Include="libs\kiss_fft130\kiss_fft.c" />
     <ClCompile Include="voice2psg.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="kissfft\kissfft.hh" />
-    <ClInclude Include="kissfft\kissfft_i32.hh" />
-    <ClInclude Include="kissfft\kiss_fft.h" />
-    <ClInclude Include="kissfft\kiss_fftr.h" />
-    <ClInclude Include="kissfft\kiss_fft_log.h" />
-    <ClInclude Include="kissfft\_kiss_fft_guts.h" />
+    <ClInclude Include="Gist\core\CoreFrequencyDomainFeatures.h" />
+    <ClInclude Include="Gist\core\CoreTimeDomainFeatures.h" />
+    <ClInclude Include="Gist\fft\AccelerateFFT.h" />
+    <ClInclude Include="Gist\fft\WindowFunctions.h" />
+    <ClInclude Include="Gist\Gist.h" />
+    <ClInclude Include="Gist\mfcc\MFCC.h" />
+    <ClInclude Include="Gist\onset-detection-functions\OnsetDetectionFunction.h" />
+    <ClInclude Include="Gist\pitch\Yin.h" />
+    <ClInclude Include="libs\kiss_fft130\kissfft.hh" />
+    <ClInclude Include="libs\kiss_fft130\kiss_fft.h" />
+    <ClInclude Include="libs\kiss_fft130\_kiss_fft_guts.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="ArtragMatlab\sn76489.m" />
-    <None Include="kissfft\BSD-3-Clause" />
-    <None Include="kissfft\COPYING" />
-    <None Include="kissfft\README" />
+    <Text Include="Gist\LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="ArtragMatlab\matlab_readme.txt" />
-    <Text Include="ArtragMatlab\readme.txt" />
+    <None Include="Gist\README.md" />
+    <None Include="libs\kiss_fft130\COPYING" />
+    <None Include="libs\kiss_fft130\README" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

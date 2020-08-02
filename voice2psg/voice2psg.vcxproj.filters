@@ -5,70 +5,109 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="kissfft">
-      <UniqueIdentifier>{3739182d-deb8-4ab3-b809-187940eb16dc}</UniqueIdentifier>
+    <Filter Include="Gist">
+      <UniqueIdentifier>{265a402d-0f10-4687-aa26-25db937a480c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ArtragMatlab">
-      <UniqueIdentifier>{1c96078c-fb91-4b78-bc34-3fbd83949acc}</UniqueIdentifier>
+    <Filter Include="Gist\core">
+      <UniqueIdentifier>{59b149db-8950-43e8-94fd-b9ab4c66f1e2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Gist\fft">
+      <UniqueIdentifier>{1a273eb1-f25e-4760-8762-c797a66026cb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Gist\mfcc">
+      <UniqueIdentifier>{9b203fa7-7d27-4fa7-8045-ffb454c96768}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Gist\onset-detection-functions">
+      <UniqueIdentifier>{b908cbe6-fda0-4415-8c0e-6e2bdbe9e9d1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Gist\pitch">
+      <UniqueIdentifier>{21ab2347-d85e-492c-8a03-f855bb885d57}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="kiss">
+      <UniqueIdentifier>{3b24d988-d49a-499d-ba17-eefe98f1a614}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="voice2psg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="convertsound.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Gist\Gist.cpp">
+      <Filter>Gist</Filter>
     </ClCompile>
-    <ClCompile Include="kissfft\kiss_fft.c">
-      <Filter>kissfft</Filter>
+    <ClCompile Include="Gist\core\CoreFrequencyDomainFeatures.cpp">
+      <Filter>Gist\core</Filter>
     </ClCompile>
-    <ClCompile Include="kissfft\kiss_fftr.c">
-      <Filter>kissfft</Filter>
+    <ClCompile Include="Gist\core\CoreTimeDomainFeatures.cpp">
+      <Filter>Gist\core</Filter>
     </ClCompile>
-    <ClCompile Include="ArtragMatlab\sn76489.cpp">
-      <Filter>ArtragMatlab</Filter>
+    <ClCompile Include="Gist\fft\AccelerateFFT.cpp">
+      <Filter>Gist\fft</Filter>
+    </ClCompile>
+    <ClCompile Include="Gist\fft\WindowFunctions.cpp">
+      <Filter>Gist\fft</Filter>
+    </ClCompile>
+    <ClCompile Include="Gist\mfcc\MFCC.cpp">
+      <Filter>Gist\mfcc</Filter>
+    </ClCompile>
+    <ClCompile Include="Gist\pitch\Yin.cpp">
+      <Filter>Gist\pitch</Filter>
+    </ClCompile>
+    <ClCompile Include="Gist\onset-detection-functions\OnsetDetectionFunction.cpp">
+      <Filter>Gist\onset-detection-functions</Filter>
+    </ClCompile>
+    <ClCompile Include="libs\kiss_fft130\kiss_fft.c">
+      <Filter>kiss</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="kissfft\_kiss_fft_guts.h">
-      <Filter>kissfft</Filter>
+    <ClInclude Include="Gist\Gist.h">
+      <Filter>Gist</Filter>
     </ClInclude>
-    <ClInclude Include="kissfft\kiss_fft.h">
-      <Filter>kissfft</Filter>
+    <ClInclude Include="Gist\core\CoreFrequencyDomainFeatures.h">
+      <Filter>Gist\core</Filter>
     </ClInclude>
-    <ClInclude Include="kissfft\kiss_fft_log.h">
-      <Filter>kissfft</Filter>
+    <ClInclude Include="Gist\core\CoreTimeDomainFeatures.h">
+      <Filter>Gist\core</Filter>
     </ClInclude>
-    <ClInclude Include="kissfft\kiss_fftr.h">
-      <Filter>kissfft</Filter>
+    <ClInclude Include="Gist\fft\AccelerateFFT.h">
+      <Filter>Gist\fft</Filter>
     </ClInclude>
-    <ClInclude Include="kissfft\kissfft.hh">
-      <Filter>kissfft</Filter>
+    <ClInclude Include="Gist\fft\WindowFunctions.h">
+      <Filter>Gist\fft</Filter>
     </ClInclude>
-    <ClInclude Include="kissfft\kissfft_i32.hh">
-      <Filter>kissfft</Filter>
+    <ClInclude Include="Gist\mfcc\MFCC.h">
+      <Filter>Gist\mfcc</Filter>
+    </ClInclude>
+    <ClInclude Include="Gist\pitch\Yin.h">
+      <Filter>Gist\pitch</Filter>
+    </ClInclude>
+    <ClInclude Include="Gist\onset-detection-functions\OnsetDetectionFunction.h">
+      <Filter>Gist\onset-detection-functions</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\kiss_fft130\_kiss_fft_guts.h">
+      <Filter>kiss</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\kiss_fft130\kiss_fft.h">
+      <Filter>kiss</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\kiss_fft130\kissfft.hh">
+      <Filter>kiss</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="kissfft\BSD-3-Clause">
-      <Filter>kissfft</Filter>
-    </None>
-    <None Include="kissfft\COPYING">
-      <Filter>kissfft</Filter>
-    </None>
-    <None Include="kissfft\README">
-      <Filter>kissfft</Filter>
-    </None>
-    <None Include="ArtragMatlab\sn76489.m">
-      <Filter>ArtragMatlab</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="ArtragMatlab\matlab_readme.txt">
-      <Filter>ArtragMatlab</Filter>
+    <Text Include="Gist\LICENSE.txt">
+      <Filter>Gist</Filter>
     </Text>
-    <Text Include="ArtragMatlab\readme.txt">
-      <Filter>ArtragMatlab</Filter>
-    </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Gist\README.md">
+      <Filter>Gist</Filter>
+    </None>
+    <None Include="libs\kiss_fft130\COPYING">
+      <Filter>kiss</Filter>
+    </None>
+    <None Include="libs\kiss_fft130\README">
+      <Filter>kiss</Filter>
+    </None>
   </ItemGroup>
 </Project>

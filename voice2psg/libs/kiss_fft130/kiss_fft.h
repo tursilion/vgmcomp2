@@ -1,11 +1,3 @@
-/*
- *  Copyright (c) 2003-2010, Mark Borgerding. All rights reserved.
- *  This file is part of KISS FFT - https://github.com/mborgerding/kissfft
- *
- *  SPDX-License-Identifier: BSD-3-Clause
- *  See COPYING file for more information.
- */
-
 #ifndef KISS_FFT_H
 #define KISS_FFT_H
 
@@ -31,32 +23,19 @@ extern "C" {
   in the tools/ directory.
 */
 
-/* User may override KISS_FFT_MALLOC and/or KISS_FFT_FREE. */
 #ifdef USE_SIMD
 # include <xmmintrin.h>
 # define kiss_fft_scalar __m128
-# ifndef KISS_FFT_MALLOC
-#  define KISS_FFT_MALLOC(nbytes) _mm_malloc(nbytes,16)
-#  define KISS_FFT_ALIGN_CHECK(ptr) 
-#  define KISS_FFT_ALIGN_SIZE_UP(size) ((size + 15UL) & ~0xFUL)
-# endif
-# ifndef KISS_FFT_FREE
-#  define KISS_FFT_FREE _mm_free
-# endif
-#else
-# define KISS_FFT_ALIGN_CHECK(ptr)
-# define KISS_FFT_ALIGN_SIZE_UP(size) (size)
-# ifndef KISS_FFT_MALLOC
-#  define KISS_FFT_MALLOC malloc
-# endif
-# ifndef KISS_FFT_FREE
-#  define KISS_FFT_FREE free
-# endif
-#endif
+#define KISS_FFT_MALLOC(nbytes) _mm_malloc(nbytes,16)
+#define KISS_FFT_FREE _mm_free
+#else	
+#define KISS_FFT_MALLOC malloc
+#define KISS_FFT_FREE free
+#endif	
 
 
 #ifdef FIXED_POINT
-#include <stdint.h>
+#include <sys/types.h>	
 # if (FIXED_POINT == 32)
 #  define kiss_fft_scalar int32_t
 # else	
@@ -120,7 +99,7 @@ void kiss_fft_stride(kiss_fft_cfg cfg,const kiss_fft_cpx *fin,kiss_fft_cpx *fout
 
 /* If kiss_fft_alloc allocated a buffer, it is one contiguous 
    buffer and can be simply free()d when no longer needed*/
-#define kiss_fft_free KISS_FFT_FREE
+#define kiss_fft_free free
 
 /*
  Cleans up some memory that gets managed internally. Not necessary to call, but it might clean up 

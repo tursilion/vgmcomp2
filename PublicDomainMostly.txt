@@ -25,3 +25,6 @@ Current Exceptions:
     it was created by Hermit (Mihaly Horvath). It's thus not quite PD. Unfortunately his website seems to 
     be gone. Thank you Hermit!
 
+    voice2psg includes the GPLv3 library GIST, and therefore that application is under the GPLv3 license as well,
+    because GPLv3 ensured that even libraries can dominate the application they are included in. 
+
