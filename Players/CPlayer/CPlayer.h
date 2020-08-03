@@ -78,11 +78,11 @@ extern uint16 songNote[4];
 // This byte also continues the mute bits as defined below.
 
 // we define bits for songActive per LSB 8-bits
-#define SONGACTIVEACTIVE 0x01
-#define SONGACTIVEMUTE1  0x80
-#define SONGACTIVEMUTE2  0x40
-#define SONGACTIVEMUTE3  0x20
-#define SONGACTIVEMUTE4  0x10
-
+#define SONGACTIVEACTIVE 0x01   // song is playing
+#define SONGACTIVEHALF   0x02   // flag to track which half is being processed
+#define SONGACTIVEMUTE1  0x80   // mute channel 1 (more of a disable, mute isn't forced)
+#define SONGACTIVEMUTE2  0x40   // mute channel 2
+#define SONGACTIVEMUTE3  0x20   // mute channel 3
+#define SONGACTIVEMUTE4  0x10   // mute noise
 
 #endif  // file include

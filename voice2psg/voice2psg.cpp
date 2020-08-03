@@ -1,6 +1,10 @@
 // voice2psg.cpp : Use the FFT to convert a voice sample to PSG
 // Inspired by Artrag's Matlab project, but redone from scratch because MATLAB.
 // Part of the vgmcomp2 package.
+// Apparently another thing that helps is 120hz playback. But since this toolchain
+// is locked to 60hz, we are kind of stuck there. Wonder if there are other tricks?
+// Everyone else resamples down to 8khz and starts there, but that doesn't seem to
+// help in my tests, and wouldn't it just degrade the signal anyway?
 
 #include <stdio.h>
 #include <stdlib.h>

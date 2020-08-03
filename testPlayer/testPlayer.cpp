@@ -12,10 +12,6 @@
 // noise channels are <name>_noiXX.60hz
 // simple ASCII format, values stored as hex (but import should support decimal!), row number is implied frame
 
-// TODO: the "60hz" can also be "50hz", "30hz" or "25hz". We want to support all of those here.
-// We also want the program to be able to /find/ the channels given a prefix, or
-// be given specific channel numbers.
-
 // TODO: for loading PSG and SBF files for testing multiple chips, we need
 // to be able to specify /per file/ what chip it's for. (In the meantime test
 // with the raw channels pre-"prepare" step, or test separately).
@@ -883,7 +879,7 @@ int main(int argc, char *argv[])
     int delay = 16;
     int sbfsong = 0;
 
-	printf("VGMComp Test Player - v20200730\n");
+	printf("VGMComp Test Player - v20200803\n");
 
 	if (argc < 2) {
 		printf("testPlayPSG [-ay|-sn|-sid] [-forcenoise x] [-sbfsong x] [-hidenotes] [-heatmap] [<file prefix> | <file.sbf> | <track1> <track2> ...]\n");
@@ -894,6 +890,7 @@ int main(int argc, char *argv[])
         printf(" -sbfsong x - play SBF song 'x' instead of song 0\n");
 		printf(" -hidenotes - do not display notes as the frames are played\n");
         printf(" -heatmap - visualize a heatmap instead of notes while playing - only useful with SBF import\n");
+        printf(" -hz x - force playback at 'x' hz (can not override filename extension on channel files)\n");
 		printf(" <file prefix> - PSG file prefix (usually the name of the original VGM).\n");
         printf(" <track1> etc - instead of a prefix, you may explicitly list the files to play\n");
         printf("Prefix will search for 60hz, 50hz, 30hz, and 25hz in that order.\n");
@@ -908,34 +905,34 @@ int main(int argc, char *argv[])
         if (0 == strcmp(argv[arg], "-ay")) {
             testay=true;
             if ((testsid)||(testpsg)) {
-                printf("\rInvalid to specify multiple restrictions\n");
+                printf("Invalid to specify multiple restrictions\n");
                 return 1;
             }
         } else if (0 == strcmp(argv[arg], "-sn")) {
             testpsg=true;
             if ((testay)||(testsid)) {
-                printf("\rInvalid to specify multiple restrictions\n");
+                printf("Invalid to specify multiple restrictions\n");
                 return 1;
             }
         } else if (0 == strcmp(argv[arg], "-sid")) {
             testsid=true;
             if ((testay)||(testpsg)) {
-                printf("\rInvalid to specify multiple restrictions\n");
+                printf("Invalid to specify multiple restrictions\n");
                 return 1;
             }
         } else if (0 == strcmp(argv[arg], "-forcenoise")) {
             ++arg;
             if (arg >= argc-1) {
-                printf("\rInsufficient arguments for -forcenoise\n");
+                printf("Insufficient arguments for -forcenoise\n");
                 return 1;
             }
             if (!isdigit(argv[arg][0])) {
-                printf("\rArgument for -forcenoise must be numeric\n");
+                printf("Argument for -forcenoise must be numeric\n");
                 return 1;
             }
             int tmp = atoi(argv[arg]);
             if (tmp >= MAXCHANNELS) {
-                printf("\rForceNoise count too large (max %d)\n", MAXCHANNELS);
+                printf("ForceNoise count too large (max %d)\n", MAXCHANNELS);
                 return 1;
             }
             forceNoise[tmp] = true;
@@ -943,15 +940,34 @@ int main(int argc, char *argv[])
         } else if (0 == strcmp(argv[arg], "-sbfsong")) {
             ++arg;
             if (arg >= argc-1) {
-                printf("\rInsufficient arguments for -sbfsong\n");
+                printf("Insufficient arguments for -sbfsong\n");
                 return 1;
             }
             if (!isdigit(argv[arg][0])) {
-                printf("\rArgument for -sbfsong must be numeric\n");
+                printf("Argument for -sbfsong must be numeric\n");
                 return 1;
             }
             sbfsong = atoi(argv[arg]);
             printf("Playing SBF song %d (if SBF is loaded)\n", sbfsong);
+        } else if (0 == strcmp(argv[arg], "-hz")) {
+            ++arg;
+            if (arg >= argc-1) {
+                printf("Insufficient arguments for -hz\n");
+                return 1;
+            }
+            if (!isdigit(argv[arg][0])) {
+                printf("Argument for -hz must be numeric\n");
+                return 1;
+            }
+            if (atoi(argv[arg]) <= 0) {
+                printf("Argument for -hz must be greater than zero\n");
+                return 1;
+            }
+            delay = 1000/atoi(argv[arg]);
+            if (delay <= 0) {
+                printf("Hz value too large to be played.\n");
+                return 1;
+            }
         } else if (0 == strcmp(argv[arg], "-hidenotes")) {
 			shownotes=false;
         } else if (0 == strcmp(argv[arg], "-heatmap")) {

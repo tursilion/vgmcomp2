@@ -27,6 +27,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CPlayer", "CPlayer", "{009F
 	ProjectSection(SolutionItems) = preProject
 		Players\CPlayer\CPlayer.c = Players\CPlayer\CPlayer.c
 		Players\CPlayer\CPlayer.h = Players\CPlayer\CPlayer.h
+		Players\CPlayer\CPlayer30hz.c = Players\CPlayer\CPlayer30hz.c
+		Players\CPlayer\CPlayer30hz.h = Players\CPlayer\CPlayer30hz.h
 		Players\CPlayer\CPlayerCommon.c = Players\CPlayer\CPlayerCommon.c
 		Players\CPlayer\CPlayerTest.c = Players\CPlayer\CPlayerTest.c
 		Players\CPlayer\Makefile = Players\CPlayer\Makefile
@@ -227,6 +229,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sid2psg", "sid2psg\sid2psg.vcxproj", "{D24ECB66-303C-4E77-AF14-3088486A38F7}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "voice2psg", "voice2psg\voice2psg.vcxproj", "{11BBB2DD-B55E-4B54-B24D-448B74E994E2}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "changespeed", "changespeed\changespeed.vcxproj", "{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -448,6 +452,14 @@ Global
 		{11BBB2DD-B55E-4B54-B24D-448B74E994E2}.Release|Win32.Build.0 = Release|Win32
 		{11BBB2DD-B55E-4B54-B24D-448B74E994E2}.Release|x64.ActiveCfg = Release|x64
 		{11BBB2DD-B55E-4B54-B24D-448B74E994E2}.Release|x64.Build.0 = Release|x64
+		{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7}.Debug|Win32.ActiveCfg = Debug|Win32
+		{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7}.Debug|Win32.Build.0 = Debug|Win32
+		{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7}.Debug|x64.ActiveCfg = Debug|x64
+		{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7}.Debug|x64.Build.0 = Debug|x64
+		{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7}.Release|Win32.ActiveCfg = Release|Win32
+		{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7}.Release|Win32.Build.0 = Release|Win32
+		{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7}.Release|x64.ActiveCfg = Release|x64
+		{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -491,6 +503,7 @@ Global
 		{7DB268DF-D117-40C0-97C8-9137C4BE3984} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 		{D24ECB66-303C-4E77-AF14-3088486A38F7} = {C61D286B-17D5-4238-AB62-DF4DF9865169}
 		{11BBB2DD-B55E-4B54-B24D-448B74E994E2} = {C61D286B-17D5-4238-AB62-DF4DF9865169}
+		{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

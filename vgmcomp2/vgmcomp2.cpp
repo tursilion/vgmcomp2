@@ -1546,7 +1546,7 @@ bool compressStream(int song, int st, int minstep) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Compression Tool - v20200627\n\n");
+	printf("VGMComp2 Compression Tool - v20200803\n\n");
 
     // parse arguments
     int nextarg = -1;
@@ -2108,7 +2108,7 @@ int main(int argc, char *argv[])
         totalRows += songs[idx].outCnt;
     }
     double totalTime = int(totalRows / 60.0 * 100 + 0.5) / 100.0;
-    printf("\n%d songs (%f seconds) compressed to %d bytes (%f bytes/second)\n",
+    printf("\n%d songs (%f seconds) compressed to %d bytes (%f bytes/second @ 60hz)\n",
            currentSong, totalTime, outputPos, int(outputPos / totalTime * 1000 + 0.5) / 1000.0);
 
     // deepdive blows these stats away cause we don't keep all the run data across every combination

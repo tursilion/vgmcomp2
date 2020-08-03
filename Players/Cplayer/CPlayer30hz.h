@@ -1,5 +1,5 @@
-#ifndef INCLUDE_COLPLAYER_H
-#define INCLUDE_COLPLAYER_H
+#ifndef INCLUDE_CPLAYER30_H
+#define INCLUDE_CPLAYER30_H
 
 #ifndef true
 #define true 1
@@ -8,25 +8,39 @@
 #define false 0
 #endif
 
-// Assuming Coleco
+// For instance, the TI native size is int, but on the Z80
+// unsigned char results in more efficient code.
+// the code assumes all types are only 8 or 16 bit,
+// but it's fine to use ints and chars on bigger machines
+#ifdef BUILD_TI99
+typedef int int16;              // must be 16 bit or larger, signed is okay
+typedef unsigned int uint16;    // must be 16 bit or larger, unsigned
+typedef unsigned char uint8;    // must be 8 bit unsigned
+typedef unsigned char uWordSize;// most efficient word size, 8 bits or more unsigned
+#elif defined(BUILD_COLECO)
 typedef int int16;              // must be 16 bit or larger, signed is okay
 typedef unsigned int uint16;    // must be 16 bit or larger, unsigned
 typedef unsigned char uint8;    // must be 8 bit unsigned
 typedef unsigned char uWordSize; // most efficient word size, 8 bits or more unsigned
+#elif defined(BUILD_PC)
+typedef int int16;              // we're really 32 bit, that's okay
+typedef unsigned int uint16;    // must be 16 bit or larger, unsigned
+typedef unsigned char uint8;    // must be 8 bit unsigned
+typedef unsigned int uWordSize; // most efficient word size, 8 bits or more unsigned
+#else
+#error Define a machine type!
+#endif
 
-// structure for unpacking a stream of data - ALL data comes from globalStr
+// structure for unpacking a stream of data
 typedef struct STRTYPE STREAM;
 struct STRTYPE {
     const uint8 *curPtr;       // where are are currently getting data from
     const uint8 *mainPtr;      // the main index in the decompression. If 0, we are done.
-    uint8 (*curType)();        // function pointer to get data for the type
-    uWordSize curBytes;        // current bytes left
+    uint8 (*curType)(STREAM*, const uint8*);    // function pointer to get data for the type
+    uWordSize curBytes;   // current bytes left
     // post compression data
-    uWordSize framesLeft;      // number of frames left on the current RLE (not used for tone channels)
+    uWordSize framesLeft; // number of frames left on the current RLE (not used for tone channels)
 };
-
-// global stream object for direct access
-extern STREAM globalStr;
 
 // Call this function to prepare to play
 // pSbf - pointer to song block data
@@ -37,12 +51,10 @@ void StartSong(const unsigned char *pSbf, uWordSize songNum);
 void StopSong();
 
 // this needs to be called 60 times per second by your system
-void SongLoop();
+// this is the only renamed (or changed!) function.
+void SongLoop30();
 
-// the Coleco version of getCompressedByte
-uint8 getCompressedByteRaw();
-
-// This is a wrapper so that the test code works
+// Don't call this, it's for use by the unpack codes
 uint8 getCompressedByte(STREAM *str, const uint8 *buf);
 
 // this array contains the current volume of each voice (ignoring mutes)
