@@ -2,6 +2,9 @@ This links together the Coleco playback code into a single linkable library. Lin
 
 There are three players involved. The SN and AY players will standalone, but the SFX player will also bring in SN. (There is no AY SFX player at the moment). All players will share the common decompression code.
 
+There are also 30hz functions of all these players, which execute half the channels each frame. Append "30" to each include/function name to access them.
+** The 30 hz functions are not tested at the moment. **
+
 -----------------------
 BASIC: getting it setup
 -----------------------
@@ -10,7 +13,7 @@ FROM C:
  - tested with SDCC 4.0.0
  - link with libcolecovgm2 (-lcolecovgm2)
  - include ColecoSNPlay.h to play back music on the SN PSG (standard console)
- - include ColecoAYPlay.h to play back music on the Phoenix AY
+ - include ColecoAYPlay.h to play back music on the Phoenix AY or SGM
  - include ColecoSfxPlay.h to play back sound effects on the SN PSG 
     - this implies you are also playing music - if you are ONLY playing sound effects, just use ColecoSNPlay.h
  - calling syntax is detailed below
@@ -164,6 +167,7 @@ songNote[4]
              2. songNote[3] contains the noise type in the most significant bit, and songActive in the least
              3. The SongActive byte defines these bits:
                 SONGACTIVEACTIVE 0x01   Song is currently playing (active)
+                SONGACTIVEHALF   0x02   30hz player is on the second half of a frame
                 SONGACTIVEMUTE1  0x80   Voice 0 is being muted (externally set)
                 SONGACTIVEMUTE2  0x40   Voice 1 is being muted (externally set)
                 SONGACTIVEMUTE3  0x20   Voice 2 is being muted (externally set)
@@ -183,6 +187,7 @@ ay_songNote[4]
     Note:    1. songNote[3] contains songActive in the MSB, and the LSB is unused
              2. The SongActive byte defines these bits
                 SONGACTIVEACTIVE 0x01   Song is currently playing (active)
+                SONGACTIVEHALF   0x02   30hz player is on the second half of a frame
                 SONGACTIVEMUTE1  0x80   Voice 0 is being muted (externally set)
                 SONGACTIVEMUTE2  0x40   Voice 1 is being muted (externally set)
                 SONGACTIVEMUTE3  0x20   Voice 2 is being muted (externally set)
@@ -196,6 +201,7 @@ sfx_songActive
              2. On successful play, the SFX player copies its mute bits to the SN player's mutes
              3. The SongActive byte defines these bits:
                 SONGACTIVEACTIVE 0x01   Song is currently playing (active)
+                SONGACTIVEHALF   0x02   30hz player is on the second half of a frame
                 SONGACTIVEMUTE1  0x80   Voice 0 is being muted (set by SFX)
                 SONGACTIVEMUTE2  0x40   Voice 1 is being muted (set by SFX)
                 SONGACTIVEMUTE3  0x20   Voice 2 is being muted (set by SFX)

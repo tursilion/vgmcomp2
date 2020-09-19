@@ -131,8 +131,7 @@ uint8 (*const startArray[8])(unsigned char) = {
     startInline,startInline,startRLE,startRLE32,startRLE16,startRLE24,startBackref,startBackref
 };
 
-// unpack a stream byte - offset and maxbytes are used to write a scaled
-// cnt is row count, and maxbytes is used for scaling, max size of data
+// unpack a stream byte
 // Source is always globalStr
 uint8 getCompressedByteRaw() {
     // bytes left in the current stream?
@@ -141,7 +140,8 @@ uint8 getCompressedByteRaw() {
         return globalStr.curType();
     }
 
-    // start a new stream
+    // start a new stream - note here bad data can crash the player!
+    // make sure to test your compressed data with the PC player first.
     unsigned char x = *(globalStr.mainPtr++);
     return startArray[(x&0xe0)>>5](x);
 }

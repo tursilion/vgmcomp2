@@ -16,6 +16,9 @@ OBJECT_LIST=\
     ColecoPlayerAY.$(EXT)   \
     ColecoPlayerSFX.$(EXT)  \
     ColecoPlayerSN.$(EXT)   \
+    ColecoPlayerAY30.$(EXT)   \
+    ColecoPlayerSFX30.$(EXT)  \
+    ColecoPlayerSN30.$(EXT)   \
     ColCPlayerCommon.$(EXT) \
     CPlayerTest.$(EXT)
 
