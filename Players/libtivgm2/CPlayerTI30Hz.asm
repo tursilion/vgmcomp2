@@ -1,15 +1,13 @@
 * code that is specific to a single instance of the player
-* Hand edit of CPlayerTI.c assembly by Tursi, with SN mode
-* and mute enabled in songActive. Due to hard coded addresses,
-* you need a separate build for sfx (CPlayerCommon is shared)
+* This is the split 30hz player - you should still call it at
+* 60hz, but only 2 channels are processed each call instead
+* of all 4. Two bytes of extra RAM is used.
 * Public Domain
 
 * we sometimes need to directly access the LSB of some registers - addresses here
 * Note this assumes a workspace of >8300 and that it can pretty much completely
 * wipe it out. If you need to preserve your own registers, use a different workspace.
 R2LSB EQU >8305
-
-    pseg
 
 * we sometimes need to directly access the LSB of some registers - addresses here
 * Note this assumes that this code uses a workspace of >8300
@@ -23,6 +21,15 @@ R6LSB EQU >830D
 * SongActive is stored in the LSB of the noise channel
 songActive EQU songNote+7
 
+* this data is in a special section so that you can relocate it at will
+* in the makefile (ie: to put it in scratchpad). If you do nothing,
+* it will be placed after the bss section (normally in low RAM)
+    .section songDatVars
+oldTS   bss 2    * saved timestream byte from first half of processing
+
+    even
+    pseg
+
 * this needs to be called 60 times per second by your system
 * if this function can be interrupted, dont manipulate songActive
 * in any function that can do so, or your change will be lost.
@@ -30,13 +37,19 @@ songActive EQU songNote+7
 * By replacing GCC regs 3-6 with 12,0,7,8, and knowing that we dont need to
 * preserve or restore ANY registers on entry, we can do away with
 * the stack usage completely. (We do preserve R10, the C stack.)
-	def	SongLoop
+* Since this is the 30 hz player, only two channels are processed
+* per call (1/2, and 3/4)
+	def	SongLoop30
 	even
 
-SongLoop
+* bits for songActive - MSB assumed
+BITS01 DATA >0100
+BITS02 DATA >0200
+
+SongLoop30
     movb @songActive,r1     * need to check if its active
-    andi r1,>0100           * isolate the bit
-	jeq  RETHOME2           * if clear, back to caller (normal case drops through faster)
+    coc @BITS01,r1          * isolate the bit
+	jne  RETHOME2           * if clear, back to caller (normal case drops through faster)
 
 * load some default values for the whole call
     mov  r11,@retSave       * save the return address
@@ -44,24 +57,48 @@ SongLoop
     li   r8,>8400           * address of the sound chip (warning: don''t move too much, my sample code relies on this offset)
     li   r6,>0100           * 1 in a byte for byte math
 
-	mov  @strDat+66,r1      * timestream mainPtr
+	mov  @strDat+66,r2      * timestream mainPtr
 	jne  HASTIMESTR         * keep working if we still have a timestream
 
 NOTIMESTR
     clr  r7                 * no timestream - zero outSongActive for volume loop
-    jmp  DONETONEACT        * go work on volumes
+    coc @BITS02,r1          * are we on the second half?
+    jne DONETONEFIRST       * no
+    jmp DONETONESEC
 
 HASTIMESTR
-	seto r7                 * set outSongActive to true for later testing
+    seto r7                 * assume we are still playing
+    coc @BITS02,r1          * are we on the second half?
+    jne FIRSTHALF           * no
+    mov @oldTS,r9           * yes, get back the timestream flags
+	li r15,strDat+16		* start with stream 2, curPtr
+	li r0,songNote+4		* output pointer for songNote[2]
+	li r14,>C000			* third command nibble
+	mov @workBuf,r7         * get song address
+	movb @songActive,r12	* get the songActive mutes
+    sla r12,2               * skip first two
+    jmp CKTONE1             * and go process it
+
+FIRSTHALF
     sb r6,@strDat+71        * decrement the timestream frames left
     jnc  DOTIMESTR          * if it was zero, jump over volumes to get a new byte
 
 * volume processing loop
-DONETONEACT
+DONETONEFIRST
+    socb @bits02,@songActive    * set the bitflag for half
 	li   r15,strDat+32      * stream 4 curPtr (vol[0])  r15
 	li   r0,songVol         * songVol table pointer     r0
 	li   r14,>9000          * command nibble            r14
     movb @songActive,r12    * actual mute flags         r12
+	jmp  VLOOPEND           * jump to bottom of loop
+
+DONETONESEC
+    szcb @bits02,@songActive    * clear the bitflag for half
+	li   r15,strDat+48      * stream 4 curPtr (vol[2])  r15
+	li   r0,songVol+2       * songVol table pointer     r0
+	li   r14,>d000          * command nibble            r14
+    movb @songActive,r12    * actual mute flags         r12
+    sla  r12,2              * skip the first two
 	jmp  VLOOPEND           * jump to bottom of loop
 
 VLOOPDEC
@@ -74,7 +111,9 @@ VLOOPSHIFT
 VLOOPNEXT
 	ai   r15,>8             * next curPtr
 	ai   r14,>2000          * next command nibble
-    joc  VLOOPDONE          * that was the last one
+    joc  VLOOPDONE          * that was the last one (wrap around after >F000)
+    ci   r14,>d000          * check if we finished the first two
+    jeq  VLOOPDONE          * end if so
 
 VLOOPEND
 	mov  @2(r15),r1         * check if mainPtr is valid
@@ -166,16 +205,21 @@ CKTONE2
 	ai r15,>8				* next curPtr
 	ai r14,>2000			* next command nibble
 	ci r14,>e000            * did we reach noise?
-	jne CKTONE1             * no, do the next one
+	jeq CKNOISE             * yes, go do noise
+    ci r14,>c000            * did we reach the end of the first pass?
+    jne CKTONE1             * no, loop around
+
+    mov r9,@oldTS           * save the timestream status for next call
+    jmp DONETONEFIRST       * go work on volumes, first half
 
 CKNOISE
     sla  r9,1               * test (technically) >10 (noise)
-	jnc  DONETONEACT        * not set, so jump
+	jnc  DONETONESEC        * not set, so jump
 	mov  @2(r15),r1         * stream 3 mainPtr
-	jeq  DONETONEACT        * jump if zero
+	jeq  DONETONESEC        * jump if zero
 	bl   *r13               * getCompressedByte
 	mov  r2,r2              * check if stream was ended
-	jeq  DONETONEACT        * jump if so
+	jeq  DONETONESEC        * jump if so
 
     soc  r14,r1				* no tone table here, just OR in the command bits
 	sla  r12,1              * check songActive - carry is mute
@@ -186,7 +230,7 @@ NOISEMUTE
 	movb r1,*r0             * save byte only in the songNote, no need to increment
 
 DONETONE
-	jmp  DONETONEACT        * go work on the volumes with outSongActive set
+	jmp  DONETONESEC        * go work on the volumes with outSongActive set
 
 CKTONE2SHIFT
 	sla r12,1               * shift just to stay in sync

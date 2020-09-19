@@ -37,6 +37,9 @@ void StopSID();
 // Main loop - do not call this directly, use CALL_PLAYER_SID macro below
 void SIDLoop();
 
+// 30hz loop - do not call this directly, use CALL_PLAYER_SID30 macro below
+void SIDLoop30();
+
 // helpful wrapper
 #define isSIDPlaying ((sidNote[3]&SONGACTIVEACTIVE) != 0)
 
@@ -68,6 +71,15 @@ extern uint16 sidNote[4];
 #define CALL_PLAYER_SID \
     __asm__(                                                        \
         "bl @SIDLoop"                                               \
+        : /* no outputs */                                          \
+        : /* no arguments */                                        \
+        : "r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r12","r13","r14","r15","cc"   \
+        )
+
+// same as above, but for the 30hz player
+#define CALL_PLAYER_SID30 \
+    __asm__(                                                        \
+        "bl @SIDLoop30"                                             \
         : /* no outputs */                                          \
         : /* no arguments */                                        \
         : "r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r12","r13","r14","r15","cc"   \

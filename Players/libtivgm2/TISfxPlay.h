@@ -16,6 +16,9 @@ void StopSfx();
 // Main loop - do not call this directly, use CALL_PLAYER_SFX macro below
 void SfxLoop();
 
+// 30hz loop - do not call this directly, use CALL_PLAYER_SFX30 macro below
+void SfxLoop30();
+
 // helpful wrapper
 #define isSFXPlaying ((sfxActive&(SONGACTIVEACTIVE<<8)) != 0)
 
@@ -31,6 +34,15 @@ extern unsigned int sfxActive;
 #define CALL_PLAYER_SFX \
     __asm__(                                                        \
         "bl @SfxLoop"                                               \
+        : /* no outputs */                                          \
+        : /* no arguments */                                        \
+        : "r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r12","r13","r14","r15","cc"   \
+        )
+
+// same as above, but for the 30hz player
+#define CALL_PLAYER_SFX30 \
+    __asm__(                                                        \
+        "bl @SfxLoop30"                                             \
         : /* no outputs */                                          \
         : /* no arguments */                                        \
         : "r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r12","r13","r14","r15","cc"   \

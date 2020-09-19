@@ -92,17 +92,17 @@ void runTest(const char *name, const unsigned char *buf, const unsigned char *ts
         printf("Remaining string: %s\n", tst);
     }
     if (x != 0) {
-        printf("%d data bytes remained\n", test.curBytes);
+        printf("%d data bytes remained (x=%c)\n", test.curBytes, x);
     }
 }
 
 void PlayerUnitTest() {
-    runTest("Inline(8)", inline1, "12345678");
-    runTest("Inline2(33)", inline2, "123456789098765432101234567890987");
-    runTest("RLE(8)", rle, "11111111");
-    runTest("RLE32(8)", rle32, "12341234");
-    runTest("RLE16(8)", rle16, "12121212");
-    runTest("RLE24(9)", rle24, "123123123");
-    runTest("BackRef(8)", backref, "12345678");
-    runTest("BackRef2(36)", backref2, "123456789098765432101234567890987654");
+    runTest("Inline(8)", inline1, (const unsigned char*)"12345678");
+    runTest("Inline2(33)", inline2, (const unsigned char*)"123456789098765432101234567890987");
+    runTest("RLE(8)", rle, (const unsigned char*)"11111111");
+    runTest("RLE32(8)", rle32, (const unsigned char*)"12341234");
+    runTest("RLE16(8)", rle16, (const unsigned char*)"12121212");
+    runTest("RLE24(9)", rle24, (const unsigned char*)"123123123");
+    runTest("BackRef(8)", backref, (const unsigned char*)"12345678");
+    runTest("BackRef2(36)", backref2, (const unsigned char*)"123456789098765432101234567890987654");
 }

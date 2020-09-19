@@ -28,12 +28,15 @@
 *
 * Public Domain
 
+    ref songNote,songVol,StopSfx
+    ref sfxDat,sfxActive,sfxWorkBuf,sfxSave
+	ref	getCompressedByte
+
 * we sometimes need to directly access the LSB of some registers - addresses here
 * Note this assumes a workspace of >8300 and that it can pretty much completely
 * wipe it out. If you need to preserve your own registers, use a different workspace.
 R2LSB EQU >8305
 
-    ref songNote,songVol
     pseg
 
 * we sometimes need to directly access the LSB of some registers - addresses here
@@ -47,104 +50,10 @@ R6LSB EQU >830D
 
 * sfxActive is its own word. Its LSB is the current priority
 
-* Call this function to prepare to play
-* r1 = pSbf - pointer to song block data (must be word aligned)
-* r2 = songNum - which song to play in MSB (byte, starts at 0)
-* r3 = priority in MSB - higher is more priority
-	def	StartSfx
-    even
-StartSfx
-    li r4,>0100         * activity bit (warning: StopSong uses this - dont move it!)
-    mov @sfxActive,r5   * get the activity bits
-    coc r4,r5           * are we active?
-    jne okstart         * no, go ahead
-    swpb r5             * get priority byte
-    cb r3,r5            * check priority
-    jh okstart
-    b *r11              * too low priority, ignore
-
-okstart
-    movb r3,@sfxActive+1    * store the new priority
-
-    li r3,18            * each table is 18 bytes
-    srl r2,8            * make byte in R2 into a word
-    mpy r2,r3           * multiply, result in r3/r4 (so r4)
-	mov *r1,r3          * get pointer to stream indexes into r3
-	a    r4,r3          * add song offset to stream offset to get base stream for this song
-	a    r1,r3          * add buf to make it a memory pointer (also word aligned)
-	li   r2,sfxDat+6    * point to the first strDats "curBytes" with r2
-STARTLP
-    mov *r3+,r4         * get stream offset from table and increment pointer
-    jeq  nullptr        * if it was >0000, dont add the base address
-	a    r1,r4          * make it a memory pointer
-nullptr
-	mov  r4,@>FFFC(r2)  * save as mainPtr
-	clr  @>FFFA(r2)     * zero curPtr
-	clr  *r2            * zero curBytes and framesLeft
-	li   r4,getDatZero
-	mov  r4,@>FFFE(r2)  * set curType to getDatZero (just a safety move)
-
-	ai   r2,>8          * next structure
-	ci   r2,sfxDat+78   * check if we did the last (9th) one (9*8=72,+6 offset = 78. I dont know why GCC used an offset,but no biggie)
-	jne  STARTLP        * loop around if not done
-
-	mov  r1,@sfxWorkBuf * store the song pointer in the global
-	li   r2,>0100       * init value for noise with songActive bit set, no mutes set
-	movb r2,@sfxActive  * songActive bit (LSB is priority, already set)
-    b    *r11
-	.size	StartSfx,.-StartSfx
-
-* Call this to stop the current song
-* this is automatically called when an SFX ends
-* we always restore from what is in the songNote and songVol registers,
-* even if its not playing, so make sure they are initialized properly.
-	def	StopSfx
-	even
-StopSfx
-    li r2,>8400                 * sound address
-    movb @sfxActive,r1          * its faster to check and restore only what is needed, due to slow SOUND
-    sla r1,1                    * check first bit
-    jnc stop2
-
-    li r0,songNote              * first note (assumes command bits are still set)
-    movb *r0+,*r2               * write first byte
-    movb *r0,*r2                * write second byte
-    movb @songVol,*r2           * write volume byte
-
-stop2
-    sla r1,1                    * check bit
-    jnc stop3
-
-    li r0,songNote+2            * note (assumes command bits are still set)
-    movb *r0+,*r2               * write first byte
-    movb *r0,*r2                * write second byte
-    movb @songVol+1,*r2         * write volume byte
-
-stop3
-    sla r1,1                    * check bit
-    jnc stop4
-
-    li r0,songNote+4            * note (assumes command bits are still set)
-    movb *r0+,*r2               * write first byte
-    movb *r0,*r2                * write second byte
-    movb @songVol+2,*r2         * write volume byte
-
-stop4
-    sla r1,1                    * check bit
-    jnc stopDone
-
-    movb @songNote+6,*r2        * write noise byte
-    movb @songVol+3,*r2         * write volume byte
-
-stopDone
-    movb @StartSfx+3,@sfxActive	 * zero all bits in songActive (pulls a 0 byte from a LI)
-	b    *r11
-	.size	StopSfx,.-StopSfx
-
 * this needs to be called 60 times per second by your system
 * if this function can be interrupted, dont manipulate songActive
 * in any function that can do so, or your change will be lost.
-* to be called with BL so return on R11, which we save in retSave.
+* to be called with BL so return on R11, which we save in sfxSave.
 * By replacing GCC regs 3-6 with 12,0,7,8, and knowing that we dont need to
 * preserve or restore ANY registers on entry, we can do away with
 * the stack usage completely. (We do preserve R10, the C stack.)
@@ -158,7 +67,7 @@ SfxLoop
 	jeq  RETHOME2           * if clear, back to caller (normal case drops through faster)
 
 * load some default values for the whole call
-    mov  r11,@retSave       * save the return address
+    mov  r11,@sfxSave       * save the return address
 	li   r13,getCompressedByte  * store address of getCompressedByte
     li   r8,>8400           * address of the sound chip
     li   r6,>0100           * 1 in a byte for byte math
@@ -221,7 +130,7 @@ VLOADVOL
 
 VLOOPDONE
     socb r12,@sfxActive     * merge in the mute bits - note we never clear them!
-    mov  @retSave,r11       * recover return address
+    mov  @sfxSave,r11       * recover return address
     mov  r7,r7              * end of loop - check if outSongActive was set
     jne  RETHOME            * skip if not zero
 
@@ -299,28 +208,3 @@ CKNOISE
 
 	.size	SfxLoop,.-SfxLoop
 
-* this data is in a special section so that you can relocate it at will
-* in the makefile (ie: to put it in scratchpad). If you do nothing,
-* it will be placed after the bss section (normally in low RAM)
-    .section sfxDatVars
-
-	even
-    def sfxDat
-sfxDat
-	bss 72
-
-    even
-    def sfxActive
-sfxActive
-    bss 2
-
-	even
-	def sfxWorkBuf
-sfxWorkBuf
-	bss 2
-
-    even
-retSave
-    bss 2
-
-	ref	getCompressedByte

@@ -2,6 +2,9 @@ This links together the TI playback code into a single linkable library. Link wi
 
 There are three players involved. The SN and SID players will standalone, but the SFX player will also bring in SN. (There is no SID SFX player at the moment). All players will share the common decompression code.
 
+There are also 30hz versions of each playback. Use the normal start and stop calls for these. Do not mix 30 and 60 hz playback.
+** 30 hz players are not currently tested **
+
 -----------------------
 BASIC: getting it setup
 -----------------------
@@ -26,7 +29,7 @@ INTERMEDIATE: available functions
 SN Playback: Header: TISNPlay.h
 -------------------------------
 StartSong(const unsigned char *pSbf, uWordSize songNum)
-    File:    CPlayerTIHandEdit.asm
+    File:    CPlayerTIHandlers.asm
     Return:  void
     Inputs:  pSbf - pointer to the song bank being started
              songNum - index of the song, starting with 0, to play. Note: no range checking!
@@ -37,7 +40,7 @@ StartSong(const unsigned char *pSbf, uWordSize songNum)
              corrupts r2,r3,r4,r11. All data structures will be initialized.
 
 StopSong()
-    File:    CPlayerTIHandEdit.asm
+    File:    CPlayerTIHandlers.asm
     Return:  void
     Inputs:  none
     Purpose: Stop any currently playing song. Does NOT mute the sound chip.
@@ -52,6 +55,16 @@ SongLoop()
     Inputs:  none
     Purpose: Run one frame of the current song. Returns quickly if no song is active.
     C okay?: ** No ** Use CALL_PLAYER_SN macro.
+    Asm?   : no input values.
+             no return value.
+             corrupts all registers but r10. Modifies all data structures.
+
+SongLoop30()
+    File:    CPlayerTI30Hz.asm
+    Return:  void
+    Inputs:  none
+    Purpose: Run one half of one frame of the current song. Returns quickly if no song is active.
+    C okay?: ** No ** Use CALL_PLAYER_SN30 macro.
     Asm?   : no input values.
              no return value.
              corrupts all registers but r10. Modifies all data structures.
@@ -76,7 +89,7 @@ CALL_PLAYER_SN
 SID Playback: Header: TISIDPlay.h
 -------------------------------
 StartSID(const unsigned char *pSbf, uWordSize songNum)
-    File:    CSIDPlayTIHandEdit.asm
+    File:    CSIDPlayTIHandlers.asm
     Return:  void
     Inputs:  pSbf - pointer to the song bank being started
              songNum - index of the song, starting with 0, to play. Note: no range checking!
@@ -87,7 +100,7 @@ StartSID(const unsigned char *pSbf, uWordSize songNum)
              corrupts r2,r3,r4,r5,r11,r12. All data structures will be initialized. All SID registers are initialized.
 
 StopSID()
-    File:    CSIDPlayTIHandEdit.asm
+    File:    CSIDPlayTIHandlers.asm
     Return:  void
     Inputs:  none
     Purpose: Stop any currently playing song. Does NOT mute the sound chip.
@@ -102,6 +115,16 @@ SIDLoop()
     Inputs:  none
     Purpose: Run one frame of the current song. Returns quickly if no song is active.
     C okay?: ** No **. Use CALL_PLAYER_SID macro.
+    Asm?   : no input values.
+             no return value.
+             corrupts all registers but r10. Modifies all data structures.
+
+SIDLoop30()
+    File:    CSIDPlayTI30Hz.asm
+    Return:  void
+    Inputs:  none
+    Purpose: Run one half of one frame of the current song. Returns quickly if no song is active.
+    C okay?: ** No **. Use CALL_PLAYER_SID30 macro.
     Asm?   : no input values.
              no return value.
              corrupts all registers but r10. Modifies all data structures.
@@ -126,7 +149,7 @@ CALL_PLAYER_SID
 SFX Playback: Header: TISfxPlay.h
 ---------------------------------
 StartSfx(const unsigned char *pSbf, uWordSize songNum, uWordSize pri)
-    File:    CPlayerTISfx.asm
+    File:    CPlayerTISfxHandlers.asm
     Return:  void
     Inputs:  pSbf - pointer to the song bank being started
              songNum - index of the song, starting with 0, to play. Note: no range checking!
@@ -138,7 +161,7 @@ StartSfx(const unsigned char *pSbf, uWordSize songNum, uWordSize pri)
              corrupts r2,r3,r4,r5,r11,r12. All data structures will be initialized. All SID registers are initialized.
 
 StopSfx()
-    File:    CPlayerTISfx.asm
+    File:    CPlayerTISfxHandlers.asm
     Return:  void
     Inputs:  none
     Purpose: Stop any currently playing SFX. Restores the current SN song state on all modified channels.
@@ -154,6 +177,17 @@ SfxLoop()
     Purpose: Run one frame of the current song. Returns quickly if no song is active.
     Note:    For proper use, call before SongLoop()
     C okay?: ** No **. Use CALL_PLAYER_SFX macro.
+    Asm?   : no input values.
+             no return value.
+             corrupts all registers but r10. Modifies all data structures.
+
+SfxLoop30()
+    File:    CPlayerTISfx30hz.asm
+    Return:  void
+    Inputs:  none
+    Purpose: Run one half of one frame of the current song. Returns quickly if no song is active.
+    Note:    For proper use, call before SongLoop()
+    C okay?: ** No **. Use CALL_PLAYER_SFX30 macro.
     Asm?   : no input values.
              no return value.
              corrupts all registers but r10. Modifies all data structures.
@@ -211,6 +245,7 @@ songNote[4]
              2. songNote[3] contains the noise type in the most significant bit, and songActive in the least
              3. The SongActive byte defines these bits:
                 SONGACTIVEACTIVE 0x01   Song is currently playing (active)
+                SONGACTIVEHALF   0x02   30hz player is on the second half of a frame
                 SONGACTIVEMUTE1  0x80   Voice 0 is being muted (externally set)
                 SONGACTIVEMUTE2  0x40   Voice 1 is being muted (externally set)
                 SONGACTIVEMUTE3  0x20   Voice 2 is being muted (externally set)
@@ -230,6 +265,7 @@ sidNote[4]
     Note:    1. songNote[3] contains songActive in the MSB, and the LSB is unused
              2. The SongActive byte defines these bits
                 SONGACTIVEACTIVE 0x01   Song is currently playing (active)
+                SONGACTIVEHALF   0x02   30hz player is on the second half of a frame
                 SONGACTIVEMUTE1  0x80   Voice 0 is being muted (externally set)
                 SONGACTIVEMUTE2  0x40   Voice 1 is being muted (externally set)
                 SONGACTIVEMUTE3  0x20   Voice 2 is being muted (externally set)
@@ -256,6 +292,7 @@ sfxActive
              2. On successful play, the SFX player copies its mute bits to the SN player's mutes
              3. The SongActive byte defines these bits:
                 SONGACTIVEACTIVE 0x01   Song is currently playing (active)
+                SONGACTIVEHALF   0x02   30hz player is on the second half of a frame
                 SONGACTIVEMUTE1  0x80   Voice 0 is being muted (set by SFX)
                 SONGACTIVEMUTE2  0x40   Voice 1 is being muted (set by SFX)
                 SONGACTIVEMUTE3  0x20   Voice 2 is being muted (set by SFX)

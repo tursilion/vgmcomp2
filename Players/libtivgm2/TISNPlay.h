@@ -38,6 +38,9 @@ void StopSong();
 // Main loop - do not call this directly, use CALL_PLAYER_SN macro below
 void SongLoop();
 
+// 30hz loop - do not call this directly, use CALL_PLAYER_SN30 macro below
+void SongLoop30();
+
 // helpful wrapper
 #define isSNPlaying ((songNote[3]&SONGACTIVEACTIVE) != 0)
 
@@ -83,6 +86,15 @@ extern uint16 songNote[4];
 #define CALL_PLAYER_SN \
     __asm__(                                                        \
         "bl @SongLoop"                                              \
+        : /* no outputs */                                          \
+        : /* no arguments */                                        \
+        : "r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r12","r13","r14","r15","cc"   \
+        )
+
+// Option 3: same as above, but for 30Hz player
+#define CALL_PLAYER_SN30 \
+    __asm__(                                                        \
+        "bl @SongLoop30"                                            \
         : /* no outputs */                                          \
         : /* no arguments */                                        \
         : "r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r12","r13","r14","r15","cc"   \

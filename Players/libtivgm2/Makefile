@@ -32,8 +32,14 @@ INCPATH=-I$(LIBTI99) -I../CPlayer
 OBJECT_LIST=\
   CPlayerCommonHandEdit.o	\
   CPlayerTIHandEdit.o	\
+  CPlayerTI30Hz.o   \
+  CPlayerTIHandlers.o   \
   CPlayerTISfx.o	\
+  CPlayerTISfx30Hz.o    \
+  CPlayerTISfxHandlers.o \
   CSIDPlayTIHandEdit.o	\
+  CSIDPlayTI30Hz.o \
+  CSIDPlayTIHandlers.o \
   CPlayerTest.o
 
 # Recipe to compile the library and samples

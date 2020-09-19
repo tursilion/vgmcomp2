@@ -206,7 +206,7 @@ void SongLoop30() {
     // happen in the same frame in case noise takes over A. The SN must
     // process channel 3 and noise (0x20 and 0x10) in the same frame.
     // We don't let the SID change modes, so it doesn't care.
-    // for the same reason. So there's a bit of swishing around with ifdefs here...
+    // So there's a bit of swishing around with ifdefs here...
 
     if (strDat[8].mainPtr != 0) {
         // figure out what we are doing this frame

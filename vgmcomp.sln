@@ -58,9 +58,15 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libtivgm2", "libtivgm2", "{87187B18-D03A-4EC0-AA7B-77416100F494}"
 	ProjectSection(SolutionItems) = preProject
 		Players\libtivgm2\CPlayerCommonHandEdit.asm = Players\libtivgm2\CPlayerCommonHandEdit.asm
+		Players\libtivgm2\CPlayerTI30Hz.asm = Players\libtivgm2\CPlayerTI30Hz.asm
 		Players\libtivgm2\CPlayerTIHandEdit.asm = Players\libtivgm2\CPlayerTIHandEdit.asm
+		Players\libtivgm2\CPlayerTIHandlers.asm = Players\libtivgm2\CPlayerTIHandlers.asm
 		Players\libtivgm2\CPlayerTISfx.asm = Players\libtivgm2\CPlayerTISfx.asm
+		Players\libtivgm2\CPlayerTISfx30Hz.asm = Players\libtivgm2\CPlayerTISfx30Hz.asm
+		Players\libtivgm2\CPlayerTISfxHandlers.asm = Players\libtivgm2\CPlayerTISfxHandlers.asm
+		Players\libtivgm2\CSIDPlayTI30Hz.asm = Players\libtivgm2\CSIDPlayTI30Hz.asm
 		Players\libtivgm2\CSIDPlayTIHandEdit.asm = Players\libtivgm2\CSIDPlayTIHandEdit.asm
+		Players\libtivgm2\CSIDPlayTIHandlers.asm = Players\libtivgm2\CSIDPlayTIHandlers.asm
 		Players\libtivgm2\Makefile = Players\libtivgm2\Makefile
 		Players\libtivgm2\readme.txt = Players\libtivgm2\readme.txt
 		Players\libtivgm2\TISfxPlay.h = Players\libtivgm2\TISfxPlay.h
