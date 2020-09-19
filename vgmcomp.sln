@@ -245,6 +245,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "voice2psg", "voice2psg\voic
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "changespeed", "changespeed\changespeed.vcxproj", "{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "reducevolumecnt", "reducevolumecnt\reducevolumecnt.vcxproj", "{40F31361-2550-4080-8A84-71A1AAB14FA7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -473,6 +475,14 @@ Global
 		{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7}.Release|Win32.Build.0 = Release|Win32
 		{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7}.Release|x64.ActiveCfg = Release|x64
 		{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7}.Release|x64.Build.0 = Release|x64
+		{40F31361-2550-4080-8A84-71A1AAB14FA7}.Debug|Win32.ActiveCfg = Debug|Win32
+		{40F31361-2550-4080-8A84-71A1AAB14FA7}.Debug|Win32.Build.0 = Debug|Win32
+		{40F31361-2550-4080-8A84-71A1AAB14FA7}.Debug|x64.ActiveCfg = Debug|x64
+		{40F31361-2550-4080-8A84-71A1AAB14FA7}.Debug|x64.Build.0 = Debug|x64
+		{40F31361-2550-4080-8A84-71A1AAB14FA7}.Release|Win32.ActiveCfg = Release|Win32
+		{40F31361-2550-4080-8A84-71A1AAB14FA7}.Release|Win32.Build.0 = Release|Win32
+		{40F31361-2550-4080-8A84-71A1AAB14FA7}.Release|x64.ActiveCfg = Release|x64
+		{40F31361-2550-4080-8A84-71A1AAB14FA7}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -517,6 +527,7 @@ Global
 		{D24ECB66-303C-4E77-AF14-3088486A38F7} = {C61D286B-17D5-4238-AB62-DF4DF9865169}
 		{11BBB2DD-B55E-4B54-B24D-448B74E994E2} = {C61D286B-17D5-4238-AB62-DF4DF9865169}
 		{FDCA8E99-8563-4DB1-9D7E-4182D3183BE7} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
+		{40F31361-2550-4080-8A84-71A1AAB14FA7} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

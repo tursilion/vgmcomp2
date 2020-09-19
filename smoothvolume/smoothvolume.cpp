@@ -26,7 +26,7 @@ int mode = MODE_AVERAGE;
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Volume Smoothing Tool - v20200726\n\n");
+	printf("VGMComp2 Volume Smoothing Tool - v20200919\n\n");
 
     if (argc < 2) {
         printf("smoothvolume [-hermite|-cubic] <channel input>\n");
@@ -56,6 +56,10 @@ int main(int argc, char *argv[])
 
     // open input file(s)
     for (int idx=0; idx<MAXCHANNELS; ++idx) {
+        if (arg >= argc) {
+            printf("Out of filename arguments.\n");
+            return 1;
+        }
         szFilename[idx] = argv[arg];
         fp[idx] = fopen(argv[arg], "r");
         if (NULL == fp[idx]) {

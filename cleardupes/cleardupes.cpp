@@ -27,7 +27,7 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Duplicates Tool - v20200721\n\n");
+	printf("VGMComp2 Duplicates Tool - v20200919\n\n");
 
     if (argc < 3) {
         printf("cleardupes <chan1> <chan2>\n");
@@ -40,6 +40,10 @@ int main(int argc, char *argv[])
     // check arguments
     int arg = 1;
     for (int idx=0; idx<MAXCHANNELS; ++idx) {
+        if (arg >= argc) {
+            printf("Out of filename arguments.\n");
+            return 1;
+        }
         szFilename[idx] = argv[arg];
         fp[idx] = fopen(argv[arg], "r");
         if (NULL == fp[idx]) {

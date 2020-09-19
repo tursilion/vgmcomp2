@@ -78,7 +78,7 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 AY Prep Tool - v20200720\n\n");
+	printf("VGMComp2 AY Prep Tool - v20200919\n\n");
 
     if (argc < 6) {
         printf("prepare4AY <tone1> <tone2> <tone3> <noise> <output>\n");
@@ -98,6 +98,10 @@ int main(int argc, char *argv[])
     bool cont = false;
 
     for (int idx=0; idx<4; ++idx) {
+        if (idx+1 >= argc) {
+            printf("Out of filename arguments.\n");
+            return 1;
+        }
         if ((argv[idx+1][0]=='-')&&(argv[idx+1][1]=='\0')) {
             printf("Channel %d (%s) free\n", idx, idx == 3 ? "noise":"tone");
             fp[idx] = NULL;

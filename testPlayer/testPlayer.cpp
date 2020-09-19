@@ -877,9 +877,10 @@ int main(int argc, char *argv[])
     char buf[1024];
     char ext[16];
     int delay = 16;
+    int overrideDelay = 0;
     int sbfsong = 0;
 
-	printf("VGMComp Test Player - v20200803\n");
+	printf("VGMComp Test Player - v20200919\n");
 
 	if (argc < 2) {
 		printf("testPlayPSG [-ay|-sn|-sid] [-forcenoise x] [-sbfsong x] [-hidenotes] [-heatmap] [<file prefix> | <file.sbf> | <track1> <track2> ...]\n");
@@ -963,8 +964,8 @@ int main(int argc, char *argv[])
                 printf("Argument for -hz must be greater than zero\n");
                 return 1;
             }
-            delay = 1000/atoi(argv[arg]);
-            if (delay <= 0) {
+            overrideDelay = 1000/atoi(argv[arg]);
+            if (overrideDelay <= 0) {
                 printf("Hz value too large to be played.\n");
                 return 1;
             }
@@ -1192,6 +1193,11 @@ int main(int argc, char *argv[])
             SetConsoleScreenBufferSize(hConsole, newsize);  // resize back buffer
             system("CLS");
         }
+    }
+
+    if (overrideDelay > 0) {
+        printf("Override rate to %dhz\n", 1000/overrideDelay);
+        delay = overrideDelay;
     }
 
     printf(".. and playing...\n");

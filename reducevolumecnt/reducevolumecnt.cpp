@@ -1,10 +1,13 @@
-// scalepitch.cpp : Defines the entry point for the console application.
-// scales all notes in a channel by a user-specified amount. Octaves
-// are usually double or half. This can bring out of range notes into
-// range for a chip without losing musical integrity
+// reducevolumecnt.cpp : Defines the entry point for the console application.
+// reduces the resolution of the volume on the specified channel from 256
+// levels to the level specified by the user.
+// I'm not completely certain how helpful this is, given that the
+// linear volume may not convert nicely to logarithmic once reduced...?
+// I suppose time will tell!
 
 #include "stdafx.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <limits.h>
 #include <string.h>
@@ -16,17 +19,16 @@ int VGMVOL[MAXCHANNELS][MAXTICKS];
 FILE *fp[MAXCHANNELS];
 const char *szFilename[MAXCHANNELS];
 
-#define RENAME ".pitch.old"
+#define RENAME ".reducevol.old"
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Pitch Scaling Tool - v20200919\n\n");
+	printf("VGMComp2 Volume Resolution Reduction Tool - v20200919\n\n");
 
     if (argc < 2) {
-        printf("scalepitch <scale> <channel input>\n");
-        printf("Scales the frequency of the input channel. Whole octaves are\n");
-        printf("usually double (2.0, which on most chips is lower), or half\n");
-        printf("(0.5, which on most chips is higher).\n");
+        printf("reducevolumecnt <channel input> <new cnt>\n");
+        printf("Reduces the number of distinct volume levels from 256 to 'new cnt'\n");
+        printf("Note that values greater than or equal to 16 are unlikely to affect the final file.\n");
         printf("Original file is renamed to " RENAME "\n");
         return 1;
     }
@@ -34,6 +36,8 @@ int main(int argc, char *argv[])
     // check arguments
     int arg = 1;
     while (argv[arg][0] == '-') {
+        // no args
+
         ++arg;
         if (arg >= argc) {
             printf("out of arguments\n");
@@ -41,33 +45,10 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (arg>=argc) {
-        printf("Not enough arguments for scale.\n");
-        return 1;
-    }
-
-    // get scale factor
-    float scale = 0.0;
-    if (1 != sscanf(argv[arg], "%f", &scale)) {
-        printf("Failed to parse scale factor.\n");
-        return 1;
-    }
-    if (scale == 0) {
-        printf("Scale of 0 is illegal\n");
-        return 1;
-    }
-    ++arg;
-
-    if (arg>=argc) {
-        printf("Not enough arguments for filename.\n");
-        return 1;
-    }
-
     // open input file(s)
     for (int idx=0; idx<MAXCHANNELS; ++idx) {
         if (arg >= argc) {
             printf("Out of filename arguments.\n");
-            return 1;
         }
         szFilename[idx] = argv[arg];
         fp[idx] = fopen(argv[arg], "r");
@@ -112,9 +93,33 @@ int main(int argc, char *argv[])
         }
     }
 
+    // do the close first, we still have one more argument to check
     for (int idx=0; idx<MAXCHANNELS; ++idx) {
         if (NULL != fp[idx]) {
             fclose(fp[idx]);
+            // don't clear it yet - we need it below
+        }
+    }
+
+    // check this before reporting on the load or renaming anything
+    if (arg >= argc) {
+        printf("Missing count argument.\n");
+        return 1;
+    }
+    // check it's meaningful
+    int newSize = atoi(argv[arg]);
+    if ((newSize < 2) || (newSize > 255)) {
+        // honestly, 255 is meaningless too, but whatever
+        printf("New size of %d is meaningless, must be 2-255\n", newSize);
+        return 1;
+    }
+    if (newSize >= 16) {
+        printf("Warning: New size greater than 16 will probably not impact final output.\n");
+    }
+
+    // do the renames
+    for (int idx=0; idx<MAXCHANNELS; ++idx) {
+        if (NULL != fp[idx]) {
             fp[idx] = NULL;
             // since we were successful, also rename the source files
             char buf[1024];
@@ -126,28 +131,36 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("Imported %d rows, scaling by %f\n", row, scale);
+    printf("Imported %d rows\n", row);
 
-    // we just apply the scale, however, we have a hard maximum count of 4095
-    // through much of the toolchain, so we'll still clip on that if we have to
-    // also warn on any counts that hit 0
+    // calculate a divider for the volume - we'll use floats
+    // I guess we might end up with off-by-ones in some cases,
+    // but it'll work well enough most of the time.
+    double volDivider = 255.0 / newSize;
+    // to avoid the integer rounding just making everything really quiet,
+    // also calculate a new multiplier
+    double volMultiplier = 255.0 / int(255.0 / volDivider);
     int clipped = 0;
-    int zeroed = 0;
+    int newVols = 0;
 
     for (int idx = 0; idx<row; ++idx) {
-        VGMDAT[0][idx] = int(VGMDAT[0][idx] * scale + 0.5);
-        if (VGMDAT[0][idx] == 0) {
-            ++zeroed;
-            // disallow 0
-            VGMDAT[0][idx] = 1;
-        } else if (VGMDAT[0][idx] > 0xfff) {
+        int newVol = int(int(VGMVOL[0][idx] / volDivider) * volMultiplier + 0.5);
+        VGMVOL[0][idx] = newVol;
+        if (VGMVOL[0][idx] > 255) {
             ++clipped;
-            VGMDAT[0][idx] = 0x3ff;
+            VGMVOL[0][idx] = 255;
         }
+        if (VGMVOL[0][idx] < 0) {
+            ++clipped;
+            VGMVOL[0][idx] = 0;
+        }
+        int t=0;
+        while ((t<idx)&&(VGMVOL[0][t]!=VGMVOL[0][idx])) ++t;
+        if (t>=idx) ++newVols;
     }
 
-    printf("%d notes clipped (lossy)\n", clipped);
-    printf("%d notes zeroed (lossy)\n", zeroed);
+    printf("%d volume levels in output\n", newVols);
+    printf("%d volumes clipped\n", clipped);
 
     // now we just have to spit the data back out to a new file
     FILE *fout = fopen(szFilename[0], "w");

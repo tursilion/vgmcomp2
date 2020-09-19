@@ -19,7 +19,7 @@ const char *szFilename[MAXCHANNELS];
 // for noise, mute can't be determined via frequency, only by volume
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Noise Merge Tool - v20200721\n\n");
+	printf("VGMComp2 Noise Merge Tool - v20200919\n\n");
 
     if (argc < 3) {
         printf("mergenoise <chan1> <chan2>\n");
@@ -31,6 +31,10 @@ int main(int argc, char *argv[])
     // check arguments
     int arg = 1;
     for (int idx=0; idx<MAXCHANNELS; ++idx) {
+        if (arg >= argc) {
+            printf("Out of filename arguments.\n");
+            return 1;
+        }
         szFilename[idx] = argv[arg];
         fp[idx] = fopen(argv[arg], "r");
         if (NULL == fp[idx]) {

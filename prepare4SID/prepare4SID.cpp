@@ -57,7 +57,7 @@ int mapVolume(int nTmp) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 SID Prep Tool - v20200720\n\n");
+	printf("VGMComp2 SID Prep Tool - v20200919\n\n");
 
     if (argc < 5) {
         printf("prepare4SID <tone1|noise1> <tone2|noise2> <tone3|noise3> <output>\n");
@@ -77,6 +77,10 @@ int main(int argc, char *argv[])
 
     // only /three/ channels on this chip!
     for (int idx=0; idx<3; ++idx) {
+        if (idx+arg >= argc) {
+            printf("Out of filename arguments.\n");
+            return 1;
+        }
         if ((argv[idx+arg][0]=='-')&&(argv[idx+arg][1]=='\0')) {
             printf("Channel %d free\n", idx);
             fp[idx] = NULL;
