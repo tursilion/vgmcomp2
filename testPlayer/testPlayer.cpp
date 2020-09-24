@@ -880,7 +880,7 @@ int main(int argc, char *argv[])
     int overrideDelay = 0;
     int sbfsong = 0;
 
-	printf("VGMComp Test Player - v20200919\n");
+	printf("VGMComp Test Player - v20200924\n");
 
 	if (argc < 2) {
 		printf("testPlayPSG [-ay|-sn|-sid] [-forcenoise x] [-sbfsong x] [-hidenotes] [-heatmap] [<file prefix> | <file.sbf> | <track1> <track2> ...]\n");
@@ -1163,6 +1163,11 @@ int main(int argc, char *argv[])
 
     // setup the sound system
     if (!sound_init(22050)) return 1;
+    // ask Windows for more resolution. It's weird that the sleep
+    // "just worked" for a year, though...
+    if (timeBeginPeriod(1) == TIMERR_NOCANDO) {
+        printf("Can't change timer interval, if slow, try setting an artificially faster HZ rate (like 70 or 80)\n");
+    }
 
     // set up the heatmap, if that's what we're doing
     HANDLE hConsole = INVALID_HANDLE_VALUE;
@@ -1309,6 +1314,7 @@ int main(int argc, char *argv[])
         CloseHandle(hConsole);
     }
 
+    timeEndPeriod(1);
     printf("** DONE **\n");
     return 0;
 }
