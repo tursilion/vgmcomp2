@@ -734,7 +734,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM NES - v20200716\n");
+	printf("Import VGM NES - v20200928\n");
 
 	if (argc < 2) {
 		printf("vgm_nes2psg [-q] [-d <n>] [-o <n>] [-add <n>] [-triangle <n>] [-enableperiodic] [-disabledmcvolhack] [-dmcnoise|-dmcnone] [-ignoreweird] <filename>\n");
@@ -989,7 +989,7 @@ int main(int argc, char* argv[])
                 {
 				    static bool warn = false;
 				    if (!warn) {
-					    printf("\rUnsupported chip PSG skipped\n");
+					    printf("\rUnsupported chip SN PSG skipped\n");
 					    warn = true;
 				    }
                 }
@@ -1870,8 +1870,8 @@ int main(int argc, char* argv[])
         }
 	}
 
-    // delete all old output files
-    {
+    // delete all old output files, unless -add was specified
+    if (addout == 0) {
         char strout[1024];
 
         // noises

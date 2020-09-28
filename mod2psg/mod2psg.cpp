@@ -228,7 +228,7 @@ int guessSNR(int sampnum, void *pSample, int len, int nFlags) {
 }
 
 int main(int argc, char *argv[]) {
-	printf("Import MOD tracker-style files - v20200730\n\n");
+	printf("Import MOD tracker-style files - v20200928\n\n");
 
     for (int idx=0; idx<MAX_INSTRUMENTS; ++idx) {
         insTune[idx] = 1.0;
@@ -819,8 +819,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // delete all old output files
-    {
+    // delete all old output files, unless -add was specified
+    if (addout == 0) {
         char strout[1024];
 
         // noises

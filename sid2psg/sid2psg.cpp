@@ -34,7 +34,7 @@ extern unsigned char memory[65536];         // C64 memory array
 extern unsigned char envcnt[9];             // per channel envelope level (0-256)
 
 int main(int argc, char *argv[]) {
-	printf("Import C64 SID files - v20200730\n\n");
+	printf("Import C64 SID files - v20200928\n\n");
 
 	if (argc < 2) {
 		printf("sid2psg [-q] [-d] [-o <n>] [-add <n>] [-speedscale <n>] [-subtune <n>] <-len <n>> <filename>\n");
@@ -237,8 +237,8 @@ int main(int argc, char *argv[]) {
         ++rows;
     }
 
-    // delete all old output files
-    {
+    // delete all old output files, unless -add was specified
+    if (addout == 0) {
         char strout[1024];
 
         // noises

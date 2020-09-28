@@ -395,7 +395,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import AY PSG - v20200716\n");
+	printf("Import AY PSG - v20200928\n");
 
 	if (argc < 2) {
 		printf("vgm_ay2psg [-q] [-d] [-o <n>] [-add <n>] [-noscalefreq] [-ignoreweird] <filename>\n");
@@ -1263,8 +1263,8 @@ int main(int argc, char* argv[])
 	}
 
 
-    // delete all old output files
-    {
+    // delete all old output files, unless -add was specified
+    if (addout == 0) {
         char strout[1024];
 
         // noises

@@ -279,7 +279,7 @@ double *wavread(const  char* name, int newFreq, int &samples) {
 }
 
 int main(int argc, char *argv[]) {
-	printf("Parse voice to PSG - v20200801\n\n");
+	printf("Parse voice to PSG - v20200928\n\n");
 
 	if (argc < 2) {
 		printf("voice2psg [-q] [-d] [-o <n>] [-add <n>] [-speedscale <n>] [-channels <n>] <filename>\n");
@@ -516,8 +516,8 @@ int main(int argc, char *argv[]) {
         printf("Warning: %d samples clipped - consider reducing volume\n", clipped);
     }
 
-    // delete all old output files
-    {
+    // delete all old output files, unless -add was specified
+    if (addout == 0) {
         char strout[1024];
 
         // noises

@@ -1,30 +1,30 @@
-/*
- * Copyright (C) 2017-2018 Alexey Khokholov (Nuke.YKT)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- *
- *
- *  Nuked OPN2(Yamaha YM3438) emulator.
- *  Thanks:
- *      Silicon Pr0n:
- *          Yamaha YM3438 decap and die shot(digshadow).
- *      OPLx decapsulated(Matthew Gambrell, Olli Niemitalo):
- *          OPL2 ROMs.
- *
- * version: 1.0.9
- */
+//
+// Copyright (C) 2017 Alexey Khokholov (Nuke.YKT)
+// 
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 2
+// of the License, or (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+//
+//
+//  Nuked OPN2(Yamaha YM3438) emulator.
+//  Thanks:
+//      Silicon Pr0n:
+//          Yamaha YM3438 decap and die shot(digshadow).
+//      OPLx decapsulated(Matthew Gambrell, Olli Niemitalo):
+//          OPL2 ROMs.
+//
+// version: 1.0.7
+//
 
 #ifndef YM3438_H
 #define YM3438_H
@@ -33,27 +33,36 @@
 extern "C" {
 #endif
 
+#define RSM_FRAC 10
+#define OPN_WRITEBUF_SIZE 2048
+#define OPN_WRITEBUF_DELAY 15
+
 enum {
-    ym3438_mode_ym2612 = 0x01,      /* Enables YM2612 emulation (MD1, MD2 VA2) */
-    ym3438_mode_readmode = 0x02     /* Enables status read on any port (TeraDrive, MD1 VA7, MD2, etc) */
+    ym3438_type_discrete = 0,   /* Discrete YM3438 (Teradrive)          */
+    ym3438_type_asic = 1,       /* ASIC YM3438 (MD1 VA7, MD2, MD3, etc) */
+    ym3438_type_ym2612 = 2,     /* YM2612 (MD1, MD2 VA2)                */
+    ym3438_type_ym2612_u = 3	/* YM2612 without lowpass filter 		*/
 };
 
-#include <stdint.h>
+typedef unsigned __int64    Bit64u;
+typedef __int64             Bit64s;
+typedef unsigned __int32    Bit32u;
+typedef __int32             Bit32s;
+typedef unsigned __int16    Bit16u;
+typedef __int16             Bit16s;
+typedef unsigned char       Bit8u;
+typedef signed char         Bit8s;
 
-typedef uintptr_t       Bitu;
-typedef intptr_t        Bits;
-typedef uint64_t        Bit64u;
-typedef int64_t         Bit64s;
-typedef uint32_t        Bit32u;
-typedef int32_t         Bit32s;
-typedef uint16_t        Bit16u;
-typedef int16_t         Bit16s;
-typedef uint8_t         Bit8u;
-typedef int8_t          Bit8s;
+typedef struct _opn2_writebuf {
+    Bit64u time;
+    Bit8u port;
+    Bit8u data;
+} opn2_writebuf;
 
 typedef struct
 {
     Bit32u cycles;
+    Bit32u slot;
     Bit32u channel;
     Bit16s mol, mor;
     /* IO */
@@ -66,7 +75,7 @@ typedef struct
     Bit8u write_busy_cnt;
     Bit8u write_fm_address;
     Bit8u write_fm_data;
-    Bit16u write_fm_mode_a;
+    Bit8u write_fm_mode_a;
     Bit16u address;
     Bit8u data;
     Bit8u pin_test_in;
@@ -125,6 +134,7 @@ typedef struct
     Bit16s fm_op2[6];
     Bit16s fm_out[24];
     Bit16u fm_mod[24];
+    int volumeout[24];      // added by Tursi to guesstimate final volume
     /* Channel */
     Bit16s ch_acc[6];
     Bit16s ch_out[6];
@@ -142,7 +152,7 @@ typedef struct
     Bit8u timer_a_load_latch;
     Bit8u timer_a_overflow_flag;
     Bit8u timer_a_overflow;
-
+    
     Bit16u timer_b_cnt;
     Bit8u timer_b_subcnt;
     Bit16u timer_b_reg;
@@ -153,7 +163,7 @@ typedef struct
     Bit8u timer_b_load_latch;
     Bit8u timer_b_overflow_flag;
     Bit8u timer_b_overflow;
-
+    
     /* Register set */
     Bit8u mode_test_21[8];
     Bit8u mode_test_2c[8];
@@ -165,7 +175,7 @@ typedef struct
     Bit8u mode_kon_csm;
     Bit8u dacen;
     Bit16s dacdata;
-
+    
     Bit8u ks[24];
     Bit8u ar[24];
     Bit8u sr[24];
@@ -177,7 +187,7 @@ typedef struct
     Bit8u am[24];
     Bit8u tl[24];
     Bit8u ssg_eg[24];
-
+    
     Bit16u fnum[6];
     Bit8u block[6];
     Bit8u kcode[6];
@@ -191,18 +201,37 @@ typedef struct
     Bit8u pan_l[6], pan_r[6];
     Bit8u ams[6];
     Bit8u pms[6];
-    Bit8u status;
-    Bit32u status_time;
+
+	Bit32u mute[7];
+	Bit32s rateratio;
+	Bit32s samplecnt;
+	Bit32s oldsamples[2];
+	Bit32s samples[2];
+
+    Bit64u writebuf_samplecnt;
+    Bit32u writebuf_cur;
+    Bit32u writebuf_last;
+    Bit64u writebuf_lasttime;
+    opn2_writebuf writebuf[OPN_WRITEBUF_SIZE];
 } ym3438_t;
 
-void OPN2_Reset(ym3438_t *chip);
+void OPN2_Reset(ym3438_t *chip, Bit32u rate, Bit32u clock);
 void OPN2_SetChipType(Bit32u type);
-void OPN2_Clock(ym3438_t *chip, Bit16s *buffer);
+void OPN2_Clock(ym3438_t *chip, Bit32s *buffer);
 void OPN2_Write(ym3438_t *chip, Bit32u port, Bit8u data);
 void OPN2_SetTestPin(ym3438_t *chip, Bit32u value);
 Bit32u OPN2_ReadTestPin(ym3438_t *chip);
 Bit32u OPN2_ReadIRQPin(ym3438_t *chip);
 Bit8u OPN2_Read(ym3438_t *chip, Bit32u port);
+void OPN2_WriteBuffered(ym3438_t *chip, Bit32u port, Bit8u data);
+void OPN2_GenerateStream(ym3438_t *chip, Bit16s *sndptr, Bit32u numsamples);
+void OPN2_SetOptions(Bit8u flags);
+void OPN2_SetMute(ym3438_t *chip, Bit32u mute);
+
+// added by tursi
+bool dacActive(ym3438_t *chip);   // return true if DAC mode is enabled
+int getFrequency(ym3438_t *chip, int ch);   // return a frequency
+int getVolume(ym3438_t *chip, int ch);      // return a volume
 
 #ifdef __cplusplus
 }

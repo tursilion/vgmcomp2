@@ -48,12 +48,14 @@ double freqClockScale = 1.0;                // doesn't affect noise channel, eve
 int nTicks;                                 // this MUST be a 32-bit int
 bool verbose = false;                       // emit more information
 bool debug = false;                         // dump parser data
+bool debug2 = false;                        // extra hidden debug info
 int output = 0;                             // which channel to output (0=all)
 int addout = 0;                             // fixed value to add to the output count
 unsigned char dataBank[65536];              // for PCM data
 unsigned int dataBankPtr = 0;               // current pointer into it
 unsigned int dataBankLen = 0;               // how much is stored
 int dacAvg = 0;                             // fake the DAC level on this side
+int dacAvgCnt = 0;                          // how many entries are in the dac
 
 // codes for noise processing (if not periodic, it's white noise)
 #define NOISE_MASK     0x00FFF
@@ -198,28 +200,97 @@ void runEmulation() {
     // and we need 1/60s.
     // nClock contains the master clock in Hz. Divide by 6 for internal clocks,
     // then divide by 60 for fraction.
-    Bit16s buffer[2];       // dummy output buffer for current levels
-    int cycles = int(nClock/6.0/60.0+0.5);
-    for (int idx=0; idx<cycles; ++idx) {
-        OPN2_Clock(&soundChip[0], buffer);
-        OPN2_Clock(&soundChip[1], buffer);
+    // we're running the wrapped OPN2 (see https://github.com/nukeykt/Nuked-OPN2/issues/4)
+    // at 44100, so 1/60th is 735 samples
+    const int numSamp = 735;
+    Bit16s buffer[2*numSamp];    // stereo output buffer for current levels - dumped with -dd
+
+    OPN2_GenerateStream(&soundChip[0], buffer, numSamp);
+    // log first sound chip
+    if (debug2) {
+        FILE *fp;
+        fp=fopen("sndout.raw", "ab");
+        if (NULL != fp) {
+            fwrite(buffer, 1, sizeof(buffer), fp);
+            fclose(fp);
+        }
+    }
+    // not logging second sound chip
+    OPN2_GenerateStream(&soundChip[1], buffer, numSamp);
+
+    if (verbose) {
+        static int cnt = 0;
+        ++cnt;
+        if (cnt >= 60) {
+            static int secs = 0;
+            cnt = 0;
+            ++secs;
+            printf("\r%d seconds...", secs);
+        }
     }
 
     // now we are supposed to fill in the nCurrentTone[] fields based on the
     // state of the chip
     // noise is somewhat easy - we are faking it on this side. Only chip 0 DAC
     // is supported in the VGMs.
-    if (somehow check if DAC 0 is active) {
-        nCurrentTone[13] = dacAvg;
-        if (dacAvg > 0) {
+    if (dacActive(&soundChip[0])) {
+        if (dacAvgCnt > 0) {
+            nCurrentTone[13] = int(dacAvg/dacAvgCnt+0.5);
+        }
+        if (nCurrentTone[13] > 0) {
             nCurrentTone[12] = 16;     // just any noise pitch
         }
+        // do NOT zero it here - we might get called twice in the 50hz case
     }
 
     // then get every channel's frequency
-
     // and current volume
+    for (int idx=0; idx<6; ++idx) {
+        int tmpTone = getFrequency(&soundChip[0], idx);
+        // this gives us a value from 0 (off, low) to 0x3ffff (high, but about 6655hz)
+        // according to https://web.archive.org/web/20191208145156/http://www.luxatom.com/md-fnum.html
+        // So YM2612 is roughly hz = cnt/39.389650
+        // SN count is 111860.8/hz
+        // So... 111860.8/(cnt/39.389650)
+        if (tmpTone == 0) {
+            nCurrentTone[idx*2+1] = 0;  // mute, but leave frequency the same
+        } else {
+            tmpTone = int(tmpTone * freqClockScale + 0.5);
+            nCurrentTone[idx*2] = int(111860.8 / (tmpTone/39.389650) + 0.5);
+            nCurrentTone[idx*2+1] = getVolume(&soundChip[0], idx);
 
+            // now, high frequencies should not be a problem, but low frequencies,
+            // yes. The YM can do down to about 0.02Hz, which is a count of about
+            // 4.4M. We can manage up to 4096 in this toolchain. Sooooo... clipping.
+            // Probably should be an option to mute.
+            if (nCurrentTone[idx*2] > 0xfff) {
+                static bool clipping = false;
+                if (!clipping) {
+                    printf("\nWarning: clipping bass outside of range.\n");
+                    clipping = true;
+                }
+                nCurrentTone[idx*2]=0xfff;
+            }
+        }
+
+        // second chip
+        tmpTone = getFrequency(&soundChip[1], idx);
+        if (tmpTone == 0) {
+            nCurrentTone[idx*2+14+1] = 0;  // mute, but leave frequency the same
+        } else {
+            tmpTone = int(tmpTone * freqClockScale + 0.5);
+            nCurrentTone[idx*2+14] = int(111860.8 / (tmpTone/39.389650) + 0.5);
+            nCurrentTone[idx*2+14+1] = getVolume(&soundChip[1], idx);
+            if (nCurrentTone[idx*2+14] > 0xfff) {
+                static bool clipping = false;
+                if (!clipping) {
+                    printf("\nWarning: clipping chip 2 bass outside of range.\n");
+                    clipping = true;
+                }
+                nCurrentTone[idx*2+14]=0xfff;
+            }
+        }
+    }
 
 }
 
@@ -242,8 +313,6 @@ bool outputData() {
 
     // now write the result into the current line of data
     for (int rows = 0; rows < rowsOut; ++rows) {
-        if (debug) printf("tick\n");
-
         // reload the work regs
         for (int idx=0; idx<MAXCHANNELS; ++idx) {
             nWork[idx] = nCurrentTone[idx];
@@ -295,13 +364,14 @@ bool outputData() {
         runEmulation();
     }
     dacAvg = 0;     // zeroed here in case we need it twice
+    dacAvgCnt = 0;
 
     return true;
 }
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM MD (MegaDrive/Genesis) - v20200926\n");
+	printf("Import VGM MD (MegaDrive/Genesis) - v20200928\n");
 
 	if (argc < 2) {
 		printf("vgm_gb2psg [-q] [-d] [-o <n>] [-add <n>] [-ignoreweird] <filename>\n");
@@ -321,6 +391,10 @@ int main(int argc, char* argv[])
 			verbose=false;
         } else if (0 == strcmp(argv[arg], "-d")) {
 			debug = true;
+        } else if (0 == strcmp(argv[arg], "-dd")) {
+			debug2 = true;
+            FILE *fp=fopen("sndout.raw", "wb");
+            if (NULL != fp) fclose(fp);
         } else if (0 == strcmp(argv[arg], "-add")) {
             if (arg+1 >= argc) {
                 printf("Not enough arguments for -add parameter.\n");
@@ -349,11 +423,6 @@ int main(int argc, char* argv[])
 		}
 		arg++;
 	}
-
-    // global variable init - see also the runEmulation code
-    OPN2_SetChipType(ym3438_mode_ym2612);   // global for all chips
-    OPN2_Reset(&soundChip[0]);
-    OPN2_Reset(&soundChip[1]);
 
 	{
 		FILE *fp=fopen(argv[arg], "rb");
@@ -440,11 +509,6 @@ int main(int argc, char* argv[])
 			    freqClockScale = 7670454.0/nClock;
 			    printf("\rUnusual YM2612 clock rate %dHz. Scale factor %f.\n", nClock, freqClockScale);
 		    }
-            // now adapt for the ratio between MD and PSG, which clocks at 3579545.0 Hz
-            // The PSG counts through a divide-by-32, giving it a count of 111860.8Hz.
-            // The YM2612 seems to have a divide by 6...??? I'm not entirely sure
-            // this is even how I'll extract frequency yet...
-            freqClockScale *= (3579545.0/32) / (7670454.0/6);
             if (debug) {
                 myprintf("\rPSG clock scale factor %f\n", freqClockScale);
             }
@@ -466,6 +530,13 @@ int main(int argc, char* argv[])
 			}
 		}
 		myprintf("Refresh rate %d Hz\n", nRate);
+
+        // set up the sound chip
+        OPN2_SetOptions(0);   // global for all chips, set to 2612 with filter
+        OPN2_SetMute(&soundChip[0], 0);
+        OPN2_SetMute(&soundChip[1], 0);
+        OPN2_Reset(&soundChip[0], 44100, nClock);
+        OPN2_Reset(&soundChip[1], 44100, nClock);
 
         // find the start of data
 		unsigned int nOffset=0x40;
@@ -499,7 +570,7 @@ int main(int argc, char* argv[])
                 {
 				    static bool warn = false;
 				    if (!warn) {
-					    printf("\rUnsupported chip PSG skipped\n");
+					    printf("\rUnsupported chip SN PSG skipped\n");
 					    warn = true;
 				    }
                 }
@@ -589,28 +660,28 @@ int main(int argc, char* argv[])
 
 			case 0x52:
                 // YM2612 port 0 (first 3 channels and globals)
-                OPN2_Write(&soundChip[0], 0, buffer[nOffset+1]);    // set address
-                OPN2_Write(&soundChip[0], 1, buffer[nOffset+2]);    // set data
+                OPN2_WriteBuffered(&soundChip[0], 0, buffer[nOffset+1]);    // set address
+                OPN2_WriteBuffered(&soundChip[0], 1, buffer[nOffset+2]);    // set data
                 nOffset+=3;
                 break;
 			case 0x53:
                 // YM2612 port 1 (second 3 channels)
-                OPN2_Write(&soundChip[0], 2, buffer[nOffset+1]);    // set address
-                OPN2_Write(&soundChip[0], 3, buffer[nOffset+2]);    // set data
+                OPN2_WriteBuffered(&soundChip[0], 2, buffer[nOffset+1]);    // set address
+                OPN2_WriteBuffered(&soundChip[0], 3, buffer[nOffset+2]);    // set data
                 nOffset+=3;
                 break;
 
             // second chip
             case 0xa2:
                 // YM2612 port 0 (first 3 channels and globals)
-                OPN2_Write(&soundChip[1], 0, buffer[nOffset+1]);    // set address
-                OPN2_Write(&soundChip[1], 1, buffer[nOffset+2]);    // set data
+                OPN2_WriteBuffered(&soundChip[1], 0, buffer[nOffset+1]);    // set address
+                OPN2_WriteBuffered(&soundChip[1], 1, buffer[nOffset+2]);    // set data
                 nOffset+=3;
                 break;
 			case 0xa3:
                 // YM2612 port 1 (second 3 channels)
-                OPN2_Write(&soundChip[1], 2, buffer[nOffset+1]);    // set address
-                OPN2_Write(&soundChip[1], 3, buffer[nOffset+2]);    // set data
+                OPN2_WriteBuffered(&soundChip[1], 2, buffer[nOffset+1]);    // set address
+                OPN2_WriteBuffered(&soundChip[1], 3, buffer[nOffset+2]);    // set data
                 nOffset+=3;
                 break;
 
@@ -764,10 +835,13 @@ int main(int argc, char* argv[])
                 // YM2612 DAC - write from data bank, then wait n samples
                 // first chip only!
                 // I'm not convinced DAC will do much any good with this...
-                OPN2_Write(&soundChip[0], 0, 0x2a); // set register address
-                // fake the dac level
-                dacAvg = (dacAvg + dataBank[dataBankPtr]) / 2;
-                OPN2_Write(&soundChip[0], 1, dataBank[dataBankPtr++]);  // set data
+                // fake the dac level, but only if it's actually meaningful
+                if (dacActive(&soundChip[0])) {
+                    dacAvg += dataBank[dataBankPtr];
+                    ++dacAvgCnt;
+                }
+                OPN2_WriteBuffered(&soundChip[0], 0, 0x2a); // set register address
+                OPN2_WriteBuffered(&soundChip[0], 1, dataBank[dataBankPtr++]);  // set data
                 if (dataBankPtr >= sizeof(dataBank)) {
                     printf("WARNING: PCM buffer exceeded\n");
                     dataBankPtr=0;
@@ -1078,7 +1152,7 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		myprintf("File %d parsed! Processed %d ticks (%f seconds)\n", 1, nTicks, (float)nTicks/60.0);
+		myprintf("\nFile %d parsed! Processed %d ticks (%f seconds)\n", 1, nTicks, (float)nTicks/60.0);
 
         // TODO: not certain this needs to be done here... depends on how I get the frequency...
 		if (scaleFreqClock) {
@@ -1104,8 +1178,12 @@ int main(int argc, char* argv[])
         }
 	}
     
-    // delete all old output files
-    {
+    if (verbose) {
+        printf("\n");
+    }
+
+    // delete all old output files, unless -add was specified
+    if (addout == 0) {
         char strout[1024];
 
         // noises

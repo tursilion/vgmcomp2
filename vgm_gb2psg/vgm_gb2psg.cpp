@@ -567,7 +567,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM DMG (Gameboy) - v20200716\n");
+	printf("Import VGM DMG (Gameboy) - v20200928\n");
 
 	if (argc < 2) {
 		printf("vgm_gb2psg [-q] [-d] [-o <n>] [-add <n>] [-wavenoise|-wavenone] [-enable7bitnoise] [-ignoreweird] <filename>\n");
@@ -785,7 +785,7 @@ int main(int argc, char* argv[])
                 {
 				    static bool warn = false;
 				    if (!warn) {
-					    printf("\rUnsupported chip PSG skipped\n");
+					    printf("\rUnsupported chip SN PSG skipped\n");
 					    warn = true;
 				    }
                 }
@@ -1692,8 +1692,8 @@ int main(int argc, char* argv[])
         }
 	}
     
-    // delete all old output files
-    {
+    // delete all old output files, unless -add was specified
+    if (addout == 0) {
         char strout[1024];
 
         // noises
