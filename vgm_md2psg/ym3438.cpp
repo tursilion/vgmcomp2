@@ -35,6 +35,9 @@
 #define FILTER_CUTOFF 0.512331301282628 // 5894Hz  single pole IIR low pass
 #define FILTER_CUTOFF_I (1-FILTER_CUTOFF)
 
+extern bool debug2;
+extern bool debug;
+
 enum {
     eg_num_attack = 0,
     eg_num_decay = 1,
@@ -187,16 +190,20 @@ static const Bit32u lfo_cycles[8] = {
 };
 
 /* FM algorithm */
+// Operator (0-3), as listed below, Algorithm (0-7) - return is whether it's actively considered
+// mod2's are OR'd together, mod1's are OR'd together, then mod1 is added to mod2
+// So, algo 0 is 1->2->3->4, so four operators, from each we take the first value.
+// Note: In most algorithm diagrams for the YM2612, operators 2 and 3 are swapped (sometimes?)
 static const Bit32u fm_algorithm[4][6][8] = {
-    {
-        { 1, 1, 1, 1, 1, 1, 1, 1 }, /* OP1_0         */
-        { 1, 1, 1, 1, 1, 1, 1, 1 }, /* OP1_1         */
-        { 0, 0, 0, 0, 0, 0, 0, 0 }, /* OP2           */
-        { 0, 0, 0, 0, 0, 0, 0, 0 }, /* Last operator */
-        { 0, 0, 0, 0, 0, 0, 0, 0 }, /* Last operator */
-        { 0, 0, 0, 0, 0, 0, 0, 1 }  /* Out           */
+    {   // operator 1
+        { 1, 1, 1, 1, 1, 1, 1, 1 }, /* OP1_0         */     // mod2 slot's fm_out during operator 0
+        { 1, 1, 1, 1, 1, 1, 1, 1 }, /* OP1_1         */     // mod1 slot's fm_out during last operator 0
+        { 0, 0, 0, 0, 0, 0, 0, 0 }, /* OP2           */     // mod1 slot's fm_out during operator 2
+        { 0, 0, 0, 0, 0, 0, 0, 0 }, /* Last operator */     // mod2 fm_out from previous operator
+        { 0, 0, 0, 0, 0, 0, 0, 0 }, /* Last operator */     // mod1 fm_out from previous operator
+        { 0, 0, 0, 0, 0, 0, 0, 1 }  /* Out           */     // add fm_slot from slot
     },
-    {
+    {   // operator 2
         { 0, 1, 0, 0, 0, 1, 0, 0 }, /* OP1_0         */
         { 0, 0, 0, 0, 0, 0, 0, 0 }, /* OP1_1         */
         { 1, 1, 1, 0, 0, 0, 0, 0 }, /* OP2           */
@@ -204,7 +211,7 @@ static const Bit32u fm_algorithm[4][6][8] = {
         { 0, 0, 0, 0, 0, 0, 0, 0 }, /* Last operator */
         { 0, 0, 0, 0, 0, 1, 1, 1 }  /* Out           */
     },
-    {
+    {   // operator 3
         { 0, 0, 0, 0, 0, 0, 0, 0 }, /* OP1_0         */
         { 0, 0, 0, 0, 0, 0, 0, 0 }, /* OP1_1         */
         { 0, 0, 0, 0, 0, 0, 0, 0 }, /* OP2           */
@@ -212,7 +219,7 @@ static const Bit32u fm_algorithm[4][6][8] = {
         { 0, 0, 0, 0, 0, 0, 0, 0 }, /* Last operator */
         { 0, 0, 0, 0, 1, 1, 1, 1 }  /* Out           */
     },
-    {
+    {   // operator 4
         { 0, 0, 1, 0, 0, 1, 0, 0 }, /* OP1_0         */
         { 0, 0, 0, 0, 0, 0, 0, 0 }, /* OP1_1         */
         { 0, 0, 0, 1, 0, 0, 0, 0 }, /* OP2           */
@@ -1001,7 +1008,9 @@ void OPN2_ChOutput(ym3438_t *chip)
         }
         else
         {
-            chip->mol = sign;
+            // Tursi says zero is 0
+            chip->mol = 0;
+//            chip->mol = sign;
         }
         if (chip->ch_lock_r && out_en)
         {
@@ -1009,7 +1018,9 @@ void OPN2_ChOutput(ym3438_t *chip)
         }
         else
         {
-            chip->mor = sign;
+            // Tursi says zero is 0
+            chip->mor = 0;
+//            chip->mor = sign;
         }
         /* Amplify signal */
         chip->mol *= 3;
@@ -1052,19 +1063,15 @@ void OPN2_FMGenerate(ym3438_t *chip)
         quarter = phase & 0xff;
     }
 
-    // tursi: copy of below code, but at max phase to calculate a volume level
-    level = logsinrom[0];   // loudest
-    /* Apply envelope */
-    level += chip->eg_out[slot] << 2;
-    /* Transform */
-    if (level > 0x1fff) {
-        level = 0x1fff;
+    // TURSI says, let's just always do it that way! We always take max value from the SIN table
+    // and so get a flat line.
+    if (debug2) {
+        // debug2 will log the actual tune to the sndout.raw
+        level = logsinrom[quarter];
+    } else {
+        // loudest, always.
+        level = logsinrom[0xff];
     }
-    output = ((exprom[(level & 0xff) ^ 0xff] | 0x400) << 2) >> (level >> 8);
-    chip->volumeout[slot] = output;
-    // back to your regularly scheduled program... above variables are all overwritten
-
-    level = logsinrom[quarter];
     /* Apply envelope */
     level += chip->eg_out[slot] << 2;
     /* Transform */
@@ -1073,7 +1080,7 @@ void OPN2_FMGenerate(ym3438_t *chip)
         level = 0x1fff;
     }
     output = ((exprom[(level & 0xff) ^ 0xff] | 0x400) << 2) >> (level >> 8);
-    if (phase & 0x200)
+    if ((phase & 0x200) && (!(debug||debug2)))
     {
         output = ((~output) ^ (chip->mode_test_21[4] << 13)) + 1;
     }
@@ -1229,6 +1236,11 @@ void OPN2_Reset(ym3438_t *chip, Bit32u rate, Bit32u clock)
     {
         chip->rateratio = rateratio;
     }
+
+    // added by Tursi
+    chip->cycles = 0;
+    chip->slot = chip->cycles;
+    chip->channel = chip->cycles % 6;
 }
 
 void OPN2_SetChipType(Bit32u type)
@@ -1311,6 +1323,7 @@ void OPN2_Clock(ym3438_t *chip, Bit32s *buffer)
 
     OPN2_DoIO(chip);
 
+// Tursi says we don't need the timers for VGM
 //    OPN2_DoTimerA(chip);
 //    OPN2_DoTimerB(chip);
     OPN2_KeyOn(chip);
@@ -1484,45 +1497,28 @@ void OPN2_GenerateResampled(ym3438_t *chip, Bit32s *buf)
 {
     Bit32u i;
     Bit32s buffer[2];
-    Bit32u mute;
     
+    // output volume per channel
+    chip->lastVolume[0] = 0;
+    chip->lastVolume[1] = 0;
+    chip->lastVolume[2] = 0;
+    chip->lastVolume[3] = 0;
+    chip->lastVolume[4] = 0;
+    chip->lastVolume[5] = 0;
+
     while (chip->samplecnt >= chip->rateratio)
     {
         chip->oldsamples[0] = chip->samples[0];
         chip->oldsamples[1] = chip->samples[1];
         chip->samples[0] = chip->samples[1] = 0;
+
+        // this runs all the chip state machine ONCE
         for (i = 0; i < 24; i++)
         {
-            switch (chip->cycles >> 2)
-            {
-            case 0: // Ch 2
-                mute = chip->mute[1];
-                break;
-            case 1: // Ch 6, DAC
-                mute = chip->mute[5 + chip->dacen];
-                break;
-            case 2: // Ch 4
-                mute = chip->mute[3];
-                break;
-            case 3: // Ch 1
-                mute = chip->mute[0];
-                break;
-            case 4: // Ch 5
-                mute = chip->mute[4];
-                break;
-            case 5: // Ch 3
-                mute = chip->mute[2];
-                break;
-            default:
-                mute = 0;
-                break;
-            }
+            // Tursi: I don't want mutes anyway
             OPN2_Clock(chip, buffer);
-            if (!mute)
-            {
-                chip->samples[0] += buffer[0];
-                chip->samples[1] += buffer[1];
-            }
+            chip->samples[0] += buffer[0];
+            chip->samples[1] += buffer[1];
 
             while (chip->writebuf[chip->writebuf_cur].time <= chip->writebuf_samplecnt)
             {
@@ -1549,6 +1545,14 @@ void OPN2_GenerateResampled(ym3438_t *chip, Bit32s *buf)
         }
         chip->samplecnt -= chip->rateratio;
     }
+
+    // get the per-channel output volume
+    // Pretty sure this is still wrong... but it's close enough for now...?
+    for (int ch=0; ch<6; ++ch) {
+        chip->lastVolume[ch] = chip->ch_out[ch];
+    }
+
+    // Interpolates the new sample
     buf[0] = (Bit32s)((chip->oldsamples[0] * (chip->rateratio - chip->samplecnt)
                      + chip->samples[0] * chip->samplecnt) / chip->rateratio);
     buf[1] = (Bit32s)((chip->oldsamples[1] * (chip->rateratio - chip->samplecnt)
@@ -1566,9 +1570,11 @@ void OPN2_GenerateStream(ym3438_t *chip, Bit16s *sndptr, Bit32u numsamples)
     for (i = 0; i < numsamples; i++)
     {
         OPN2_GenerateResampled(chip, buffer);
-        // Audio data seems to be 16 bit anyway (MAYBE 15 bit, but safer here)
-        *(sndptr++) = (buffer[0])&0xffff;
-        *(sndptr++) = (buffer[1])&0xffff;
+        if (NULL != sndptr) {
+            // Audio data seems to be 16 bit anyway (MAYBE 15 bit, but safer here)
+            *(sndptr++) = (buffer[0])&0xffff;
+            *(sndptr++) = (buffer[1])&0xffff;
+        }
     }
 }
 
@@ -1626,45 +1632,10 @@ int getFrequency(ym3438_t *chip, int ch) {
 }
 
 // return a volume
-int getVolume(ym3438_t *chip, int ch) {
-    int slot = ch*4;
-#if 0
-    switch (chip->connect[ch]&0x7) {
-    case 0:
-        return                                                                       chip->volumeout[slot+3];
-    case 1:
-        return                                                                       chip->volumeout[slot+3];
-    case 2:
-        return                                                                       chip->volumeout[slot+3];
-    case 3:
-        return                                                                       chip->volumeout[slot+3];
-    case 4:
-        return                       chip->volumeout[slot+1]                        +chip->volumeout[slot+3];
-    case 5:
-        return                       chip->volumeout[slot+1]+chip->volumeout[slot+2]+chip->volumeout[slot+3];
-    case 6:
-        return                       chip->volumeout[slot+1]+chip->volumeout[slot+2]+chip->volumeout[slot+3];
-    case 7:
-        return chip->volumeout[slot]+chip->volumeout[slot+1]+chip->volumeout[slot+2]+chip->volumeout[slot+3];
-    }
-    return 0;
-#else
-    // not sure why I need the *4 -- or if it's too much!
-    // TODO: this is clearly not close to right though - sometimes it's too loud, usually it's STILL too quiet.
-    // The above approach might be more correct if I can get the volumeout tuning itself correct.
-    int ret = (chip->volumeout[slot]+chip->volumeout[slot+1]+chip->volumeout[slot+2]+chip->volumeout[slot+3])*4;
-    if (ret > 0xff) {
-        printf("Warning: volume clipping\n");
-        return 0xff;
-    } else {
-        return ret;
-    }
-#endif
-
+int getVolume(ym3438_t *chip, int ch, double volScale) {
+    // should be able to just use lastVolume (I thought I knew the range, but I'm not sure...)
+    int x = chip->lastVolume[ch];
+    if (x < 0) x = -x;  // now unsigned, we want 8-bit
+    x = int(x*volScale);
+    return x;
 }
-
-// TODO: Not sure I even need to run the FM synth code - I'm just pulling the frequency from the user registers.
-// If I add my own handling for the LFO I can probably turf a lot of it for better performance. Still need the
-// envelope handling, but since I'm stripping out so much, I wonder whether a cheaper, less accurate YM emulator
-// might be suitable. I still need to spend some time to better understand what the output volume of a channel
-// is, assuming a maximum input, so I can generate my volumes better.

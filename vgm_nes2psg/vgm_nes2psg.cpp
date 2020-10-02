@@ -62,6 +62,7 @@ int waveMode = 0;                       // 0 - treat as tone, 1 - treat as noise
 bool scaleFreqClock = true;			    // apply scaling from APU clock rates (not an option here)
 bool ignoreWeird = false;               // ignore any other weirdness (like shift register)
 unsigned int nRate = 60;
+int samplesPerTick = 735;
 int triangleVolume = 8;                 // average volume output of the triangle channel
 
 // DMG emulation
@@ -734,7 +735,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM NES - v20200928\n");
+	printf("Import VGM NES - v20201001\n");
 
 	if (argc < 2) {
 		printf("vgm_nes2psg [-q] [-d <n>] [-o <n>] [-add <n>] [-triangle <n>] [-enableperiodic] [-disabledmcvolhack] [-dmcnoise|-dmcnone] [-ignoreweird] <filename>\n");
@@ -953,7 +954,10 @@ int main(int argc, char* argv[])
                 }
 			}
 		}
-		myprintf("Refresh rate %d Hz\n", nRate);
+        if (nRate != 60) {
+            samplesPerTick = int((double)samplesPerTick * ((double)60/nRate));
+        }
+		myprintf("Refresh rate %d Hz (%d samples per tick)\n", nRate, samplesPerTick);
 
         // shift register width is irrelevant
 
@@ -1000,20 +1004,20 @@ int main(int argc, char* argv[])
 				{
 					unsigned int nTmp=buffer[nOffset+1] | (buffer[nOffset+2]<<8);
 
-                    if (debug) printf("  DEBUG: delay %f frames\n", (float)nTmp/735.0);
+                    if (debug) printf("  DEBUG: delay %f frames\n", (float)nTmp/samplesPerTick);
 
 					// divide down from samples to ticks (either 735 for 60hz or 882 for 50hz)
-					if (nTmp % ((nRate==60)?735:882)) {
+					if (nTmp % samplesPerTick) {
 						if ((nRunningOffset == 0) && (!delaywarn)) {
-							printf("\rWarning: Delay time loses precision (total %d, remainder %d samples).\n", nTmp, nTmp % ((nRate==60)?735:882));
+							printf("\rWarning: Delay time loses precision (total %d, remainder %d samples).\n", nTmp, nTmp % samplesPerTick);
 							delaywarn=true;
 						}
 					}
 					{
 						// this is a crude way to do it - but if the VGM is consistent in its usage, it works
 						// (ie: Space Harrier Main BGM uses this for a faster playback rate, converts nicely)
-						int x = (nTmp+nRunningOffset)%((nRate==60)?735:882);
-						nTmp=(nTmp+nRunningOffset)/((nRate==60)?735:882);
+						int x = (nTmp+nRunningOffset)%samplesPerTick;
+						nTmp=(nTmp+nRunningOffset)/samplesPerTick;
 						nRunningOffset = x;
 					}
 					while (nTmp-- > 0) {
@@ -1061,8 +1065,8 @@ int main(int argc, char* argv[])
 			        }
                     if (debug) printf("  DEBUG: fine delay %d samples\n", cnt);
 			        nRunningOffset+=cnt;
-			        if (nRunningOffset > ((nRate==60)?735:882)) {
-				        nRunningOffset -= ((nRate==60)?735:882);
+			        if (nRunningOffset > samplesPerTick) {
+				        nRunningOffset -= samplesPerTick;
                         if (!outputData()) return -1;				
 			        }
 			        nOffset++;

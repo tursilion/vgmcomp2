@@ -97,6 +97,7 @@ int envDir[2] = {-1,-1};       // are we counting up or down? When we are at the
 bool scaleFreqClock = true;			    // apply scaling for unexpected clock rates
 bool ignoreWeird = false;               // ignore any other weirdness (like shift register)
 unsigned int nRate = 60;
+int samplesPerTick = 735;               // 44100/60
 
 // lookup table to map PSG volume to linear 8-bit. AY is assumed close enough.
 unsigned char volumeTable[16] = {
@@ -395,7 +396,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import AY PSG - v20200928\n");
+	printf("Import AY PSG - v20201001\n");
 
 	if (argc < 2) {
 		printf("vgm_ay2psg [-q] [-d] [-o <n>] [-add <n>] [-noscalefreq] [-ignoreweird] <filename>\n");
@@ -576,7 +577,10 @@ int main(int argc, char* argv[])
                 }
 			}
 		}
-		myprintf("Refresh rate %d Hz\n", nRate);
+        if (nRate != 60) {
+            samplesPerTick = int((double)samplesPerTick * ((double)60/nRate));
+        }
+		myprintf("Refresh rate %d Hz (%d samples per tick)\n", nRate, samplesPerTick);
 
         // find the start of data
 		unsigned int nOffset=0x40;
@@ -613,18 +617,18 @@ int main(int argc, char* argv[])
 			case 0x61:		// 16-bit wait value
 				{
 					unsigned int nTmp=buffer[nOffset+1] | (buffer[nOffset+2]<<8);
-					// divide down from samples to ticks (either 735 for 60hz or 882 for 50hz)
-					if (nTmp % ((nRate==60)?735:882)) {
+					// divide down from samples to ticks
+					if (nTmp % samplesPerTick) {
 						if ((nRunningOffset == 0) && (!delaywarn)) {
-							printf("\rWarning: Delay time loses precision (total %d, remainder %d samples).\n", nTmp, nTmp % ((nRate==60)?735:882));
+							printf("\rWarning: Delay time loses precision (total %d, remainder %d samples).\n", nTmp, nTmp % samplesPerTick);
 							delaywarn=true;
 						}
 					}
 					{
 						// this is a crude way to do it - but if the VGM is consistent in its usage, it works
 						// (ie: Space Harrier Main BGM uses this for a faster playback rate, converts nicely)
-						int x = (nTmp+nRunningOffset)%((nRate==60)?735:882);
-						nTmp=(nTmp+nRunningOffset)/((nRate==60)?735:882);
+						int x = (nTmp+nRunningOffset)%samplesPerTick;
+						nTmp=(nTmp+nRunningOffset)/samplesPerTick;
 						nRunningOffset = x;
 					}
 					while (nTmp-- > 0) {
@@ -667,8 +671,8 @@ int main(int argc, char* argv[])
 					printf("\rWarning: fine timing (%d samples) lost.\n", buffer[nOffset]-0x70+1);
 				}
 				nRunningOffset+=buffer[nOffset]-0x70+1;
-				if (nRunningOffset > ((nRate==60)?735:882)) {
-					nRunningOffset -= ((nRate==60)?735:882);
+				if (nRunningOffset > samplesPerTick) {
+					nRunningOffset -= samplesPerTick;
                     if (!outputData()) return -1;				
 				}
 				nOffset++;

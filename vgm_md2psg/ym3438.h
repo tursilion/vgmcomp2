@@ -213,6 +213,9 @@ typedef struct
     Bit32u writebuf_last;
     Bit64u writebuf_lasttime;
     opn2_writebuf writebuf[OPN_WRITEBUF_SIZE];
+
+    // tursi debug
+    int lastVolume[6];
 } ym3438_t;
 
 void OPN2_Reset(ym3438_t *chip, Bit32u rate, Bit32u clock);
@@ -231,7 +234,7 @@ void OPN2_SetMute(ym3438_t *chip, Bit32u mute);
 // added by tursi
 bool dacActive(ym3438_t *chip);   // return true if DAC mode is enabled
 int getFrequency(ym3438_t *chip, int ch);   // return a frequency
-int getVolume(ym3438_t *chip, int ch);      // return a volume
+int getVolume(ym3438_t *chip, int ch, double volScale);      // return a volume
 
 #ifdef __cplusplus
 }
