@@ -248,7 +248,7 @@ void runEmulation() {
             static int secs = 0;
             cnt = 0;
             ++secs;
-            printf("\r%d seconds...", secs);
+            if (verbose) printf("\r%d seconds...", secs);
         }
     }
 
