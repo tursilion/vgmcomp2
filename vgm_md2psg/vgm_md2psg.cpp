@@ -63,7 +63,6 @@ int dacAvgCnt = 0;                          // how many entries are in the dac
 double dacVol = 1.0;                        // DAC volume scale
 double fmVol = 1.1;                         // FM volume scale
 double snVol = 1.0;                         // SN PSG volume scale
-double speed = 1.0;                         // process speed, affects samples per frame
 
 // codes for noise processing (if not periodic (types 0-3), it's white noise (types 4-7))
 #define NOISE_MASK     0x00FFF
@@ -456,14 +455,13 @@ int main(int argc, char* argv[])
 	printf("Import VGM MD (MegaDrive/Genesis) - v20201002\n");
 
 	if (argc < 2) {
-		printf("vgm_md2psg [-q] [-d] [-o <n>] [-add <n>] [-ignoreweird] [-speedscale <n>] [-dacvol <n>]\n"
+		printf("vgm_md2psg [-q] [-d] [-o <n>] [-add <n>] [-ignoreweird] [-dacvol <n>]\n"
                "           [-fmvol <n>] [-snvol <n>] [-notunenoise] [-noscalefreq] <filename>\n");
 		printf(" -q - quieter verbose data\n");
         printf(" -d - enable parser debug output\n");
         printf(" -o <n> - output only channel <n> (1-5)\n");
         printf(" -add <n> - add 'n' to the output channel number (use for multiple chips, otherwise starts at zero)\n");
         printf(" -ignoreweird - ignore anything else unexpected and treat as default\n");
-        printf(" -speedscale <n> - modify speed (1.0=original, 1.1=faster, 0.9=slower)\n");
         printf(" -dacvol <n> - modify DAC volume (1.0=original, 1.1=louder, 0.9=softer, def=%lf)\n", dacVol);
         printf(" -fmvol <n> - modify FM volume (1.0=original, 1.1=louder, 0.9=softer, def=%lf)\n", fmVol);
         printf(" -snvol <n> - modify SN PSG volume (1.0=original, 1.1=louder, 0.9=softer, def=%lf)\n", snVol);
@@ -503,17 +501,6 @@ int main(int argc, char* argv[])
                 return -1;
             }
             printf("Output ONLY channel %d\n", output);
-        } else if (0 == strcmp(argv[arg], "-speedscale")) {
-            ++arg;
-            if (arg+1 >= argc) {
-                printf("Not enough arguments for 'speedscale' option\n");
-                return -1;
-            }
-            if (1 != sscanf(argv[arg], "%lf", &speed)) {
-                printf("Failed to parse speedscale\n");
-                return -1;
-            }
-            printf("Setting song speed scale to %lf\n", speed);
         } else if (0 == strcmp(argv[arg], "-dacvol")) {
             ++arg;
             if (arg+1 >= argc) {
