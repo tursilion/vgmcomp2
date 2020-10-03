@@ -1,7 +1,11 @@
 // vgm_md2psg.cpp : Defines the entry point for the console application.
 // This reads in a VGM file, and outputs raw 60hz streams for the
 // TI PSG sound chip. It will input MegaDrive (MD) YM2612 input streams, 
+#ifdef YM2612
+// and uses the GensKMod 2612 emulation
+#else
 // and uses the excellent Nuked-OPN2 to get an overkill amount of accuracy,
+#endif
 // which we then decimate to the output here. ;) It will grab both the YM
 // and the SN PSG at the same time to ensure synchronization. Only one
 // system is supported. ;)
@@ -26,12 +30,21 @@
 // Volume: 8-bit linear (NOT logarithmic) with 0 silent and 0xff loudest
 // Note that /either/ value can be -1 (integer), which means never set (these won't land in the stream though)
 
+// this actually matters - the library refers to YM2612, and we use it as a flag.
+// Even when we remove the flag, we should keep the define
+#define YM2612 soundChip
+
 #include <stdio.h>
 #include <stdarg.h>
 #define MINIZ_HEADER_FILE_ONLY
 #include "tinfl.c"						    // comes in as a header with the define above
 										    // here to allow us to read vgz files as vgm
+#ifdef YM2612
+#include "ym2612.h"
+#else
 #include "ym3438.h"
+#endif
+
 #define MAXTICKS 432000					    // about 2 hrs, but arbitrary
 
 // in general even channels are tone (or noise) and odd are volume
@@ -79,7 +92,11 @@ int samplesPerTick = 735;               // 44100 samples / 60 fps
 unsigned int nClock = 7670454;          // default Mega drive clock
 
 // YM emulation
+#ifdef YM2612
+ym2612_ soundChip;
+#else
 ym3438_t soundChip;
+#endif
 
 // lookup table to map PSG volume to linear 8-bit. AY is assumed close enough.
 unsigned char volumeTable[16] = {
@@ -218,8 +235,48 @@ void runEmulation() {
     // we're running the wrapped OPN2 (see https://github.com/nukeykt/Nuked-OPN2/issues/4)
     // at 44100, so 1/60th is 735 samples
     const int numSamp = samplesPerTick;
-    static Bit16s *buffer = NULL;   // stereo output buffer for current levels - dumped with -dd
+#ifdef YM2612
+    static int *buffer[2] = { NULL, NULL };   // stereo output buffer for current levels - dumped with -dd
 
+    if (NULL == buffer[0]) {
+        // left and right buffers
+        buffer[0] = (int*)malloc(numSamp*sizeof(int));
+        buffer[1] = (int*)malloc(numSamp*sizeof(int));
+        if ((NULL == buffer[0])||(NULL == buffer[1])) {
+            // print this in case it crashes or the user expected it
+            printf("Warning: failed to allocate debug sample buffer\n");
+        }
+    }
+    // Run the YM2612 emulator from Gens instead
+    // We have to zero the buffers because Gens builds the output
+    // directly on top of whatever is there. I suppose this is
+    // how it handles the mixing...?
+    memset(buffer[0], 0, numSamp*sizeof(int));
+    memset(buffer[1], 0, numSamp*sizeof(int));
+    YM2612_Update(buffer, numSamp);
+
+    // log first sound chip - need to interleave the channels and make 16-bit
+    if (debug2||debug) {
+        FILE *fp;
+        fp=fopen("sndout.raw", "ab");
+        if (NULL != fp) {
+            for (int idx=0; idx<numSamp; ++idx) {
+                int val = buffer[0][idx];
+                if (val < -0x7fff) val = -0x7fff;
+                if (val > 0x7fff) val = 0x7fff;
+                fwrite(&val, 2, 1, fp);  // little endian, so this works
+                val = buffer[1][idx];
+                if (val < -0x7fff) val = -0x7fff;
+                if (val > 0x7fff) val = 0x7fff;
+                fwrite(&val, 2, 1, fp);  // or so I say, we'll see. ;)
+            }
+            fclose(fp);
+        } else {
+            printf("** write fail\n");
+        }
+    }
+#else
+    static Bit16s *buffer = NULL;   // stereo output buffer for current levels - dumped with -dd
     if (NULL == buffer) {
         buffer = (Bit16s*)malloc(2*numSamp*sizeof(Bit16s));
         if (NULL == buffer) {
@@ -229,6 +286,7 @@ void runEmulation() {
     }
 
     OPN2_GenerateStream(&soundChip, buffer, numSamp);
+
     // log first sound chip
     if (debug2||debug) {
         FILE *fp;
@@ -240,6 +298,7 @@ void runEmulation() {
             printf("** write fail\n");
         }
     }
+#endif
 
     if (verbose) {
         static int cnt = 0;
@@ -716,9 +775,14 @@ int main(int argc, char* argv[])
 		}
 
         // set up the sound chip
+#ifdef YM2612
+        YM2612_Init(nClock, 44100, 0);  // sample at 44.1khz, no interpolation
+        YM2612_Reset();
+#else
         OPN2_SetOptions(0);   // global for all chips, set to 2612 with filter
         OPN2_SetMute(&soundChip, 0);
         OPN2_Reset(&soundChip, 44100, nClock);
+#endif
 
         // find the start of data
 		unsigned int nOffset=0x40;
@@ -766,8 +830,6 @@ int main(int argc, char* argv[])
 
 					// here's the good stuff!
 					unsigned char c = buffer[nOffset+1];
-
-                    if (debug) printf("[%d]=%02x ", chipoff, c);
 
 					if (c&0x80) {
 						// it's a command byte - update the byte data
@@ -917,14 +979,24 @@ int main(int argc, char* argv[])
 
 			case 0x52:
                 // YM2612 port 0 (first 3 channels and globals)
+#ifdef YM2612
+                YM2612_Write(0, buffer[nOffset+1]);     // set address
+                YM2612_Write(1, buffer[nOffset+2]);     // set data
+#else
                 OPN2_WriteBuffered(&soundChip, 0, buffer[nOffset+1]);    // set address
                 OPN2_WriteBuffered(&soundChip, 1, buffer[nOffset+2]);    // set data
+#endif
                 nOffset+=3;
                 break;
 			case 0x53:
                 // YM2612 port 1 (second 3 channels)
+#ifdef YM2612
+                YM2612_Write(2, buffer[nOffset+1]);     // set address
+                YM2612_Write(3, buffer[nOffset+2]);     // set data
+#else
                 OPN2_WriteBuffered(&soundChip, 2, buffer[nOffset+1]);    // set address
                 OPN2_WriteBuffered(&soundChip, 3, buffer[nOffset+2]);    // set data
+#endif
                 nOffset+=3;
                 break;
 
@@ -1105,8 +1177,13 @@ int main(int argc, char* argv[])
                         oldVal = val;
                     }
                 }
+#ifdef YM2612
+                YM2612_Write(0, 0x2a); // set register address
+                YM2612_Write(1, dataBank[dataBankPtr++]);  // set data
+#else
                 OPN2_WriteBuffered(&soundChip, 0, 0x2a); // set register address
                 OPN2_WriteBuffered(&soundChip, 1, dataBank[dataBankPtr++]);  // set data
+#endif
                 if (dataBankPtr >= sizeof(dataBank)) {
                     printf("WARNING: PCM buffer exceeded\n");
                     dataBankPtr=0;

@@ -152,7 +152,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="vgm_md2psg.cpp" />
-    <ClCompile Include="ym3438.cpp" />
+    <ClCompile Include="ym2612.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="LICENSE" />
@@ -161,7 +161,7 @@
     <Text Include="README_NukedOPN2.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ym3438.h" />
+    <ClInclude Include="ym2612.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

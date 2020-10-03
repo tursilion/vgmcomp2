@@ -8,6 +8,9 @@
     <Filter Include="Nuked-OPN2">
       <UniqueIdentifier>{140c8b40-69c0-4ed4-a500-9b73799ff870}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GensKMod">
+      <UniqueIdentifier>{b4c704a0-c243-4b64-a44b-ac145a88af0a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="crc.cpp">
@@ -19,8 +22,8 @@
     <ClCompile Include="vgm_md2psg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ym3438.cpp">
-      <Filter>Nuked-OPN2</Filter>
+    <ClCompile Include="ym2612.cpp">
+      <Filter>GensKMod</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -34,8 +37,8 @@
     </Text>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ym3438.h">
-      <Filter>Nuked-OPN2</Filter>
+    <ClInclude Include="ym2612.h">
+      <Filter>GensKMod</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

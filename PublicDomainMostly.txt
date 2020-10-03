@@ -28,6 +28,6 @@ Current Exceptions:
     voice2psg includes the GPLv3 library GIST, and therefore that application is under the GPLv3 license as well,
     because GPLv3 ensured that even libraries can dominate the application they are included in. 
 
-    vgm_md2psg uses the Nuked-OPN2 YM3438 emulator (CMOS variant of YM2612) by Nukeykt, and while this enforces
-    a GPLv2 license on this tool, I'm actually a bit less salty about it because it is such a wonderfully solid
-    emulator. It is, of course, somewhat modified for my uses here. https://github.com/nukeykt/Nuked-OPN2
+    vgm_md2psg uses the YM2612 emulator from Gens-Kmod, which enforces a GPLv2 license on this tool. It is, 
+    of course, somewhat modified for my uses here.
+
