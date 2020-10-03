@@ -155,13 +155,10 @@
     <ClCompile Include="ym2612.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="LICENSE" />
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="README_NukedOPN2.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="ym2612.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="LICENSE" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

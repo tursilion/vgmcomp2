@@ -854,6 +854,59 @@ void Env_Release_Next(slot_ *SL)
 	SL->Ecmp = ENV_END + 1;
 }
 
+// tursi's code to track some stats for volume scaling
+void doStats(int idx, channel_ *CH) {
+    static int max[8] = {0,0,0,0,0,0,0,0};
+    static int min[8] = {0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff};
+
+    if (debug) {
+        if (min[0]==0xffff) {
+            // load running stats, if present
+            FILE *fp=fopen("runningstats.txt", "r");
+            if (NULL != fp) {
+                for (int i=0; i<8; ++i) {
+                    fscanf(fp, "%d,%d", &min[i], &max[i]);
+                }
+                fclose(fp);
+            }
+        }
+        if (idx >= 0) {
+            if (CH->OUTd > max[idx]) max[idx]=CH->OUTd;
+            if (CH->OUTd < min[idx]) min[idx]=CH->OUTd;
+        } else {
+            // -1 means end of run, report stats
+            FILE *fp=fopen("runningstats.txt", "w");
+            if (NULL != fp) {
+                for (int i=0; i<8; ++i) {
+                    fprintf(fp, "%d,%d\n", min[i], max[i]);
+                    printf("ALGO %d: Min = 0x%04X, Max = 0x%04X\n", i, min[i], max[i]);
+                }
+                fclose(fp);
+            }
+            // in this case, also dump the SIN_TAB (well, part of it)
+            fp=fopen("sintab.txt", "w");
+            if (NULL != fp) {
+                // 4096 entries, and looks like up to 4096 envelope
+                // OUT_SHIFT is 14
+                printf("OUT_SHIFT is %d\n", OUT_SHIFT);
+                for (int en=0; en<4096; ++en) {
+                    if (en == 6) en=4091;
+                    fprintf(fp, "%4d: ", en);
+                    for (int i=0; i<5; ++i) {
+                        fprintf(fp, "%d,", SIN_TAB[i][en]>>OUT_SHIFT);
+                    }
+                    fprintf(fp, " ... ");
+                    for (int i=4091; i<4096; ++i) {
+                        fprintf(fp, "%d,", SIN_TAB[i][en]>>OUT_SHIFT);
+                    }
+                    fprintf(fp, "\n");
+                }
+                fclose(fp);
+            }
+        }
+    }
+}
+
 
 #define GET_CURRENT_PHASE	\
 in0 = CH->SLOT[S0].Fcnt;	\
@@ -988,31 +1041,31 @@ DO_FEEDBACK																	\
 in1 += CH->S0_OUT[1];														\
 in2 += SIN_TAB[(in1 >> SIN_LBITS) & SIN_MASK][en1];							\
 in3 += SIN_TAB[(in2 >> SIN_LBITS) & SIN_MASK][en2];							\
-CH->OUTd = (SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3]) >> OUT_SHIFT;
+CH->OUTd = (SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3]) >> OUT_SHIFT;  doStats(0,CH);
 
 #define DO_ALGO_1															\
 DO_FEEDBACK																	\
 in2 += CH->S0_OUT[1] + SIN_TAB[(in1 >> SIN_LBITS) & SIN_MASK][en1];			\
 in3 += SIN_TAB[(in2 >> SIN_LBITS) & SIN_MASK][en2];							\
-CH->OUTd = (SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3]) >> OUT_SHIFT;
+CH->OUTd = (SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3]) >> OUT_SHIFT;  doStats(1,CH);
 
 #define DO_ALGO_2															\
 DO_FEEDBACK																	\
 in2 += SIN_TAB[(in1 >> SIN_LBITS) & SIN_MASK][en1];							\
 in3 += CH->S0_OUT[1] + SIN_TAB[(in2 >> SIN_LBITS) & SIN_MASK][en2];			\
-CH->OUTd = (SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3]) >> OUT_SHIFT;
+CH->OUTd = (SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3]) >> OUT_SHIFT;  doStats(2,CH);
 
 #define DO_ALGO_3															\
 DO_FEEDBACK																	\
 in1 += CH->S0_OUT[1];														\
 in3 += SIN_TAB[(in1 >> SIN_LBITS) & SIN_MASK][en1] + SIN_TAB[(in2 >> SIN_LBITS) & SIN_MASK][en2];	\
-CH->OUTd = (SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3]) >> OUT_SHIFT;
+CH->OUTd = (SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3]) >> OUT_SHIFT;  doStats(3,CH);
 
 #define DO_ALGO_4															\
 DO_FEEDBACK																	\
 in1 += CH->S0_OUT[1];														\
 in3 += SIN_TAB[(in2 >> SIN_LBITS) & SIN_MASK][en2];							\
-CH->OUTd = ((int) SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3] + (int) SIN_TAB[(in1 >> SIN_LBITS) & SIN_MASK][en1]) >> OUT_SHIFT;	\
+CH->OUTd = ((int) SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3] + (int) SIN_TAB[(in1 >> SIN_LBITS) & SIN_MASK][en1]) >> OUT_SHIFT;  doStats(4,CH);	\
 DO_LIMIT
 
 #define DO_ALGO_5															\
@@ -1020,18 +1073,18 @@ DO_FEEDBACK																	\
 in1 += CH->S0_OUT[1];														\
 in2 += CH->S0_OUT[1];														\
 in3 += CH->S0_OUT[1];														\
-CH->OUTd = ((int) SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3] + (int) SIN_TAB[(in1 >> SIN_LBITS) & SIN_MASK][en1] + (int) SIN_TAB[(in2 >> SIN_LBITS) & SIN_MASK][en2]) >> OUT_SHIFT;	\
+CH->OUTd = ((int) SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3] + (int) SIN_TAB[(in1 >> SIN_LBITS) & SIN_MASK][en1] + (int) SIN_TAB[(in2 >> SIN_LBITS) & SIN_MASK][en2]) >> OUT_SHIFT;  doStats(5,CH);	\
 DO_LIMIT
 
 #define DO_ALGO_6															\
 DO_FEEDBACK																	\
 in1 += CH->S0_OUT[1];														\
-CH->OUTd = ((int) SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3] + (int) SIN_TAB[(in1 >> SIN_LBITS) & SIN_MASK][en1] + (int) SIN_TAB[(in2 >> SIN_LBITS) & SIN_MASK][en2]) >> OUT_SHIFT;	\
+CH->OUTd = ((int) SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3] + (int) SIN_TAB[(in1 >> SIN_LBITS) & SIN_MASK][en1] + (int) SIN_TAB[(in2 >> SIN_LBITS) & SIN_MASK][en2]) >> OUT_SHIFT;  doStats(6,CH);	\
 DO_LIMIT
 
 #define DO_ALGO_7															\
 DO_FEEDBACK																	\
-CH->OUTd = ((int) SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3] + (int) SIN_TAB[(in1 >> SIN_LBITS) & SIN_MASK][en1] + (int) SIN_TAB[(in2 >> SIN_LBITS) & SIN_MASK][en2] + CH->S0_OUT[1]) >> OUT_SHIFT;	\
+CH->OUTd = ((int) SIN_TAB[(in3 >> SIN_LBITS) & SIN_MASK][en3] + (int) SIN_TAB[(in1 >> SIN_LBITS) & SIN_MASK][en1] + (int) SIN_TAB[(in2 >> SIN_LBITS) & SIN_MASK][en2] + CH->S0_OUT[1]) >> OUT_SHIFT;  doStats(7,CH);	\
 DO_LIMIT
 
 
@@ -2645,12 +2698,23 @@ int dacActive(void *) {
 int getFrequency(void *, int ch) {
     return YM2612.CHANNEL[ch].FNUM[0] << YM2612.CHANNEL[ch].FOCT[0];    // 0-0x7ff, <<7 gives 0x3ffff
 }
-int getVolume(void *, int ch, double volScale) {
+int getVolume(void *, int ch, double volScale, bool noScaleAlgo) {
     // should be unsigned... should be 0-0x3fff
     static int max = 0; static int min=0;
+    static const int algoScale[8] = { 1, 1, 1, 1, 2, 3, 3, 4 };
     int ret = YM2612.CHANNEL[ch].OUTd;
+
+    // algorithms 4-7 can exceed the max of 0x3fff. In real life, this would rarely happen because
+    // you are mixing sine waves, but here we are adding flat lines, so it's very likely. This results
+    // in overly loud channels. So, depending on the algorithm, we do a very incorrect division.
+    // There's an option to prevent it.
+    if (!noScaleAlgo) {
+        ret /= algoScale[YM2612.CHANNEL[ch].ALGO&0x7];
+    }
+
     if ((debug)&&(ret > max)) { max=ret; printf("New volume max of 0x%04x\n", max); }
     if ((debug)&&(ret < min)) { min=ret; printf("New volume min of 0x%04x\n", min); }
+    
     ret = int(ret*volScale+0.5);
     if (ret < 0) ret = -ret;        // I don't expect this
     if (ret > 0x3fff) {
@@ -2661,6 +2725,7 @@ int getVolume(void *, int ch, double volScale) {
         }
         ret = 0x3fff; // or this, thus the above debug
     }
+    
     ret >>= 6;  // reclaim the top two bits
     return ret; // max of 0x3fff?
 }

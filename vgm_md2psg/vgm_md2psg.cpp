@@ -1,11 +1,7 @@
 // vgm_md2psg.cpp : Defines the entry point for the console application.
 // This reads in a VGM file, and outputs raw 60hz streams for the
 // TI PSG sound chip. It will input MegaDrive (MD) YM2612 input streams, 
-#ifdef YM2612
 // and uses the GensKMod 2612 emulation
-#else
-// and uses the excellent Nuked-OPN2 to get an overkill amount of accuracy,
-#endif
 // which we then decimate to the output here. ;) It will grab both the YM
 // and the SN PSG at the same time to ensure synchronization. Only one
 // system is supported. ;)
@@ -39,11 +35,8 @@
 #define MINIZ_HEADER_FILE_ONLY
 #include "tinfl.c"						    // comes in as a header with the define above
 										    // here to allow us to read vgz files as vgm
-#ifdef YM2612
 #include "ym2612.h"
-#else
-#include "ym3438.h"
-#endif
+extern void doStats(int idx, channel_ *CH);
 
 #define MAXTICKS 432000					    // about 2 hrs, but arbitrary
 
@@ -74,8 +67,9 @@ unsigned int dataBankLen = 0;               // how much is stored
 int dacAvg = 0;                             // fake the DAC level on this side
 int dacAvgCnt = 0;                          // how many entries are in the dac
 double dacVol = 1.0;                        // DAC volume scale
-double fmVol = 1.1;                         // FM volume scale
-double snVol = 1.0;                         // SN PSG volume scale
+double fmVol = 1.3;                         // FM volume scale
+double snVol = 0.57;                        // SN PSG volume scale
+bool noScaleAlgo = false;                   // don't scale volume by algorithm
 
 // codes for noise processing (if not periodic (types 0-3), it's white noise (types 4-7))
 #define NOISE_MASK     0x00FFF
@@ -92,11 +86,7 @@ int samplesPerTick = 735;               // 44100 samples / 60 fps
 unsigned int nClock = 7670454;          // default Mega drive clock
 
 // YM emulation
-#ifdef YM2612
 ym2612_ soundChip;
-#else
-ym3438_t soundChip;
-#endif
 
 // lookup table to map PSG volume to linear 8-bit. AY is assumed close enough.
 unsigned char volumeTable[16] = {
@@ -235,7 +225,6 @@ void runEmulation() {
     // we're running the wrapped OPN2 (see https://github.com/nukeykt/Nuked-OPN2/issues/4)
     // at 44100, so 1/60th is 735 samples
     const int numSamp = samplesPerTick;
-#ifdef YM2612
     static int *buffer[2] = { NULL, NULL };   // stereo output buffer for current levels - dumped with -dd
 
     if (NULL == buffer[0]) {
@@ -275,30 +264,6 @@ void runEmulation() {
             printf("** write fail\n");
         }
     }
-#else
-    static Bit16s *buffer = NULL;   // stereo output buffer for current levels - dumped with -dd
-    if (NULL == buffer) {
-        buffer = (Bit16s*)malloc(2*numSamp*sizeof(Bit16s));
-        if (NULL == buffer) {
-            // print this in case it crashes or the user expected it
-            printf("Warning: failed to allocate debug sample buffer\n");
-        }
-    }
-
-    OPN2_GenerateStream(&soundChip, buffer, numSamp);
-
-    // log first sound chip
-    if (debug2||debug) {
-        FILE *fp;
-        fp=fopen("sndout.raw", "ab");
-        if (NULL != fp) {
-            fwrite(buffer, 1, 2*numSamp*sizeof(Bit16s), fp);
-            fclose(fp);
-        } else {
-            printf("** write fail\n");
-        }
-    }
-#endif
 
     if (verbose) {
         static int cnt = 0;
@@ -354,7 +319,7 @@ void runEmulation() {
         } else {
             tmpTone = int(tmpTone * freqClockScale + 0.5);
             nCurrentTone[idx*2] = int(111860.8 / (tmpTone/39.389650) + 0.5);
-            nCurrentTone[idx*2+1] = getVolume(&soundChip, idx, fmVol);
+            nCurrentTone[idx*2+1] = getVolume(&soundChip, idx, fmVol, noScaleAlgo);
 
             // now, high frequencies should not be a problem, but low frequencies,
             // yes. The YM can do down to about 0.02Hz, which is a count of about
@@ -511,11 +476,11 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM MD (MegaDrive/Genesis) - v20201002\n");
+	printf("Import VGM MD (MegaDrive/Genesis) - v20201003\n");
 
 	if (argc < 2) {
-		printf("vgm_md2psg [-q] [-d] [-o <n>] [-add <n>] [-ignoreweird] [-dacvol <n>]\n"
-               "           [-fmvol <n>] [-snvol <n>] [-notunenoise] [-noscalefreq] <filename>\n");
+		printf("vgm_md2psg [-q] [-d] [-o <n>] [-add <n>] [-ignoreweird] [-dacvol <n>] [-fmvol <n>]\n"
+               "           [-snvol <n>] [-noscalealgo] [-notunenoise] [-noscalefreq] <filename>\n");
 		printf(" -q - quieter verbose data\n");
         printf(" -d - enable parser debug output\n");
         printf(" -o <n> - output only channel <n> (1-5)\n");
@@ -524,6 +489,7 @@ int main(int argc, char* argv[])
         printf(" -dacvol <n> - modify DAC volume (1.0=original, 1.1=louder, 0.9=softer, def=%lf)\n", dacVol);
         printf(" -fmvol <n> - modify FM volume (1.0=original, 1.1=louder, 0.9=softer, def=%lf)\n", fmVol);
         printf(" -snvol <n> - modify SN PSG volume (1.0=original, 1.1=louder, 0.9=softer, def=%lf)\n", snVol);
+        printf(" -noscalealgo - do not scale FM volume by algorithm\n");
 		printf(" -notunenoise - Do not retune SN for noise (normally autodetected)\n");
 		printf(" -noscalefreq - do not apply frequency scaling to SN if non-NTSC (normally automatic)\n");
 		printf(" <filename> - VGM file to read.\n");
@@ -593,6 +559,8 @@ int main(int argc, char* argv[])
                 return -1;
             }
             printf("Setting SN PSG volume scale to %lf\n", snVol);
+		} else if (0 == strcmp(argv[arg], "-noscalealgo")) {
+			noScaleAlgo=true;
 		} else if (0 == strcmp(argv[arg], "-notunenoise")) {
 			noTuneNoise=true;
 		} else if (0 == strcmp(argv[arg], "-noscalefreq")) {
@@ -775,14 +743,8 @@ int main(int argc, char* argv[])
 		}
 
         // set up the sound chip
-#ifdef YM2612
         YM2612_Init(nClock, 44100, 0);  // sample at 44.1khz, no interpolation
         YM2612_Reset();
-#else
-        OPN2_SetOptions(0);   // global for all chips, set to 2612 with filter
-        OPN2_SetMute(&soundChip, 0);
-        OPN2_Reset(&soundChip, 44100, nClock);
-#endif
 
         // find the start of data
 		unsigned int nOffset=0x40;
@@ -846,7 +808,15 @@ int main(int argc, char* argv[])
 						case 5:		// vol2
 						case 7:		// vol3
 							// single byte (nibble) values
-  							nCurrentTone[nCmd+chipoff]=volumeTable[c];
+  							nCurrentTone[nCmd+chipoff]=int(volumeTable[c]*snVol+0.5);
+                            if (nCurrentTone[nCmd+chipoff] > 0xff) {
+                                static bool warn = false;
+                                if (!warn) {
+                                    warn = true;
+                                    printf("SN volume clipping\n");
+                                    nCurrentTone[nCmd+chipoff]=0xff;
+                                }
+                            }
 							break;
 
 						case 6:		// noise
@@ -979,24 +949,14 @@ int main(int argc, char* argv[])
 
 			case 0x52:
                 // YM2612 port 0 (first 3 channels and globals)
-#ifdef YM2612
                 YM2612_Write(0, buffer[nOffset+1]);     // set address
                 YM2612_Write(1, buffer[nOffset+2]);     // set data
-#else
-                OPN2_WriteBuffered(&soundChip, 0, buffer[nOffset+1]);    // set address
-                OPN2_WriteBuffered(&soundChip, 1, buffer[nOffset+2]);    // set data
-#endif
                 nOffset+=3;
                 break;
 			case 0x53:
                 // YM2612 port 1 (second 3 channels)
-#ifdef YM2612
                 YM2612_Write(2, buffer[nOffset+1]);     // set address
                 YM2612_Write(3, buffer[nOffset+2]);     // set data
-#else
-                OPN2_WriteBuffered(&soundChip, 2, buffer[nOffset+1]);    // set address
-                OPN2_WriteBuffered(&soundChip, 3, buffer[nOffset+2]);    // set data
-#endif
                 nOffset+=3;
                 break;
 
@@ -1177,13 +1137,8 @@ int main(int argc, char* argv[])
                         oldVal = val;
                     }
                 }
-#ifdef YM2612
                 YM2612_Write(0, 0x2a); // set register address
                 YM2612_Write(1, dataBank[dataBankPtr++]);  // set data
-#else
-                OPN2_WriteBuffered(&soundChip, 0, 0x2a); // set register address
-                OPN2_WriteBuffered(&soundChip, 1, dataBank[dataBankPtr++]);  // set data
-#endif
                 if (dataBankPtr >= sizeof(dataBank)) {
                     printf("WARNING: PCM buffer exceeded\n");
                     dataBankPtr=0;
@@ -1578,6 +1533,11 @@ int main(int argc, char* argv[])
             // nuke it, if it exists
             remove(strout);
         }
+    }
+
+    if (debug) {
+        // report the algorithm volume stats
+        doStats(-1, NULL);
     }
 
     // data is entirely stored in VGMStream[ch][tick]

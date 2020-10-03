@@ -164,6 +164,6 @@ void Env_NULL_Next(slot_ *SL);
 // added by tursi - chip inputs are compatibility with the YM3438 core and aren't used
 int dacActive(void *chip);                             // return true if DAC mode is enabled
 int getFrequency(void *chip, int ch);                   // return a frequency
-int getVolume(void *chip, int ch, double volScale);     // return a volume
+int getVolume(void *chip, int ch, double volScale, bool noScaleAlgo);     // return a volume
 
 #endif
