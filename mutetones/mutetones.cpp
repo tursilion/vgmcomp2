@@ -23,12 +23,11 @@ int maxNote = 0;
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Tone Muting Tool - v20200924\n\n");
+	printf("VGMComp2 Tone Muting Tool - v20201004\n\n");
 
     if (argc < 2) {
         printf("mutetones (-SN|-AY|-SID) <channel input>\n");
-        printf("Based on the specified output chip, mutes any out-of-range\n");
-        printf("tones to the minimum or maximum permitted.\n");
+        printf("Based on the specified output chip, mutes any out-of-range tones.\n");
         printf("Original file is renamed to " RENAME "\n");
         return 1;
     }

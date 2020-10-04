@@ -22,9 +22,8 @@ const char *szFilename[MAXCHANNELS];
 
 // return true if the channel is muted (by frequency or by volume)
 // We cut off at a frequency count of 7, which is roughly 16khz.
-// The volume table at this point has been adjusted to the TI volume values
 bool muted(int ch, int row) {
-    if ((VGMDAT[ch][row] <= 7) || (VGMVOL[ch][row] == 0xf)) {
+    if ((VGMDAT[ch][row] <= 7) || (VGMVOL[ch][row] == 0)) {
         return true;
     }
     return false;
@@ -32,7 +31,7 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Arpeggio Tool - v20200919\n\n");
+	printf("VGMComp2 Arpeggio Tool - v20201005\n\n");
 
     if (argc < 3) {
         printf("arptones <chan1> <chan2>\n");

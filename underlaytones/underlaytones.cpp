@@ -1,5 +1,5 @@
-// cleardupes.cpp : Defines the entry point for the console application.
-// clear duplicate notes from two channels
+// underlaytones.cpp : Defines the entry point for the console application.
+// merge a channel into another, but only when that channel is silent
 
 #include "stdafx.h"
 #include <stdio.h>
@@ -13,7 +13,11 @@ int VGMVOL[MAXCHANNELS][MAXTICKS];
 FILE *fp[MAXCHANNELS];
 const char *szFilename[MAXCHANNELS];
 
-#define RENAME ".dupes.old"
+#define RENAME ".underlay.old"
+
+// codes for noise processing (if not periodic (types 0-3), it's white noise (types 4-7))
+// only NOISE_TRIGGER makes it to the output file
+#define NOISE_TRIGGER  0x10000
 
 // return true if the channel is muted (by frequency or by volume)
 // We cut off at a frequency count of 7, which is roughly 16khz.
@@ -26,12 +30,11 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Duplicates Tool - v20201005\n\n");
+	printf("VGMComp2 Underlay Tool - v20201005\n\n");
 
     if (argc < 3) {
-        printf("cleardupes <chan1> <chan2>\n");
-        printf("Mutes channel 2 any time both channels have the same note.\n");
-        printf("If chan2 was louder, its volume is transfered to chan1.\n");
+        printf("underlay <chan1> <chan2>\n");
+        printf("Merges chan2 into chan1, but chan1 always gets priority.\n");
         printf("Original files are renamed to " RENAME "\n");
         return 1;
     }
@@ -102,39 +105,41 @@ int main(int argc, char *argv[])
 
     printf("Imported %d rows\n", row);
 
-    // handle the duplicate check
-    int chan2mutes = 0;
-    int chan1vols = 0;
+    // merge the second channel into the first one, then output that
+    // to the output file. First channel /always/ gets priority.
+    int movedNotes = 0;
+    int lostNotes = 0;
 
     for (int idx = 0; idx<row; ++idx) {
-        if (VGMDAT[0][idx] == VGMDAT[1][idx]) {
-            // notes are the same, check volume only
-            if (VGMVOL[1][idx] > VGMVOL[0][idx]) {
+        if (!muted(1,idx)) {
+            if (muted(0,idx)) {
+                // go ahead and move it
+                ++movedNotes;
+                // copy channel 2 to channel 1
                 VGMVOL[0][idx] = VGMVOL[1][idx];
-                ++chan1vols;
+                VGMDAT[0][idx] = VGMDAT[1][idx];
+            } else {
+                // can't move it, it's lost
+                ++lostNotes;
             }
-            VGMVOL[1][idx]=0;
-            ++chan2mutes;
         }
     }
 
-    printf("%d volume updates to channel 1\n", chan1vols);
-    printf("%d mutes on channel 2\n", chan2mutes);
+    printf("%d tones moved   (non-lossy)\n", movedNotes);
+    printf("%d tones lost    (lossy)\n", lostNotes);
 
-    // now we just have to spit the data back out to new files
-    for (int idx=0; idx<MAXCHANNELS; ++idx) {
-        FILE *fout = fopen(szFilename[idx], "w");
-        if (NULL == fout) {
-            printf("Failed to open output file '%s', err %d\n", szFilename[idx], errno);
-            return 1;
-        }
-        printf("Writing: %s\n", szFilename[idx]);
-
-        for (int r=0; r<row; ++r) {
-            fprintf(fout, "0x%08X,0x%02X\n", VGMDAT[idx][r], VGMVOL[idx][r]);
-        }
-        fclose(fout);
+    // now we just have to spit the data back out to a new file
+    FILE *fout = fopen(szFilename[0], "w");
+    if (NULL == fout) {
+        printf("Failed to open output file '%s', err %d\n", szFilename[0], errno);
+        return 1;
     }
+    printf("Writing: %s\n", szFilename[0]);
+
+    for (int idx=0; idx<row; ++idx) {
+        fprintf(fout, "0x%08X,0x%02X\n", VGMDAT[0][idx], VGMVOL[0][idx]);
+    }
+    fclose(fout);
 
     printf("** DONE **\n");
     

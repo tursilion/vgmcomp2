@@ -257,6 +257,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mutetones", "mutetones\mute
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vgm_md2psg", "vgm_md2psg\vgm_md2psg.vcxproj", "{D0A45F1A-92D0-4610-9CDC-15C011731651}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "underlaytones", "underlaytones\underlaytones.vcxproj", "{73109007-B403-4B80-BDB4-18198DB030FC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -533,6 +535,14 @@ Global
 		{D0A45F1A-92D0-4610-9CDC-15C011731651}.Release|Win32.Build.0 = Release|Win32
 		{D0A45F1A-92D0-4610-9CDC-15C011731651}.Release|x64.ActiveCfg = Release|x64
 		{D0A45F1A-92D0-4610-9CDC-15C011731651}.Release|x64.Build.0 = Release|x64
+		{73109007-B403-4B80-BDB4-18198DB030FC}.Debug|Win32.ActiveCfg = Debug|Win32
+		{73109007-B403-4B80-BDB4-18198DB030FC}.Debug|Win32.Build.0 = Debug|Win32
+		{73109007-B403-4B80-BDB4-18198DB030FC}.Debug|x64.ActiveCfg = Debug|x64
+		{73109007-B403-4B80-BDB4-18198DB030FC}.Debug|x64.Build.0 = Debug|x64
+		{73109007-B403-4B80-BDB4-18198DB030FC}.Release|Win32.ActiveCfg = Release|Win32
+		{73109007-B403-4B80-BDB4-18198DB030FC}.Release|Win32.Build.0 = Release|Win32
+		{73109007-B403-4B80-BDB4-18198DB030FC}.Release|x64.ActiveCfg = Release|x64
+		{73109007-B403-4B80-BDB4-18198DB030FC}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -583,6 +593,7 @@ Global
 		{EAC1F64C-E88E-464F-A955-9ADDA19DFBC5} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 		{B25D00A7-A1C9-4DAA-8646-7CF672259312} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 		{D0A45F1A-92D0-4610-9CDC-15C011731651} = {C61D286B-17D5-4238-AB62-DF4DF9865169}
+		{73109007-B403-4B80-BDB4-18198DB030FC} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}
