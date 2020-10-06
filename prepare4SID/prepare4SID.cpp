@@ -57,7 +57,7 @@ int mapVolume(int nTmp) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 SID Prep Tool - v20200919\n\n");
+	printf("VGMComp2 SID Prep Tool - v20201006\n\n");
 
     if (argc < 5) {
         printf("prepare4SID <tone1|noise1> <tone2|noise2> <tone3|noise3> <output>\n");
@@ -143,6 +143,20 @@ int main(int argc, char *argv[])
     }
 
     printf("Imported %d rows\n", row);
+
+    // to improve compression, pre-process the channel, and any volume muted channels,
+    // make sure they are the same frequency as the channel above them.
+    int mutemaps = 0;
+    for (int idx=1; idx<row; ++idx) {   // start at 1
+        for (int ch=0; ch<3; ++ch) {
+            if (VGMVOL[ch][idx] == 0) {   // NOT converted yet
+                if (VGMDAT[ch][idx-1] != VGMDAT[ch][idx]) {
+                    ++mutemaps;
+                    VGMDAT[ch][idx] = VGMDAT[ch][idx-1];
+                }
+            }
+        }
+    }
 
     // pass through each imported row. The SID supports 16-bit shift
     // rates, so we low frequency is not a problem (although,

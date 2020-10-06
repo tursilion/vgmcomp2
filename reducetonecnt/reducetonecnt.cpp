@@ -239,6 +239,10 @@ int main(int argc, char *argv[])
             return -1;
         }
     }
+    if (chancnt < 1) {
+        printf("No channels found!\n");
+        return -1;
+    }
 
     if (clips > 0) {
         printf("Warning: %d notes clipped (>0xfff)\n", clips);

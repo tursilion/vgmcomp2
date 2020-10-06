@@ -66,7 +66,7 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 PSG Prep Tool - v20200919\n\n");
+	printf("VGMComp2 PSG Prep Tool - v20201006\n\n");
 
     if (argc < 6) {
         printf("prepare4SN <tone1> <tone2> <tone3> <noise> <output>\n");
@@ -158,6 +158,20 @@ int main(int argc, char *argv[])
     int noisesMapped = 0;
     int tonesMoved = 0;
     int tonesClipped = 0;
+
+    // to improve compression, pre-process the channel, and any volume muted channels,
+    // make sure they are the same frequency as the channel above them
+    int mutemaps = 0;
+    for (int idx=1; idx<row; ++idx) {   // start at 1
+        for (int ch=0; ch<4; ++ch) {
+            if (VGMVOL[ch][idx] == 0) {   // NOT converted yet
+                if (VGMDAT[ch][idx-1] != VGMDAT[ch][idx]) {
+                    ++mutemaps;
+                    VGMDAT[ch][idx] = VGMDAT[ch][idx-1];
+                }
+            }
+        }
+    }
 
     for (int idx = 0; idx<row; ++idx) {
         // the volume is easy
@@ -258,6 +272,7 @@ int main(int argc, char *argv[])
 
     printf("%d custom noises (non-lossy)\n", customNoises);
     printf("%d tones moved   (non-lossy)\n", tonesMoved);
+    printf("%d mutes mapped  (non-lossy)\n", mutemaps);
     printf("%d tones clipped (lossy)\n", tonesClipped);
     printf("%d noises mapped (lossy)\n", noisesMapped);
 
