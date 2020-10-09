@@ -36,7 +36,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CPlayer", "CPlayer", "{009F
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LICENSE", "LICENSE", "{8F2A78CE-93B2-45DB-964B-40991EEAD2DC}"
 	ProjectSection(SolutionItems) = preProject
-		PublicDomainMostly.txt = PublicDomainMostly.txt
+		dist\PublicDomainMostly.txt = dist\PublicDomainMostly.txt
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prepare4AY", "prepare4AY\prepare4AY.vcxproj", "{066D0D1B-F97E-424E-910A-58E8D5587935}"
