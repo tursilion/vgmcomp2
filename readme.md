@@ -1,14 +1,32 @@
-This repo is NOT ready for prime-time yet, but I'm actively working on it. I'm NOT accepting patches - wait till I'm done.
+This depot is not guaranteed to build at any given time - it's my bleeding edge repository.
 
-You will find EXEs in the "dist" folder for Windows.
+VGMComp2 20201009
+=================
 
-Docs are in progress, but basic flow:
+This is a tool suite for converting and editting music for the SN76489 and compatible sound chips. It does NOT include a tracker, but rather seeks to be able to adapt music from other trackers for use.
 
-- use vgm_id to determine what chips are in your VGM file. Support now for AY8910, Gameboy DMG, NES, Pokey, and PSG (which is native to us!)
-- run vgm_XXX2psg on your file (where XXX is the desired chip to extract) to get PSG compatible tracks
-- run prepare4PSG and pass in three tone channels and one noise to prepare for PSG compression. Note at the moment there are no tools to merge tracks or convert invalid data - those are coming.
-- run vgmcomp2 on the prepared file to compress. Multiple songs can be passed to pack into a single shared file.
+Currently, imports are available for VGM (SN PSG, AY-8910 PSG, Gameboy DMG, MegaDrive/Genesis YM2612, NES APU, and Pokey), MOD files (many formats), and SID files (with varying degrees of success). The output of the importer is a set of text files containing frequency and volume data, which is designed to be easily manipulated. Almost 40 tools for manipulating the data is provided.
 
-At any point in the process you can run testPlayPSG and pass it any number of tracks or even prepared PSG files, and it will play them more or less as the output would sound in that state. It is not limited to the restrictions of the PSG, you can have 8 tone channels or 4 noise channels or even both, if you have the source files.
+Limited support for playing back the data on the AY-3-8910 and the Commodore SID is also available.
 
-Each tool outputs command line help if run with no arguments. Only psg2psg is going to sound exactly correct.
+Finally, a compression tool and playback library is provided for the final audio data. A PC reference library is provided, as well as optimized libraries for the TI-99/4A and ColecoVision.
+
+Full source code for all tools is provided. Where not prevented by GPL2 tools, all other code is Public Domain and free for your own use, completely unencumbered. See [PublicDomainMostly.txt](https://github.com/tursilion/vgmcomp2/raw/master/dist/PublicDomainMostly.txt)
+
+Download the latest release zip here:
+[https://github.com/tursilion/vgmcomp2/raw/master/dist/VGMComp2.zip](https://github.com/tursilion/vgmcomp2/raw/master/dist/VGMComp2.zip)
+
+You can also view the [Documentation](https://github.com/tursilion/vgmcomp2/raw/master/dist/VGMComp2.pdf)
+
+Here are some example videos:
+- NES source: [https://lbry.tv/@tursilion:1/2020-05-31-03-45-19:9](https://lbry.tv/@tursilion:1/2020-05-31-03-45-19:9)
+- MOD source: [https://lbry.tv/@tursilion:1/2020-07-21-02-06-47:e](https://lbry.tv/@tursilion:1/2020-07-21-02-06-47:e)
+- Genesis Source: [https://lbry.tv/@tursilion:1/VgmComp2---Sega-Genesis-to-SN-Example:f](https://lbry.tv/@tursilion:1/VgmComp2---Sega-Genesis-to-SN-Example:f)
+
+Review commit history here: [https://github.com/tursilion/vgmcomp2/commits/master](https://github.com/tursilion/vgmcomp2/commits/master)
+
+Want to donate?
+---------------
+
+- Click here for [Ko-Fi](https://ko-fi.com/tursilion)...
+- Alternately, there's my [Amazon Wishlist](https://www.amazon.ca/gp/registry/wishlist/ref=cm_wl_your_lists)
