@@ -1,6 +1,6 @@
 This depot is not guaranteed to build at any given time - it's my bleeding edge repository.
 
-VGMComp2 20201009
+VGMComp2 20201125
 =================
 
 This is a tool suite for converting and editting music for the SN76489 and compatible sound chips. It does NOT include a tracker, but rather seeks to be able to adapt music from other trackers for use.
