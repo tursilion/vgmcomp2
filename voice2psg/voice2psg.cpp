@@ -15,9 +15,11 @@
 #include "Gist/gist.h"
 
 #define MAXTICKS 432000					    // about 2 hrs, but arbitrary
-#define MAX_CHANNELS 16                     // up to 6 voice channels (two chips) plus one noise
+#define MAX_CHANNELS 32                     // normally up to 6 voice channels (two chips) plus one noise, but experimenting with more
+                                            // sounds very recognizable at 12, not much improvement after 24. Gets softer with more channels.
+                                            // Even 6 is not bad, though subtitles would be a good idea.
 
-bool verbose = false;                       // emit more information
+bool verbose = true;                        // emit more information
 bool debug = false;                         // dump parser data
 bool debug2 = false;                        // dump per row data
 int output = 0;                             // which channel to output (0=all)
@@ -27,13 +29,14 @@ int outTone[MAX_CHANNELS][MAXTICKS];        // tone and volume for the song - la
 int outVol[MAX_CHANNELS][MAXTICKS];
 double songSpeedScale = 1.0;                // changes the samples per frame to adjust speed
 int sampleRate = 44100;
-int maxFreq = 22050;                        // maximum frequency to search for
+int maxFreq = 4000;                         // maximum frequency to search for (4000hz for 8khz sample rate - telephone quality)
 double volumeScale = 4.0;                   // default volume scale used during energy conversion
 
 // returns a vector of doubles for the samples (-1 to +1)
 // wave is converted from 8 or 16 bit to floating point, and from stereo to mono
 // Unlike the matlab version, we'll do the resample at the same time, since
 // that will save a copy or two. So you know the return type and frequency.
+// After resampling, we maximize the volume before finally returning.
 // returns empty vector on failure
 double *wavread(const  char* name, int newFreq, int &samples) {
 	unsigned char buf[512];
@@ -231,7 +234,9 @@ double *wavread(const  char* name, int newFreq, int &samples) {
     free(tmpBuf);
 
     // one more pass - amplify as loud as possible
-    loudest = 1.0/loudest;
+    // we want to over-amplify a little, the clipping doesn't
+    // seem to hurt the result too badly
+    loudest = 1.2/loudest;      // instead of 1.0
 
     if (debug2) {
         printf("Input volume scale: %lf\n", loudest);
@@ -279,7 +284,7 @@ double *wavread(const  char* name, int newFreq, int &samples) {
 }
 
 int main(int argc, char *argv[]) {
-	printf("Parse voice to PSG - v20200928\n\n");
+	printf("Parse voice to PSG - v20201125\n\n");
 
 	if (argc < 2) {
 		printf("voice2psg [-q] [-d] [-o <n>] [-add <n>] [-speedscale <n>] [-channels <n>] <filename>\n");
@@ -290,7 +295,7 @@ int main(int argc, char *argv[]) {
         printf(" -speedscale <float> - scale sample rate by float (1.0 = no change, 1.1=10%% faster, 0.9=10%% slower)\n");
         printf(" -volume <float> - scale volume by float (4.0 = default, 4.1=louder, 3.9=quieter)\n");
         printf(" -channels <n> - number of channels to create (1-6, default 3)\n");
-        printf(" -maxfreq <n> - maximum frequency to search for (default 22050)\n");
+        printf(" -maxfreq <n> - maximum frequency to search for (default 4000)\n");
 		printf(" <filename> - wave file to read.\n");
         printf("\nBased on sample by Artrag\n");
 		return -1;
@@ -419,6 +424,13 @@ int main(int argc, char *argv[]) {
     // accurate pitch estimation, so let's try the longer period (32ms) and
     // see if it helps...
     while (samplepos + step735 < samples) {
+        // calculate average volume first, before we corrupt it
+        double avgVol = 0;
+        for (int idx=samplepos; idx<samplepos + step735; idx++) {
+            avgVol += abs(sampledata[idx]);
+        }
+        avgVol /= step735;
+
         gist.processAudioFrame(&sampledata[samplepos], step735);
 
         // available:
@@ -449,13 +461,47 @@ int main(int argc, char *argv[]) {
         std::vector<double> x = gist.getMagnitudeSpectrum();
         
         // only worry about the range from 110hz to maxfreq
+        // to avoid wasting channels on outputs at the same rate,
+        // we will compare against existing notes and if they
+        // are the same, we won't double up. This still might
+        // be an issue with similar notes, especially at the
+        // higher frequencies. With the default settings, at
+        // 110hz it's only 6 steps between notes, though at 
+        // 4000hz it's about 230 steps.
         double freqstep = (double)(sampleRate/2) / x.size();
         int off110 = int(110.0/freqstep+.5);
         int offMax = int((double)maxFreq/freqstep+.5);
         for (int idx = off110; idx<=offMax; ++idx) {
-            for (int chan = 0; chan<channels; ++chan) {
-                // it doesn't matter to me what order they are in
+            bool matched = false;
+
+            // first, see if there is one that we already match
+            // if so, just replace it
+            // this doesn't really help much, but saving it cause probably doesn't hurt
+            int snCode = int(111860.8 / (idx*freqstep) + .5);
+            for (int chan = 0; chan < channels; ++chan) {
+                if (index[chan] == 0) continue;
+                int thisSn = int(111860.8 / (index[chan]*freqstep) + .5);
+                if (thisSn == snCode) {
+                    matched = true;
+                    // we found it either way, replace only if it's louder
+                    if (x[idx] > max[chan]) {
+                        max[chan] = x[idx];
+                        index[chan] = idx;  // will still be different by one or two
+                    }
+                    break;
+                }
+            }
+            if (matched) continue;
+
+            // find the first one we're louder than, and insert into the sorted list
+            for (int chan = 0; chan < channels; ++chan) {
                 if (x[idx] > max[chan]) {
+                    // shift down to make room
+                    for (int ch = channels-1; ch > chan; --ch) {
+                        max[ch] = max[ch-1];
+                        index[ch] = index[ch-1];
+                    }
+                    // insert here
                     max[chan] = x[idx];
                     index[chan] = idx;
                     break;
@@ -467,6 +513,9 @@ int main(int argc, char *argv[]) {
 
         // it seems to sort of be on the right track, but the
         // noise inputs are not helping at all like this.
+        // this approach also means I ONLY get noise or tone,
+        // never both. I wonder if using the tone randomness
+        // might be a good clue for noise?
         // using flatness for silence seems good though...
         if (gist.spectralFlatness() >= 0.90) {
             // this is either silent or noise
@@ -489,7 +538,11 @@ int main(int argc, char *argv[]) {
                     if (freq > maxFreq) freq=maxFreq;
                     outTone[idx][rows] = int(111860.8 / freq + 0.5);
 
+#if 0
                     double vol = (max[idx]/(step735/volumeScale))*256;
+#else
+                    double vol = (max[idx]/max[0])*(avgVol*256);
+#endif
                     if (vol > 255) vol=255;
                     outVol[idx][rows] = int(vol);
                     if (outVol[idx][rows] > 255) {

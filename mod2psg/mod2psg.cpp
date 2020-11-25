@@ -690,7 +690,7 @@ int main(int argc, char *argv[]) {
             if (NULL == audioBuf) {
                 audioBufSize = int(735*songSpeedScale)*2;
                 audioBuf = (char*)malloc(audioBufSize);
-                if (debug2) {
+                if ((debug2)&&(!bAutoVol)) {
                     // reset the file
                     FILE *fp = fopen("modsound.wav", "wb");
                     if (NULL != fp) {
@@ -704,7 +704,7 @@ int main(int argc, char *argv[]) {
             if (ret < audioBufSize) break;
 
             // dump the MOD data
-            if (debug2) {
+            if ((debug2)&&(!bAutoVol)) {
                 // append the file
                 FILE *fp = fopen("modsound.wav", "ab");
                 if (NULL != fp) {

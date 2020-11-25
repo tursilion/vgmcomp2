@@ -37,7 +37,8 @@
 #include "sndfile.h"
 #define PAN_LEFT    0x30
 #define PAN_RIGHT   0xD0
-#define MAX_POLYPHONY 16  // max notes in one midi channel
+//#define MAX_POLYPHONY 16  // max notes in one midi channel
+#define MAX_POLYPHONY 1     // Tursi...
 #define MAX_TRACKS    (MAX_BASECHANNELS-6)  // max mod tracks
 #define WHEELSHIFT    10  // how many bits the 13bit midi wheel value must shift right
 
@@ -853,6 +854,7 @@ static int MID_ReadPatterns(MODCOMMAND *pattern[], WORD psize[], MIDHANDLE *h, i
 	MODCOMMAND *m;
 	int patbrk, tempo;
 	if( numpat > MAX_PATTERNS ) numpat = MAX_PATTERNS;
+    if (NULL == h->track) return 0;
 
 	// initialize start points of event list in tracks
 	for( t = h->track; t; t = t->next ) t->workevent = t->head;
@@ -866,7 +868,7 @@ static int MID_ReadPatterns(MODCOMMAND *pattern[], WORD psize[], MIDHANDLE *h, i
 			ch = 0;
 			tempo = 0;
 			patbrk = 0;
-			if ( h->track )
+
 			for( e=mid_next_global(h->track->workevent); e && e->tracktick < tt2; e=mid_next_global(e->next) ) {
 				if( e && e->tracktick >= tt1 ) {	// we have a controller event in this row
 					switch( e->fx ) {
@@ -1438,7 +1440,7 @@ BOOL CSoundFile::ReadMID(const BYTE *lpStream, DWORD dwMemLength)
 									if( m_nDefaultTempo == 0 ) m_nDefaultTempo = h->tempo;
 									else {
 										ttp = h->track;
-										if( !ttp ) mid_locate_track(h, 0, 0xff);
+										if( !ttp ) ttp = mid_locate_track(h, 0, 0xff);
 										mid_add_tempo_event(h,h->tempo);
 									}
 									if( h->tempo > maxtempo ) maxtempo = h->tempo;
