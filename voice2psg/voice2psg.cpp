@@ -31,6 +31,7 @@ double songSpeedScale = 1.0;                // changes the samples per frame to 
 int sampleRate = 44100;
 int maxFreq = 4000;                         // maximum frequency to search for (4000hz for 8khz sample rate - telephone quality)
 double volumeScale = 4.0;                   // default volume scale used during energy conversion
+int minStep = 5;                            // minimum frequency step PERCENT difference required to accept a new entry (todo: not configurable)
 
 // returns a vector of doubles for the samples (-1 to +1)
 // wave is converted from 8 or 16 bit to floating point, and from stereo to mono
@@ -296,6 +297,7 @@ int main(int argc, char *argv[]) {
         printf(" -volume <float> - scale volume by float (4.0 = default, 4.1=louder, 3.9=quieter)\n");
         printf(" -channels <n> - number of channels to create (1-6, default 3)\n");
         printf(" -maxfreq <n> - maximum frequency to search for (default 4000)\n");
+        printf(" -mindiff <n> - minimum difference as a percentage between two accepted frequencies (default 5)\n");
 		printf(" <filename> - wave file to read.\n");
         printf("\nBased on sample by Artrag\n");
 		return -1;
@@ -376,6 +378,20 @@ int main(int argc, char *argv[]) {
             }
             if ((maxFreq < 110) || (maxFreq > sampleRate/2)) {
                 printf("Invalid max frequency - must be 110-%d\n", sampleRate/2);
+                return -1;
+            }
+        } else if (0 == strcmp(argv[arg], "-mindiff")) {
+            ++arg;
+            if (arg+1 >= argc) {
+                printf("Not enough arguments for 'mindiff' option\n");
+                return -1;
+            }
+            if (1 != sscanf(argv[arg], "%d", &minStep)) {
+                printf("Failed to parse mindiff\n");
+                return -1;
+            }
+            if ((minStep < 0) || (minStep > 100)) {
+                printf("Invalid minimum difference - must be 0-100 (as a percentage)\n");
                 return -1;
             }
 		} else {
@@ -496,14 +512,35 @@ int main(int argc, char *argv[]) {
             // find the first one we're louder than, and insert into the sorted list
             for (int chan = 0; chan < channels; ++chan) {
                 if (x[idx] > max[chan]) {
+                    // if we are going to take this one, then we want to check the
+                    // minstep steps around it, and take the loudest of those, then skip
+                    // over. We assume are at the first step of a peak, so it gets louder
+                    // then quieter - hopefully inside the step. Step is linear, so even
+                    // though it's not hz, this ratio should still work. The intent of
+                    // the default was a step of 3 at 100hz, roughly 1/2 note.
+                    int minstepcnt = int(idx*(minStep/100.0)+.5);
+                    int result = idx;       // this is the one we are /actually/ going to take
+                    if (minstepcnt > 0) {
+                        for (int xx = idx; xx<idx+minstepcnt; ++xx) {
+                            if (x[xx] > x[result]) {
+                                result = xx;
+                            }
+                        }
+                    }
+
                     // shift down to make room
                     for (int ch = channels-1; ch > chan; --ch) {
                         max[ch] = max[ch-1];
                         index[ch] = index[ch-1];
                     }
                     // insert here
-                    max[chan] = x[idx];
-                    index[chan] = idx;
+                    max[chan] = x[result];
+                    index[chan] = result;
+
+                    // and skip ahead if desired, -1 for the loop
+                    if (minstepcnt > 1) {
+                        idx += minstepcnt - 1;
+                    }
                     break;
                 }
             }
