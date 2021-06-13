@@ -1,0 +1,270 @@
+* quick and dirty test of the single-file playback system
+* assumes ea environment is set up
+
+	aorg >a000
+	def START
+	def SFIRST,SLOAD,SLAST
+	
+SLOAD
+SFIRST	
+	b @START
+
+* need full paths for Asm994a - probably don't for others...
+	copy "d:\work\ti\vgmcomp2\players\ti_raw\SfxSNSample\music.asm"
+	copy "d:\work\ti\vgmcomp2\players\ti_raw\SfxSNSample\tisfxsn.asm"
+	
+* set address in r1
+vdpwa
+	ori r1,>4000
+	swpb r1
+	movb r1,@>8c02
+	swpb r1
+	movb r1,@>8c02
+	b *r11
+	
+* copy string from cpu r0 to vdp r1, treat * as line feed and
+* ~ as end of string
+vdpstr
+	mov r11,r10
+vdpl1
+	bl @vdpwa
+	clr r2
+vdps1
+	movb *r0+,r2
+	ci r2,>2a00
+	jne vdpnolf
+	ai r1,32
+	jmp vdpl1
+vdpnolf
+	ci r2,>7e00
+	jeq vdpdone
+	movb r2,@>8c00
+	jmp vdps1
+vdpdone
+	b *r10
+	
+* menu text	
+text1
+	text 'Music V2:** A - Anta'
+	text 'rctic Adventure* B -'
+	text ' California Games Ti'
+	text 'tle* C - Double Drag'
+	text 'on* D - Moonwalker* '
+	text 'E - Alf**Low Priorit'
+	text 'y SFX:** 1 - Flag* 2'
+	text ' - Hole* 3 - Jump**H'
+	text 'igh Priority SFX:** '
+	text '4 - Flag* 5 - Hole* '
+	text '6 - Jump**7-stop mus'
+	text 'ic  8-stop sfx  9-st'
+	text 'op all~~'
+	even
+	
+* Mute sound chip	
+muteall
+	li r0,>9fbf
+	movb r0,@>8400
+	swpb r0
+	movb r0,@>8400
+	li r0,>dfff
+	movb r0,@>8400
+	swpb r0
+	movb r0,@>8400
+	b *r11
+
+* interrupt function wrapper - player requires WP of >8300
+intfctn
+	LWPI >8300
+	bl @SfxLoop
+	bl @SongLoop
+	LWPI >83E0
+	B *r11
+	
+* entry point	
+START
+* Use a unique workspace pointer - player uses >8300
+* If we don't do this, we need to recognize that every call to SfxLoop and SongLoop
+* may blow away every register, which you don't want on an interrupt context. This
+* program could actually survive it, but it's usually easier to use a separate WP.
+	LWPI >8320
+
+* clear screen
+	clr r1
+	bl @vdpwa
+	li r1,>2000
+	li r2,768
+slp1
+	movb r1,@>8c00
+	dec r2
+	jne slp1
+	
+* draw text
+	li r0,text1
+	clr r1
+	bl @vdpstr
+	
+* mute all channels	and clear audio
+	bl @muteall
+	bl @StopSong
+	bl @StopSfx
+	
+* load the interrupt vector
+	li r0,intfctn
+	mov r0,@>83C4
+	
+* now wait for a key - scan requires GPLWS
+* should be fast enough except when a key is pressed
+	clr r2			* remember last keypress
+
+mainlp
+	LIMI 2
+	LIMI 0
+
+	LWPI >83E0
+	bl @>000E		* SCAN
+	LWPI >8320
+	
+	clr r1
+	movb @>8375,r1	* key
+	
+	c r1,r2
+	jeq mainlp		* ignore if same as last scan
+	mov r1,r2		* else remember it
+	
+	ci r1,>ff00		* no key
+	jeq mainlp
+	
+* songs
+	
+	ci r1,>4100		* A
+	jne sk1
+	bl @muteall
+	li r1,MUSIC
+	li r2,>0000
+	bl @StartSong
+	b @mainlp
+sk1
+	
+	ci r1,>4200		* B
+	jne sk2
+	bl @muteall
+	li r1,MUSIC
+	li r2,>0100
+	bl @StartSong
+	b @mainlp
+sk2
+	
+	ci r1,>4300		* C
+	jne sk3
+	bl @muteall
+	li r1,MUSIC
+	li r2,>0200
+	bl @StartSong
+	b @mainlp
+sk3
+	
+	ci r1,>4400		* D
+	jne sk4
+	bl @muteall
+	li r1,MUSIC
+	li r2,>0300
+	bl @StartSong
+	b @mainlp
+sk4
+
+	ci r1,>4500		* E
+	jne sk5
+	bl @muteall
+	li r1,MUSIC
+	li r2,>0400
+	bl @StartSong
+	b @mainlp
+sk5
+
+* SFX low priority
+
+	ci r1,>3100		* 1
+	jne sk6
+	li r1,MUSIC
+	li r2,>0500
+	li r3,>0100
+	bl @StartSfx
+	b @mainlp
+sk6
+
+	ci r1,>3200		* 2
+	jne sk7
+	li r1,MUSIC
+	li r2,>0600
+	li r3,>0100
+	bl @StartSfx
+	b @mainlp
+sk7
+
+	ci r1,>3300		* 3
+	jne sk8
+	li r1,MUSIC
+	li r2,>0700
+	li r3,>0100
+	bl @StartSfx
+	b @mainlp
+sk8
+
+* SFX high priority
+
+	ci r1,>3400		* 4
+	jne sk9
+	li r1,MUSIC
+	li r2,>0500
+	li r3,>7f00
+	bl @StartSfx
+	b @mainlp
+sk9
+
+	ci r1,>3500		* 5
+	jne sk10
+	li r1,MUSIC
+	li r2,>0600
+	li r3,>7f00
+	bl @StartSfx
+	b @mainlp
+sk10
+
+	ci r1,>3600		* 6
+	jne sk11
+	li r1,MUSIC
+	li r2,>0700
+	li r3,>7f00
+	bl @StartSfx
+	b @mainlp
+sk11
+
+* stop music
+	ci r1,>3700		* 7
+	jne sk12
+	bl @StopSong
+	bl @muteall
+	b @mainlp
+sk12
+
+* stop sfx
+	ci r1,>3800		* 8
+	jne sk13
+	bl @StopSfx
+	b @mainlp
+sk13
+
+* stop all
+	ci r1,>3900		* 9
+	jne sk14
+	bl @StopSong
+	bl @StopSfx
+	bl @muteall
+	b @mainlp
+sk14
+
+	b @mainlp
+
+SLAST
+	END
+	

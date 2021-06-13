@@ -173,9 +173,9 @@ sidSave
     even
     def SidCtrl1,SidCtrl2,SidCtrl3
 * defined in reverse order on purpose so the volume loop can count down
-SidCtrl3  bss 1
-SidCtrl2  bss 1
-SidCtrl1  bss 1
+SidCtrl3 bss 3
+SidCtrl2 equ SidCtrl3+1
+SidCtrl1 equ SidCtrl3+2
     even
 
 * we only need a special getCompressedSid if we have to use
