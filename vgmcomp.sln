@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27004.2009
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31313.79
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testPlayer", "testPlayer\testPlayPSG.vcxproj", "{D147FE48-6FCE-4D40-A4B7-2015F928603D}"
 EndProject
@@ -274,6 +274,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "trimsilence", "trimsilence\trimsilence.vcxproj", "{6C80A6C0-5819-4235-9E33-E69C7A831D50}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "padsilence", "padsilence\padsilence.vcxproj", "{CD06B18D-F871-4D28-838E-1DE486B2F5C6}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "bestPacker", "bestPacker\bestPacker.vcxproj", "{937E1C62-E21A-4D45-974C-ACE39DB38AD3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -623,6 +625,14 @@ Global
 		{CD06B18D-F871-4D28-838E-1DE486B2F5C6}.Release|Win32.Build.0 = Release|Win32
 		{CD06B18D-F871-4D28-838E-1DE486B2F5C6}.Release|x64.ActiveCfg = Release|x64
 		{CD06B18D-F871-4D28-838E-1DE486B2F5C6}.Release|x64.Build.0 = Release|x64
+		{937E1C62-E21A-4D45-974C-ACE39DB38AD3}.Debug|Win32.ActiveCfg = Debug|Win32
+		{937E1C62-E21A-4D45-974C-ACE39DB38AD3}.Debug|Win32.Build.0 = Debug|Win32
+		{937E1C62-E21A-4D45-974C-ACE39DB38AD3}.Debug|x64.ActiveCfg = Debug|x64
+		{937E1C62-E21A-4D45-974C-ACE39DB38AD3}.Debug|x64.Build.0 = Debug|x64
+		{937E1C62-E21A-4D45-974C-ACE39DB38AD3}.Release|Win32.ActiveCfg = Release|Win32
+		{937E1C62-E21A-4D45-974C-ACE39DB38AD3}.Release|Win32.Build.0 = Release|Win32
+		{937E1C62-E21A-4D45-974C-ACE39DB38AD3}.Release|x64.ActiveCfg = Release|x64
+		{937E1C62-E21A-4D45-974C-ACE39DB38AD3}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -682,6 +692,7 @@ Global
 		{6E0D6B31-75F1-478D-9865-5A4606718CCF} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 		{6C80A6C0-5819-4235-9E33-E69C7A831D50} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 		{CD06B18D-F871-4D28-838E-1DE486B2F5C6} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
+		{937E1C62-E21A-4D45-974C-ACE39DB38AD3} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

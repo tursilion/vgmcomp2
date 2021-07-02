@@ -76,7 +76,7 @@ const int INLINEBITS2 = 0x20;   // 00x
 // some basic settings
 #define MAXTICKS 432000					    // about 2 hrs, but arbitrary
 #define MAXCHANNELS 4                       // channels 0-2 are tone, and 3 is noise
-#define MAXSONGS 16                         // kind of arbitrary
+#define MAXSONGS 32                         // kind of arbitrary
 
 // chip types
 enum {
@@ -141,8 +141,9 @@ public:
 } songs[MAXSONGS], testSong;                    // testSong is used for the unpack testing
 
 #define MAXNOTES 256
+#define MAXSLACK 5
 int noteCnt;
-int noteTable[MAXNOTES];                    // maximum 256 notes in note table
+int noteTable[MAXNOTES*MAXSLACK];           // maximum 256 notes in note table (but we enter extra space so the stats have a better change)
 
 #define STREAMTABLE 0                       // offset to the pointer to the stream pointer table
 #define NOTETABLE 2                         // offset to the pointer to the note table
@@ -1546,7 +1547,7 @@ bool compressStream(int song, int st, int minstep) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Compression Tool - v20200803\n\n");
+	printf("VGMComp2 Compression Tool - v20210701\n\n");
 
     // parse arguments
     int nextarg = -1;
@@ -1745,6 +1746,10 @@ int main(int argc, char *argv[])
         if (verbose) printf("Read %d lines from '%s'\n", songs[currentSong].outCnt, argv[fileIdx]);
         totalC += songs[currentSong].outCnt;
         ++currentSong;
+        if (currentSong >= MAXSONGS) {
+            printf("Too many songs - max is %d!\n", MAXSONGS);
+            return 1;
+        }
     }
     if (totalC == 0) {
         printf("No input files specified, nothing to do.\n");
@@ -1760,7 +1765,7 @@ int main(int argc, char *argv[])
     // Not sure if the wasted entry will bite us long term, but we can change it later.
     noteTable[0]=1;
     noteCnt = 1;
-    int oldNoteCnt = 0;
+    int oldNoteCnt = 1;
     for (int thisSong = 0; thisSong < currentSong; ++thisSong) {
         for (int idx=0; idx<songs[thisSong].outCnt; ++idx) {
             for (int chan=TONE1; chan<=TONE3; ++chan) {   // we don't need to scan the noise channel, it needs no reduction
@@ -1772,14 +1777,16 @@ int main(int argc, char *argv[])
                 }
 
                 int match = -1;
-                for (int idx2=0; (idx2<noteCnt)&&(idx2<MAXNOTES); ++idx2) {
+                // MAXSLACK is /only/ for this test routine, and is used ONLY so we get
+                // proper statistics our of the debug below. You can NOT use more than MAXNOTES
+                for (int idx2=0; (idx2<noteCnt)&&(idx2<MAXNOTES*MAXSLACK); ++idx2) {
                     if (note == noteTable[idx2]) {
                         match = idx2;
                         break;
                     }
                 }
                 if (match == -1) {
-                    if (noteCnt < MAXNOTES) {
+                    if (noteCnt < MAXNOTES*MAXSLACK) {
                         noteTable[noteCnt] = note;
                     }
                     // if we overflow, keep counting but don't store
@@ -1788,17 +1795,22 @@ int main(int argc, char *argv[])
                 songs[thisSong].VGMDAT[chan][idx] = match;
             }
         }
-        if (noteCnt > MAXNOTES) {
+        if (currentSong > 1) {
+            if (verbose) printf("Song %d adds %d notes to note table (total %d)\n", thisSong, noteCnt - oldNoteCnt, noteCnt);
+        }
+        if (noteCnt > MAXNOTES*MAXSLACK) {
             printf("Too many notes in song (%d), try reducing count%s\n", noteCnt,
                     currentSong>1 ? " or try stacking fewer songs.":".");
             return 1;
         }
-        if (currentSong > 1) {
-            if (verbose) printf("Song %d adds %d notes to note table\n", thisSong, noteCnt - oldNoteCnt);
-        }
         oldNoteCnt = noteCnt;
     }
     if (verbose) printf("Songbank contains %d/%d notes.\n\n", noteCnt, MAXNOTES);
+    if (noteCnt > MAXNOTES) {
+        printf("Too many total notes, must be under 256 (got %d)\n", noteCnt);
+        printf("Try stacking fewer songs, the overhead for a new SBF is small\n");
+        return 1;
+    }
 
     // do the RLE pack. It's necessary because it allows us to have RLE in the post-encoded stream
     // Confirmed this makes an important difference 99.99% of the time (okay, 99.99 is a guess... but up there)

@@ -880,7 +880,7 @@ int main(int argc, char *argv[])
     int overrideDelay = 0;
     int sbfsong = 0;
 
-	printf("VGMComp Test Player - v20200924\n");
+	printf("VGMComp Test Player - v20210701\n");
 
 	if (argc < 2) {
 		printf("testPlayPSG [-ay|-sn|-sid] [-forcenoise x] [-sbfsong x] [-hidenotes] [-heatmap] [<file prefix> | <file.sbf> | <track1> <track2> ...]\n");
@@ -1010,16 +1010,15 @@ int main(int argc, char *argv[])
         // a comma injected, it's extremely unlikely.
         // Well, that failed on my first test. 0x00. Who knew? So also check that val2 is within the
         // legal position for the end of the file. 
-        unsigned char testbuf[4];
+        // And that failed too. How about the first byte of the tone table must be non-ascii, and SBF files are <=64k? ;)
+        unsigned char testbuf[64*1024];
         memset(testbuf, 0, sizeof(testbuf));
-        fread(testbuf, 1, 4, fp);
-        fseek(fp, 0, SEEK_END);
-        int end = ftell(fp);
+        int end = fread(testbuf, 1, sizeof(testbuf), fp);
         fseek(fp, 0, SEEK_SET);
 
         int val1=testbuf[0]*256+testbuf[1];
         int val2=testbuf[2]*256+testbuf[3];
-        if (((val2-val1)%18 == 0) && (val2 < end) && (val2 >= end-512)) {
+        if (((val2-val1)%18 == 0) && (val2 < end) && (val2 >= end-512) && (testbuf[val2] < 0x10)) {
             printf("SBF import %s...\n", namebuf);
 
             // this is probably an SBF file
