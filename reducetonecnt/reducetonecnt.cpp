@@ -50,8 +50,9 @@ int main(int argc, char *argv[])
     int noteTol = 1;
     bool accept = false;
     bool nonoise = false;
+    bool snap = true;
 
-	printf("VGMComp2 Tone Count reduction Tool - v20201005\n\n");
+	printf("VGMComp2 Tone Count reduction Tool - v20210701\n\n");
 
     if (argc < 2) {
         printf("reducetonecount [-q] [-nonoise] [-accept] [-notes <x>] [-notetol <x>] <song>\n");
@@ -61,6 +62,7 @@ int main(int argc, char *argv[])
         printf("-accept - accept a too-large note count - specify before -notes\n");
         printf("-notes <x> - reduce note count to 'x' or less. Set to 256 if not specified.\n");
         printf("-notetol <x> - tolerance - notes within 'x' of the TI musical frequency are considered tuned (default 1).\n");
+        printf("-nosnap - do not snap notes within 'notetol' are to the musical frequency\n");
         printf("-nonoise - do not include any noise channels in the conversion (helpful for SN)\n");
         printf("song - pass in the entire name of ONE channel, the entire song will be found and updated.\n");
         printf("Original files are renamed to " RENAME "\n");
@@ -161,7 +163,8 @@ int main(int argc, char *argv[])
     strcat(szFilename, "%s%02d.%dhz"); // filename now filename_%s%02d.%dhz
 
     // try to load the song
-    int clips = 0;      // should always be
+    int clips = 0;
+    int snapped = 0;
     int chancnt = 0;
     int row = 0;
     for (int idx=0; idx<200; ++idx) {
@@ -304,7 +307,7 @@ int main(int argc, char *argv[])
 		    // do note removal by popularity instead of by stepping slides
 		    // actual musical notes get their popularity tripled automatically
 		    // this seems to work better, although I worry it could completely destroy 
-		    // sides in a song with just one of them... much better on Monty though!
+		    // slides in a song with just one of them... much better on Monty though!
 		    int pop[4096];		// only 4096 possible frequencies here
 		    memset(pop, 0, sizeof(pop));
 
@@ -313,11 +316,24 @@ int main(int argc, char *argv[])
 			for (int chan=0; chan<chancnt; ++chan) {
 				for (int idx=0; idx<row; ++idx) {
 					int freq = (VGMDAT[chan][idx]&TONEMASK);
+                    if (snap) {
+                        // if it's close to a musical frequency, then snap it there
+		                for (int i2=0; i2<sizeof(musicalnotes)/sizeof(musicalnotes[0]); i2++) {
+                            for (int i3=i2-noteTol; i3<=i2+noteTol; ++i3) {
+                                if (i3 == freq) {
+                                    freq = i3;
+                                    VGMDAT[chan][idx] = (VGMDAT[chan][idx]&(~TONEMASK)) | freq;
+                                    ++snapped;
+                                    break;
+                                }
+                            }
+                        }
+                    }
 					++pop[freq];
 				}
 			}
 
-		    // tripling popularity of real notes
+		    // tripling popularity of real notes - this covers all within notetol, regardless of snap
 		    for (int i2=0; i2<sizeof(musicalnotes)/sizeof(musicalnotes[0]); i2++) {
                 for (int i3=i2-noteTol; i3<=i2+noteTol; ++i3) {
                     if ((i3 >=0) && (i3 < 4096)) {
@@ -349,6 +365,7 @@ int main(int argc, char *argv[])
     }
 
     if ((verbose)&&(clips>0)) printf("%d notes clipped\n", clips);
+    if ((verbose)&&(snapped>0)) printf("%d notes snapped\n", snapped);
     if ((verbose)&&(converted>0)) printf("%d/%d notes adjusted\n", converted, chancnt*row);
     if (verbose) printf("%d frequencies in final.\n", nTotalFreqs);
 
