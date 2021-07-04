@@ -225,7 +225,7 @@ int doExecuteCommand(const char *pCmdLine) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 'Best' Packing Tool - v20210702\n\n");
+	printf("VGMComp2 'Best' Packing Tool - v20210704\n\n");
 
     if (argc < 3) {
         printf("bestPacket [-maxsize <n>] [-args \"<args for vgmcomp2>\"] filename1 filename2 [...]\n");
@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
         ++arg;
     }
 
-    if (arg+2 >= argc) {
+    if (arg >= argc) {
         printf("Not enough arguments.\n");
         return -1;
     }
@@ -300,7 +300,7 @@ retryStart:
 	filenames.pop_back();
 	cmdcounts.push_back(0);
 
-	printf("Placed %s...\n", thisFile.c_str());
+	if (verbose) printf("Testing %s (with %d files left)...\n", thisFile.c_str(), filenames.size());
 
 	// make sure the basic commandline works
 	string newcmd = cmdlines.back() + ' ' + testOutput;
@@ -370,13 +370,13 @@ retryStart:
 				thisFile = filenames.back();
 				filenames.pop_back();
 			}
-			if (filenames.size() == 0) continue;
+			if (thisFile.empty()) continue;	// which will end up exiting the loop
 
 			cmdlines.push_back(string("vgmcomp2 "));
 			cmdlines.back() += outArgs;
 			cmdlines.back() += ' ';
 			cmdlines.back() += thisFile;
-			if (verbose) printf("Testing %s...\n", thisFile.c_str());
+			if (verbose) printf("Testing %s (with %d files left)...\n", thisFile.c_str(), filenames.size());
 			cmdcounts.push_back(0);
 
 			// kind of dumb to duplicate this code...
