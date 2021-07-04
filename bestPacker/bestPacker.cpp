@@ -223,6 +223,15 @@ int doExecuteCommand(const char *pCmdLine) {
 	return nExitCode;
 }
 
+// count non-empty strings
+int counttrue(vector<string> &x) {
+	int ret = 0;
+	for (string &q : x) {
+		if (!q.empty()) ++ret;
+	}
+	return ret;
+}
+
 int main(int argc, char *argv[])
 {
 	printf("VGMComp2 'Best' Packing Tool - v20210704\n\n");
@@ -300,7 +309,7 @@ retryStart:
 	filenames.pop_back();
 	cmdcounts.push_back(0);
 
-	if (verbose) printf("Testing %s (with %d files left)...\n", thisFile.c_str(), filenames.size());
+	if (verbose) printf("Testing %s (with %d files left)...\n", thisFile.c_str(), counttrue(filenames));
 
 	// make sure the basic commandline works
 	string newcmd = cmdlines.back() + ' ' + testOutput;
@@ -376,7 +385,7 @@ retryStart:
 			cmdlines.back() += outArgs;
 			cmdlines.back() += ' ';
 			cmdlines.back() += thisFile;
-			if (verbose) printf("Testing %s (with %d files left)...\n", thisFile.c_str(), filenames.size());
+			if (verbose) printf("Testing %s (with %d files left)...\n", thisFile.c_str(), counttrue(filenames));
 			cmdcounts.push_back(0);
 
 			// kind of dumb to duplicate this code...
