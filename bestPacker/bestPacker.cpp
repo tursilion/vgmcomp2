@@ -237,7 +237,7 @@ int main(int argc, char *argv[])
 	printf("VGMComp2 'Best' Packing Tool - v20210704\n\n");
 
     if (argc < 3) {
-        printf("bestPacket [-maxsize <n>] [-args \"<args for vgmcomp2>\"] filename1 filename2 [...]\n");
+        printf("bestPacker [-maxsize <n>] [-args \"<args for vgmcomp2>\"] filename1 filename2 [...]\n");
         printf("Tries all your songs and outputs a set of lists resulting in best packing\n");
         printf("(This is a good one for -deepdive, if you are going to walk away from it)\n");
         printf("-maxsize - pass in the maximum size in bytes, used to make it fit in bank switching (default 65536)\n");
