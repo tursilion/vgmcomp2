@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 	printf("VGMComp2 Underlay Tool - v20201005\n\n");
 
     if (argc < 3) {
-        printf("underlay <chan1> <chan2>\n");
+        printf("underlaytones <chan1> <chan2>\n");
         printf("Merges chan2 into chan1, but chan1 always gets priority.\n");
         printf("Original files are renamed to " RENAME "\n");
         return 1;

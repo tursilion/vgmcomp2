@@ -37,6 +37,7 @@ struct StreamData soundDat;
 #define MAXHEATMAP 45
 int VGMDAT[MAXCHANNELS][MAXTICKS];
 int VGMVOL[MAXCHANNELS][MAXTICKS];
+int VGMINFO[MAXTICKS];                      // for debug
 unsigned int VGMADR[MAXTICKS][MAXHEATMAP];  // a scaled address, always range 0-65535, for heatmap (max read is 4 bytes times 9 streams - 45 bytes (ouch))
 bool isNoise[MAXCHANNELS];
 bool forceNoise[MAXCHANNELS];
@@ -435,6 +436,8 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
     int curVol[4];
     bool customNoise = false;
 
+    memset(VGMINFO, 0, sizeof(VGMINFO));
+
     // a place to store the file
     unsigned char buf[64*1024];
 
@@ -548,7 +551,11 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
                                 curFreq[2] = tonetable(buf, toneoffset, y);
                                 // update noise if needed
                                 if (customNoise) {
-                                    curFreq[3] = curFreq[2];
+                                    if (curFreq[3]&NOISE_PERIODIC) {
+                                        curFreq[3] = curFreq[2] | NOISE_PERIODIC;
+                                    } else {
+                                        curFreq[3] = curFreq[2];
+                                    }
                                 }
                             } else {
                                 curFreq[2] = 1;
@@ -574,6 +581,7 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
                                     }
                                     if (0==(y&0x04)) curFreq[3] |= NOISE_PERIODIC;
                                     curFreq[3] |= NOISE_TRIGGER;
+                                    VGMINFO[cnt]=y;
                                 }
                             }
                         }
@@ -880,7 +888,7 @@ int main(int argc, char *argv[])
     int overrideDelay = 0;
     int sbfsong = 0;
 
-	printf("VGMComp Test Player - v20210701\n");
+	printf("VGMComp Test Player - v20210707\n");
 
 	if (argc < 2) {
 		printf("testPlayPSG [-ay|-sn|-sid] [-forcenoise x] [-sbfsong x] [-hidenotes] [-heatmap] [<file prefix> | <file.sbf> | <track1> <track2> ...]\n");
@@ -1257,6 +1265,12 @@ int main(int argc, char *argv[])
                     printf("%s %02X | ", getNoteStr(VGMDAT[idx][row],VGMVOL[idx][row]), VGMVOL[idx][row]);
                 }
             }
+        }
+
+        if (VGMINFO[row]) {
+            printf("%02X |", VGMINFO[row]);
+        } else {
+            printf("   |");
         }
 
         // calculate timing

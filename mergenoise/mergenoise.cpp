@@ -14,12 +14,13 @@ int VGMVOL[MAXCHANNELS][MAXTICKS];
 FILE *fp[MAXCHANNELS];
 const char *szFilename[MAXCHANNELS];
 
+#define NOISE_TRIGGER  0x10000
 #define RENAME ".merge.old"
 
 // for noise, mute can't be determined via frequency, only by volume
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Noise Merge Tool - v20200919\n\n");
+	printf("VGMComp2 Noise Merge Tool - v20210707\n\n");
 
     if (argc < 3) {
         printf("mergenoise <chan1> <chan2>\n");
@@ -117,6 +118,10 @@ int main(int argc, char *argv[])
                 VGMVOL[0][idx] = VGMVOL[1][idx];
                 VGMDAT[0][idx] = VGMDAT[1][idx];
             }
+        }
+        // this is imperfect, but if the noise type changed, then force a retrigger
+        if ((idx==0)||((VGMDAT[0][idx-1]&0XFFF) != (VGMDAT[0][idx]&0XFFF))) {
+            VGMDAT[0][idx] |= NOISE_TRIGGER;
         }
     }
 

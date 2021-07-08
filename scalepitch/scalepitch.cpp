@@ -20,7 +20,7 @@ const char *szFilename[MAXCHANNELS];
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Pitch Scaling Tool - v20200919\n\n");
+	printf("VGMComp2 Pitch Scaling Tool - v20210707\n\n");
 
     if (argc < 2) {
         printf("scalepitch <scale> <channel input>\n");
@@ -135,15 +135,18 @@ int main(int argc, char *argv[])
     int zeroed = 0;
 
     for (int idx = 0; idx<row; ++idx) {
-        VGMDAT[0][idx] = int(VGMDAT[0][idx] * scale + 0.5);
+        // in case of noise channel, mask off noise flags
+        int mask = VGMDAT[0][idx]&0xfffff000;
+        VGMDAT[0][idx] = int((VGMDAT[0][idx]&0xfff) * scale + 0.5);
         if (VGMDAT[0][idx] == 0) {
             ++zeroed;
             // disallow 0
             VGMDAT[0][idx] = 1;
         } else if (VGMDAT[0][idx] > 0xfff) {
             ++clipped;
-            VGMDAT[0][idx] = 0x3ff;
+            VGMDAT[0][idx] = 0xfff;
         }
+        VGMDAT[0][idx] |= mask;
     }
 
     printf("%d notes clipped (lossy)\n", clipped);
