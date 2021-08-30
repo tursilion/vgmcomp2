@@ -13,7 +13,7 @@ volatile __sfr __at 0xff SOUND;
 #define USE_SN_PSG
 
 // current priority - you must manually clear this!
-unsigned char sfxPriority;
+volatile unsigned char sfxPriority;
 
 // wrapper function to handle sfx priorities
 // we might need to be smarter and patch the main player

@@ -1,4 +1,5 @@
-## build libcolecovgm2
+## build libcolecovgm2 - SDCC 4.1
+## NOTE: we assume signed chars!
 CC = "c:/program files/sdcc/bin/sdcc"
 CFLAGS = -mz80 -c "-I../include" "-I../CPlayer" --std-sdcc99 --vc -DENABLEFX -DBUILD_COLECO --opt-code-size --fsigned-char
 AS = "c:/program files/sdcc/bin/sdasz80"

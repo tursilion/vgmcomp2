@@ -1,3 +1,6 @@
+all:
+	@echo make ti99 or make coleco
+
 ############ TI99 part ###############
 # Paths to TMS9900 compilation tools
 GASTI=/home/tursilion/gcc9900/bin/tms9900-as
@@ -65,5 +68,3 @@ clean:
 	rm *.bin
 	-rm *.rel *.map *.lst *.sym *.ihx *.rom
 
-all:
-	echo make ti99 or make Coleco

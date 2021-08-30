@@ -242,7 +242,7 @@ songNote[4]
     Detail:  Most significant nibble: SN command bits, remainder: tone counter bits in SN order
     Purpose: Contains the last frequency word written to each channel by the SN playback
     Note:    1. The SFX player uses this value to restore frequencies when an SFX ends
-             2. songNote[3] contains the noise type in the most significant bit, and songActive in the least
+             2. songNote[3] contains the noise type in the most significant byte, and songActive in the least
              3. The SongActive byte defines these bits:
                 SONGACTIVEACTIVE 0x01   Song is currently playing (active)
                 SONGACTIVEHALF   0x02   30hz player is on the second half of a frame

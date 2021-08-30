@@ -23,7 +23,7 @@ void SfxLoop30();
 #define isSFXPlaying ((sfxActive&(SONGACTIVEACTIVE<<8)) != 0)
 
 // MSB is the active bit with the mutes, LSB is current priority
-extern unsigned int sfxActive;
+extern volatile unsigned int sfxActive;
 
 // Option 3: use the hand tuned asm code directly with register preservation
 // Have to mark all regs as clobbered. Determine vblank any way you like

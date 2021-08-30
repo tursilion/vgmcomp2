@@ -1,6 +1,6 @@
 ;--------------------------------------------------------
 ; File Created by SDCC : free open source ANSI-C Compiler
-; Version 4.0.0 #11528 (MINGW64)
+; Version 4.1.0 #12072 (MINGW64)
 ;--------------------------------------------------------
 	.module quickplay
 	.optsdcc -mz80
@@ -9,6 +9,7 @@
 ; Public variables in this module
 ;--------------------------------------------------------
 	.globl _main
+	.globl _memcpy
 	.globl _ay_SongLoop
 	.globl _ay_StartSong
 	.globl _SongLoop
@@ -20,7 +21,9 @@
 	.globl _set_graphics
 	.globl _secondSong
 	.globl _firstSong
+	.globl _flags
 	.globl _textout
+	.globl _tramp
 ;--------------------------------------------------------
 ; special function registers
 ;--------------------------------------------------------
@@ -61,20 +64,20 @@ _secondSong::
 ; code
 ;--------------------------------------------------------
 	.area _CODE
-;quickplay.c:32: int main() {
+;quickplay.c:74: int main() {
 ;	---------------------------------
 ; Function main
 ; ---------------------------------
 _main::
-;quickplay.c:34: set_graphics(VDP_SPR_8x8);
+;quickplay.c:79: set_graphics(VDP_SPR_8x8);
 	xor	a, a
 	push	af
 	inc	sp
 	call	_set_graphics
 	inc	sp
-;quickplay.c:35: charsetlc();
+;quickplay.c:80: charsetlc();
 	call	_charsetlc
-;quickplay.c:36: vdpmemset(gColor, 0xf4, 32);
+;quickplay.c:81: vdpmemset(gColor, 0xf4, 32);
 	ld	hl, #0x0020
 	push	hl
 	ld	a, #0xf4
@@ -91,7 +94,7 @@ _main::
 	out	(_VDPWA), a
 	ld	a, #0x87
 	out	(_VDPWA), a
-;quickplay.c:41: vdpmemcpy(gImage, textout, 768);
+;quickplay.c:86: vdpmemcpy(gImage, textout, 768);
 	ld	hl, #0x0300
 	push	hl
 	ld	hl, #_textout
@@ -102,28 +105,29 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;quickplay.c:44: firstSong = *((unsigned int*)&textout[768]);
-	ld	hl, #(_textout + 0x0300) + 0
+;quickplay.c:89: firstSong = *((unsigned int*)&flags[6]);
+	ld	hl, #(_flags + 0x0006)
 	ld	a, (hl)
 	ld	(_firstSong+0), a
 	inc	hl
 	ld	a, (hl)
 	ld	(_firstSong+1), a
-;quickplay.c:45: secondSong = *((unsigned int*)&textout[768+2]);
-	ld	hl, #(_textout + 0x0302) + 0
+;quickplay.c:90: secondSong = *((unsigned int*)&flags[8]);
+	ld	hl, #(_flags + 0x0008)
 	ld	a, (hl)
 	ld	(_secondSong+0), a
 	inc	hl
 	ld	a, (hl)
 	ld	(_secondSong+1), a
-;quickplay.c:56: loopStart:
-00101$:
-;quickplay.c:58: if (0 != firstSong) {
+;quickplay.c:103: volatile unsigned char *pLoop = (volatile unsigned char *)&flags[13];
+;quickplay.c:105: do {
+00120$:
+;quickplay.c:107: if (0 != firstSong) {
 	ld	iy, #_firstSong
 	ld	a, 1 (iy)
 	or	a, 0 (iy)
-	jr	Z,00103$
-;quickplay.c:59: StartSong((unsigned char*)firstSong, 0);
+	jr	Z, 00102$
+;quickplay.c:108: StartSong((unsigned char*)firstSong, 0);
 	ld	hl, (_firstSong)
 	xor	a, a
 	push	af
@@ -132,13 +136,13 @@ _main::
 	call	_StartSong
 	pop	af
 	inc	sp
-00103$:
-;quickplay.c:61: if (0 != secondSong) {
+00102$:
+;quickplay.c:110: if (0 != secondSong) {
 	ld	iy, #_secondSong
 	ld	a, 1 (iy)
 	or	a, 0 (iy)
-	jr	Z,00129$
-;quickplay.c:66: ay_StartSong((unsigned char*)secondSong, 0);
+	jr	Z, 00104$
+;quickplay.c:115: ay_StartSong((unsigned char*)secondSong, 0);
 	ld	hl, (_secondSong)
 	xor	a, a
 	push	af
@@ -147,52 +151,102 @@ _main::
 	call	_ay_StartSong
 	pop	af
 	inc	sp
-00129$:
-00119$:
-;quickplay.c:72: unsigned char done = 1;
+00104$:
+;quickplay.c:120: done = 0;
+	ld	c, #0x00
+;quickplay.c:121: while (!done) {
+00113$:
+	ld	a, c
+	or	a, a
+	jr	NZ, 00115$
+;quickplay.c:122: done = 1;
 	ld	c, #0x01
-;quickplay.c:74: vdpwaitvint();	// waits for a console interrupts, allows quit/etc
+;quickplay.c:123: vdpwaitvint();	// waits for a console interrupts, allows quit/etc
 	push	bc
 	call	_vdpwaitvint
 	pop	bc
-;quickplay.c:75: if (0 != firstSong) {
+;quickplay.c:124: if (0 != firstSong) {
 	ld	iy, #_firstSong
 	ld	a, 1 (iy)
 	or	a, 0 (iy)
-	jr	Z,00109$
-;quickplay.c:76: if (isSNPlaying) {
+	jr	Z, 00108$
+;quickplay.c:125: if (isSNPlaying) {
 	ld	hl, (#(_songNote + 0x0006) + 0)
 	bit	0, l
-	jr	Z,00109$
-;quickplay.c:77: CALL_PLAYER_SN;
+	jr	Z, 00108$
+;quickplay.c:126: CALL_PLAYER_SN;
 	call	_SongLoop
-;quickplay.c:78: done = 0;
+;quickplay.c:127: done = 0;
 	ld	c, #0x00
-00109$:
-;quickplay.c:81: if (0 != secondSong) {
+00108$:
+;quickplay.c:130: if (0 != secondSong) {
 	ld	iy, #_secondSong
 	ld	a, 1 (iy)
 	or	a, 0 (iy)
-	jr	Z,00113$
-;quickplay.c:89: if (isAYPlaying) {
+	jr	Z, 00113$
+;quickplay.c:138: if (isAYPlaying) {
 	ld	hl, (#(_ay_songNote + 0x0006) + 0)
 	bit	0, l
-	jr	Z,00113$
-;quickplay.c:90: CALL_PLAYER_AY;
+	jr	Z, 00113$
+;quickplay.c:139: CALL_PLAYER_AY;
 	call	_ay_SongLoop
-;quickplay.c:91: done = 0;
+;quickplay.c:140: done = 0;
 	ld	c, #0x00
-00113$:
-;quickplay.c:97: if ((done)&&(textout[768+4+3])) goto loopStart;
-	ld	a, c
+	jr	00113$
+00115$:
+;quickplay.c:148: chain = (unsigned int *)(*((unsigned int*)(&flags[14])));
+	ld	bc, (#(_flags + 0x000e) + 0)
+	ld	l, c
+;quickplay.c:149: if (chain) {
+	ld	a,b
+	ld	h,a
+	or	a, c
+	jr	Z, 00121$
+;quickplay.c:151: unsigned int chained = *chain;
+	ld	e, (hl)
+	inc	hl
+	ld	d, (hl)
+	ld	c, e
+;quickplay.c:152: if (chained) {
+	ld	a,d
+	ld	b,a
+	or	a, e
+	jr	Z, 00121$
+;quickplay.c:161: memcpy((void*)0x7000, tramp, sizeof(tramp));   // this will trounce variables but we don't need them anymore
+	push	bc
+	ld	hl, #0x0006
+	push	hl
+	ld	hl, #_tramp
+	push	hl
+	ld	hl, #0x7000
+	push	hl
+	call	_memcpy
+	pop	af
+	pop	af
+	pop	af
+	pop	bc
+;quickplay.c:162: *((unsigned int*)0x7001) = chained;     // patch the pointer, chained should be on the stack
+	ld	(0x7001), bc
+;quickplay.c:163: ((void(*)())0x7000)();                  // call the function, never return
+	call	0x7000
+00121$:
+;quickplay.c:167: } while (*pLoop);
+	ld	a, (#(_flags + 0x000d) + 0)
 	or	a, a
-	jr	Z,00119$
-	ld	a, (#_textout + 775)
-	or	a, a
-	jr	NZ,00101$
-;quickplay.c:101: return 2;
-;quickplay.c:103: }
-	jr	00119$
+	jp	NZ, 00120$
+;quickplay.c:178: __endasm;
+	rst	0x00
+;quickplay.c:182: return 2;
+	ld	hl, #0x0002
+;quickplay.c:184: }
+	ret
+_tramp:
+	.db #0x3a	; 58
+	.db #0xff	; 255
+	.db #0xff	; 255
+	.db #0xc3	; 195
+	.db #0x00	; 0
+	.db #0xc0	; 192
 _textout:
 	.ascii "~~~~DATAHERE~~~~"
 	.db 0x00
@@ -947,13 +1001,11 @@ _textout:
 	.db 0x00
 	.db 0x00
 	.db 0x00
+_flags:
+	.ascii "~~FLAGxxyySSSL"
 	.db 0x00
 	.db 0x00
-	.db 0x00
-	.db 0x00
-	.db 0x00
-	.db 0x00
-	.db 0x00
+	.ascii ":"
 	.db 0x00
 	.area _CODE
 	.area _INITIALIZER

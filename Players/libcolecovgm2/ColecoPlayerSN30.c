@@ -18,4 +18,4 @@ volatile __sfr __at 0xff SOUND;
     if (((mutes)&(0x80>>((chan)-1)))==0) SOUND=(x);
 
 // and now include the actual implementation
-#include "ColCPlayer.c"
+#include "ColCPlayer30.c"

@@ -51,7 +51,7 @@ void SongLoop30();
 // then no channels are playing noise.
 // You, the caller, need to strip the trigger nibble when you are done
 // (if it matters to your software, that is)
-extern uint8 songVol[4];
+extern volatile uint8 songVol[4];
 
 // this array contains the current note on each voice (ignoring mutes)
 // The most significant nibble is set to the PSG command nibble when a
@@ -61,7 +61,7 @@ extern uint8 songVol[4];
 // (if it matters to your software, that is)
 // However, do not strip them if you are using the SFX player, as the SFX
 // player requires those nibbles to write the data back when SFX ends.
-extern uint16 songNote[4];
+extern volatile uint16 songNote[4];
 
 // songActive is the LSB of songNote[3]
 // this flag contains 1 if playing, zero if stopped

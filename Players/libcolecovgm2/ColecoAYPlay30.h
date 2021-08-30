@@ -23,7 +23,7 @@ void ay_SongLoop30();
 // then no channels are playing noise.
 // You, the caller, need to strip the trigger nibble when you are done
 // (if it matters to your software, that is)
-extern uint8 ay_songVol30[4];
+extern volatile uint8 ay_songVol30[4];
 
 // this array contains the current note on each voice (ignoring mutes)
 // The most significant nibble is set to the PSG command nibble when a
@@ -33,7 +33,7 @@ extern uint8 ay_songVol30[4];
 // (if it matters to your software, that is)
 // However, do not strip them if you are using the SFX player, as the SFX
 // player requires those nibbles to write the data back.
-extern uint16 ay_songNote30[4];
+extern volatile uint16 ay_songNote30[4];
 
 // helpful wrapper
 #define isAYPlaying ((ay_songNote30[3]&SONGACTIVEACTIVE) != 0)

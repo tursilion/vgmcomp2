@@ -184,6 +184,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libcolecovgm2", "libcolecov
 		Players\libcolecovgm2\ColecoPlayerSFX.c = Players\libcolecovgm2\ColecoPlayerSFX.c
 		Players\libcolecovgm2\ColecoPlayerSFX30.c = Players\libcolecovgm2\ColecoPlayerSFX30.c
 		Players\libcolecovgm2\ColecoPlayerSN.c = Players\libcolecovgm2\ColecoPlayerSN.c
+		Players\libcolecovgm2\ColecoPlayerSN30.c = Players\libcolecovgm2\ColecoPlayerSN30.c
 		Players\libcolecovgm2\ColecoSfxPlay.h = Players\libcolecovgm2\ColecoSfxPlay.h
 		Players\libcolecovgm2\ColecoSfxPlay30.h = Players\libcolecovgm2\ColecoSfxPlay30.h
 		Players\libcolecovgm2\ColecoSNPlay.h = Players\libcolecovgm2\ColecoSNPlay.h

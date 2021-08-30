@@ -26,7 +26,7 @@ struct STRTYPE {
 };
 
 // global stream object for direct access
-extern STREAM globalStr;
+extern volatile STREAM globalStr;
 
 // Call this function to prepare to play
 // pSbf - pointer to song block data
@@ -51,13 +51,13 @@ uint8 getCompressedByte(STREAM *str, const uint8 *buf);
 // do not modify these bytes if you are using the SFX player, they are
 // used to recover after an SFX. If you aren't using SFX, you can do
 // what you like.
-extern uint8 songVol[4];
+extern volatile uint8 songVol[4];
 
 // this array contains the current note on each voice (ignoring mutes)
 // do not modify these bytes if you are using the SFX player, they are
 // used to recover after an SFX. If you aren't using SFX, you can do
 // what you like.
-extern uint16 songNote[4];
+extern volatile uint16 songNote[4];
 
 // songActive is the LSB of songNote[3]
 #define songActive (songNote[3]&0xff)

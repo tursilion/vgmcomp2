@@ -23,7 +23,7 @@ void sfx_SongLoop();
 // then no channels are playing noise.
 // You, the caller, need to strip the trigger nibble when you are done
 // (if it matters to your software, that is)
-extern uint8 sfx_songVol[4];
+extern volatile uint8 sfx_songVol[4];
 
 // this array contains the current note on each voice (ignoring mutes)
 // The most significant nibble is set to the PSG command nibble when a
@@ -33,10 +33,10 @@ extern uint8 sfx_songVol[4];
 // (if it matters to your software, that is)
 // However, do not strip them if you are using the SFX player, as the SFX
 // player requires those nibbles to write the data back.
-extern uint16 sfx_songNote[4];
+extern volatile uint16 sfx_songNote[4];
 
 // tracks the current sfxPriority (only if isSFXPlaying is true)
-extern unsigned char sfxPriority;
+extern volatile unsigned char sfxPriority;
 
 // helpful wrapper
 #define isSFXPlaying ((sfx_songNote[3]&SONGACTIVEACTIVE) != 0)

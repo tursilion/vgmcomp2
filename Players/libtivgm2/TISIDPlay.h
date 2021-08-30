@@ -45,11 +45,11 @@ void SIDLoop30();
 
 // this array contains the current volume of each voice (ignoring mutes)
 // volume is in the most significant nibble. Note that sidVol[3] is unused.
-extern uint8 sidVol[4];
+extern volatile uint8 sidVol[4];
 
 // this array contains the current note on each voice (ignoring mutes)
 // it is in little endian order. sidNote[3] is unused except for the active bit below.
-extern uint16 sidNote[4];
+extern volatile uint16 sidNote[4];
 
 // songActive is the LSB of sidNote[3]
 // this flag contains 1 if playing, zero if stopped

@@ -14,7 +14,7 @@
 
 // Global stream object used to make access a direct memory reference
 // STREAM objects are only 8 bytes in size
-STREAM globalStr;
+volatile STREAM globalStr;
 
 // wrapper for external test code
 uint8 getCompressedByte(STREAM *str, const uint8 *buf) {

@@ -339,6 +339,9 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 	if (NULL == p) {
         if (isTIMode) {
     		p=quickplayti;
+			// patch the EA5 header to be sure the next file is loaded
+			p[128] = 0xff;
+			p[129] = 0xff;
         } else {
             p=quickplaycoleco;
         }
@@ -369,56 +372,77 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 		memcpy(p+(idx*32), text[idx].GetBuffer(), 32);
 	}
 
-    // now fill in the options
-    if (snfile.GetLength() > 0) {
-        // first file is always at 0xA000
-        if (isTIMode) {
-            // big endian 9900
-            p[768] = 0xa0;
-            p[769] = 0x00;
-        } else {
-            // little endian z80
-            p[768] = 0x00;
-            p[769] = 0xa0;
-        }
-    } else {
-        p[768] = 0;
-        p[769] = 0;
-    }
+	// also go ahead and find the flags section
+	for (idx=0; idx<1024; idx++) {
+		if (0 == memcmp(p, "~~FLAG", 6)) break;
+		p++;
+	}
+	if (idx>=1024) {
+		AfxMessageBox("Internal error - can't find flags buffer. Failing.");
+		return;
+	}
+
+	// 0-5 = ~~FLAG
+	// 6-7 - first song
+	// 8-9 - second song
+	// 10-12 - 3 SID flags (ignored elsewhere)
+	// 13 - loop
+	// 14-15 - chain address (zeroed here)
+
+	// now fill in the options
+	if (snfile.GetLength() > 0) {
+		// first file is always at 0xA000 (on both systems)
+		if (isTIMode) {
+			// big endian 9900
+			p[6] = 0xa0;
+			p[7] = 0x00;
+		} else {
+			// little endian z80
+			p[6] = 0x00;
+			p[7] = 0xa0;
+		}
+	} else {
+		p[6] = 0;
+		p[7] = 0;
+	}
 
     offset+=0xa000;
 
     if (isTIMode) {
         if (sidfile.GetLength() > 0) {
             // big endian 9900
-            p[770] = offset/256;
-            p[771] = offset%256;
-            p[772] = getSIDMode(IDC_COMBOSID1);
-            p[773] = getSIDMode(IDC_COMBOSID2);
-            p[774] = getSIDMode(IDC_COMBOSID3);
+            p[8] = offset/256;
+            p[9] = offset%256;
+            p[10] = getSIDMode(IDC_COMBOSID1);
+            p[11] = getSIDMode(IDC_COMBOSID2);
+            p[12] = getSIDMode(IDC_COMBOSID3);
         } else {
-            p[770] = 0;
-            p[771] = 0;
+            p[8] = 0;
+            p[9] = 0;
             // don't need to fill in the SID controls
         }
     } else {
         if (ayfile.GetLength() > 0) {
             // little endian z80
-            p[770] = offset%256;
-            p[771] = offset/256;
+            p[8] = offset%256;
+            p[9] = offset/256;
             // don't need to fill in the SID controls
         } else {
-            p[770] = 0;
-            p[771] = 0;
+            p[8] = 0;
+            p[9] = 0;
             // don't need to fill in the SID controls
         }
     }
 
     if (loop) {
-        p[775] = 1;
+        p[13] = 1;
     } else {
-        p[775] = 0;
+        p[13] = 0;
     }
+
+	// chain address is never set here - that's for external programs to set
+	p[14] = 0;
+	p[15] = 0;
 
 	CFileDialog dlg(FALSE);
 	if (IDOK == dlg.DoModal()) {
