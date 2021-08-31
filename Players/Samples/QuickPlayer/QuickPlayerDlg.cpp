@@ -13,13 +13,11 @@
 #include "QuickPlayerDlg.h"
 #include "quickplayColeco.c"    // remember to remove const
 #include "quickplayTI.c"        // remember to remove const and fix EA#5 header for more files
+#include "qpballsTI.c"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-
-unsigned char *textbufferTI=NULL;
-unsigned char *textbufferCOL=NULL;
 
 int CQuickPlayerDlg::getSIDMode(int combo) {
     CWnd *pWnd = GetDlgItem(combo);
@@ -107,6 +105,10 @@ BOOL CQuickPlayerDlg::OnInitDialog()
     SendDlgItemMessage(IDC_COMBOSID1, CB_SETCURSEL, 1, (LPARAM)"Pulse");
     SendDlgItemMessage(IDC_COMBOSID2, CB_SETCURSEL, 1, (LPARAM)"Pulse");
     SendDlgItemMessage(IDC_COMBOSID3, CB_SETCURSEL, 1, (LPARAM)"Pulse");
+
+	SendDlgItemMessage(IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"QuickPlayer");
+	SendDlgItemMessage(IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"Balls");
+	SendDlgItemMessage(IDC_COMBO1, CB_SETCURSEL, 0, 0);
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -199,6 +201,7 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 	CString snfile;
     CString sidfile;
     CString ayfile;
+	int playerNum;
 	int idx;
 
 	CWnd *pTxt=GetDlgItem(IDC_SNSONG);
@@ -227,6 +230,9 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 	}
     bool loop = ((CButton*)pLoop)->GetCheck() == BST_CHECKED;
 
+    CWnd *pTISong = GetDlgItem(IDC_RADIO1);
+    bool isTIMode = (((CButton*)pTISong)->GetCheck() == BST_CHECKED);
+
     // offset inside of song[]
     int offset = 0;
     songsize = 0;
@@ -253,9 +259,50 @@ void CQuickPlayerDlg::OnBnClickedButton2()
         offset = songsize;
     }
 
+	playerNum = SendDlgItemMessage(IDC_COMBO1, CB_GETCURSEL, 0, 0);
+	if (playerNum < 0) {
+		AfxMessageBox("Please select a player");
+		return;
+	}
+	// check limitations and load pointer to program
+	// rather than rely on removing the const, we'll just copy
+	// into a buffer we can modify
+	unsigned char *program = (unsigned char*)malloc(32768);	// big enough to make the Coleco cart
+	int progsize = 0;
+	switch (playerNum) {
+		case 0:
+			// no limits
+			if (isTIMode) {
+				progsize = SIZE_OF_QUICKPLAYTI;
+				memcpy(program, quickplayti, progsize);
+			} else {
+				progsize = SIZE_OF_QUICKPLAYCOLECO;
+				memcpy(program, quickplaycoleco, progsize);
+			}
+			break;
+
+		case 1:
+			// TI only, 1 file only
+			if ((sidfile.GetLength() > 0)||(ayfile.GetLength() > 0)) {
+				AfxMessageBox("This player only supports SN playback");
+				return;
+			}
+			if (!isTIMode) {
+				// maybe temporary? uses too much RAM right now...
+				// only by 64 bytes+stack space, though...
+				AfxMessageBox("This player only supports TI-99/4A");
+				return;
+			}
+			progsize = SIZE_OF_QPBALLS;
+			memcpy(program, qpballs, progsize);
+			break;
+
+		default:
+			AfxMessageBox("Unknown program selection");
+			return;
+	}
+
     // song 2 can only be SID /or/ AY
-    CWnd *pTISong = GetDlgItem(IDC_RADIO1);
-    bool isTIMode = (((CButton*)pTISong)->GetCheck() == BST_CHECKED);
     if (isTIMode) {
         // TI mode
         if (sidfile.GetLength() > 0) {
@@ -331,33 +378,19 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 
 	// find the location to dump the text
 	unsigned char *p;
+    p=program;
     if (isTIMode) {
-        p = textbufferTI;
-    } else {
-        p = textbufferCOL;
+		// patch the EA5 header to be sure the next file is loaded
+		p[128] = 0xff;
+		p[129] = 0xff;
     }
-	if (NULL == p) {
-        if (isTIMode) {
-    		p=quickplayti;
-			// patch the EA5 header to be sure the next file is loaded
-			p[128] = 0xff;
-			p[129] = 0xff;
-        } else {
-            p=quickplaycoleco;
-        }
-		for (idx=0; idx<1024; idx++) {
-			if (0 == memcmp(p, "~~~~DATAHERE~~~~", 12)) break;
-			p++;
-		}
-		if (idx>=1024) {
-			AfxMessageBox("Internal error - can't find text buffer. Failing.");
-			return;
-		}
-        if (isTIMode) {
-    		textbufferTI=p;
-        } else {
-    		textbufferCOL=p;
-        }
+	for (idx=0; idx<progsize; idx++) {
+		if (0 == memcmp(p, "~~~~DATAHERE~~~~", 12)) break;
+		p++;
+	}
+	if (idx>=progsize) {
+		AfxMessageBox("Internal error - can't find text buffer. Failing.");
+		return;
 	}
 	
 	for (idx=0; idx<24; idx++) {
@@ -373,11 +406,12 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 	}
 
 	// also go ahead and find the flags section
-	for (idx=0; idx<1024; idx++) {
+	p=program;
+	for (idx=0; idx<progsize; idx++) {
 		if (0 == memcmp(p, "~~FLAG", 6)) break;
 		p++;
 	}
-	if (idx>=1024) {
+	if (idx>=progsize) {
 		AfxMessageBox("Internal error - can't find flags buffer. Failing.");
 		return;
 	}
@@ -456,7 +490,7 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 		}
 
         if (isTIMode) {
-		    fwrite(quickplayti, 1, SIZE_OF_QUICKPLAYTI, fp);
+		    fwrite(program, 1, progsize, fp);
 		    fclose(fp);
 
 		    // increment last char of name and then write the song into that
@@ -500,11 +534,13 @@ void CQuickPlayerDlg::OnBnClickedButton2()
         } else {
             // Coleco mode
             // We will just patch and write out the Coleco ROM file
-            memcpy(&quickplaycoleco[0xa000-0x8000], song, songsize);
-            fwrite(quickplaycoleco, 1, 32768, fp);
+            memcpy(&program[0xa000-0x8000], song, songsize);
+            fwrite(program, 1, 32768, fp);
             fclose(fp);
         }
 	}
+
+	free(program);
 }
 
 void CQuickPlayerDlg::OnBnClickedButton3()

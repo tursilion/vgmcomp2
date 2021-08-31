@@ -49,6 +49,7 @@ nullptr
 	ci   r2,strDat+78   * check if we did the last (9th) one (9*8=72,+6 offset = 78. I dont know why GCC used an offset,but no biggie)
 	jne  STARTLP        * loop around if not done
 
+* TODO: this init for notes isn't right, should be 8001,a001,c001,e001...
 	li   r2,>1          * set all three notes to >0001
 	mov  r2,@songNote
 	mov  r2,@songNote+2

@@ -7,6 +7,7 @@ GASTI=/home/tursilion/gcc9900/bin/tms9900-as
 LDTI=/home/tursilion/gcc9900/bin/tms9900-ld
 CCTI=/home/tursilion/gcc9900/bin/tms9900-gcc
 CP=/bin/cp
+B2I=/mnt/d/tools/bin2inc.exe
 
 # Path to elf2cart conversion utility
 ELF2EA5=/home/tursilion/gcc9900/bin/elf2ea5
@@ -21,8 +22,8 @@ LDFLAGS_EA5=\
 C_FLAGSTI=\
   -O2 -std=c99 -s --save-temp -DBUILD_TI99
 
-INCPATHTI=-I/mnt/d/work/ti/libti99 -I../../libtivgm2
-LIBPATHTI=-L/mnt/d/work/ti/libti99 -L../../libtivgm2
+INCPATHTI=-I/mnt/d/work/ti/libti99 -I../../../libtivgm2
+LIBPATHTI=-L/mnt/d/work/ti/libti99 -L../../../libtivgm2
 LIBSTI=-lti99 -ltivgm2
 
 # Recipe to compile the executable
@@ -32,6 +33,7 @@ ti99: quickplay.c crt0_ea5.asm
 	$(LDTI) crt0_ea5.o quickplay.o $(LIBSTI) $(LIBPATHTI) $(LDFLAGS_EA5) -o quickplayti.ea5.elf > ea5.map
 	$(ELF2EA5) quickplayti.ea5.elf quickplayti.ea5.bin
 	$(EA5PLIT) quickplayti.ea5.bin
+	$(B2I) QUICKPLAYTI1 ../quickplayTI.c quickplayti
 
 ############ Coleco part ###############
 
@@ -57,6 +59,7 @@ coleco: crt0.s quickplay.c
 	$(CC) $(CFLAGS) -o quickplay.rel quickplay.c
 	$(CC) -mz80 --code-loc 0x8100 --data-loc 0x7000 $(LFLAGS) crt0.rel quickplay.rel
 	$(MB) -s 65536 crt0.ihx | $(DD) bs=32768 skip=1 of=quickplayColeco.rom
+	$(B2I) quickplayColeco.rom ..\quickplayColeco.c quickplaycoleco
 
 ############ Shared part ###############
 

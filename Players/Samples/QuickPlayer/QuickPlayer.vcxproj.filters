@@ -16,6 +16,9 @@
     <Filter Include="Console Source">
       <UniqueIdentifier>{5114b83b-f1c8-4184-a228-6a4693d26d49}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Console Source\balls">
+      <UniqueIdentifier>{402d60ca-93ea-43f1-a4e0-36224e5418b7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="QuickPlayer.cpp">
@@ -27,14 +30,23 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="quickplay.c">
-      <Filter>Console Source</Filter>
-    </ClCompile>
     <ClCompile Include="quickplayColeco.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="quickplayTI.c">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="console\quickplay.c">
+      <Filter>Console Source</Filter>
+    </ClCompile>
+    <ClCompile Include="qpballsTI.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="console\qpballs\ani1.c">
+      <Filter>Console Source\balls</Filter>
+    </ClCompile>
+    <ClCompile Include="console\qpballs\main.c">
+      <Filter>Console Source\balls</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -65,14 +77,25 @@
     <None Include="res\QuickPlayer.rc2">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="crt0_ea5.asm">
+    <None Include="console\crt0.s">
       <Filter>Console Source</Filter>
     </None>
-    <None Include="Makefile">
+    <None Include="console\crt0_ea5.asm">
       <Filter>Console Source</Filter>
     </None>
-    <None Include="crt0.s">
+    <None Include="console\Makefile">
       <Filter>Console Source</Filter>
     </None>
+    <None Include="console\qpballs\crt0_ea5.asm">
+      <Filter>Console Source\balls</Filter>
+    </None>
+    <None Include="console\qpballs\Makefile">
+      <Filter>Console Source\balls</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="console\qpballs\readme.txt">
+      <Filter>Console Source\balls</Filter>
+    </Text>
   </ItemGroup>
 </Project>

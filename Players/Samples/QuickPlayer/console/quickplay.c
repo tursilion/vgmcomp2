@@ -170,7 +170,7 @@ int main() {
 
     // otherwise, reboot
 #ifdef BUILD_TI99
-    // GCC syntax
+    // GCC syntax (though technically my code will reset on exit anyway)
     __asm__ ("limi 0\n\tblwp @>0000");
 #endif
 #ifdef BUILD_COLECO
