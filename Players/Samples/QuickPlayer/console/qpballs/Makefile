@@ -25,7 +25,7 @@ NAME=ANI
 #
 # Locate the code (.text section) and the data (.data section)
 LDFLAGS_EA5=\
-  --section-start .text=2100 --section-start .data=3800 -M
+  --section-start .text=2000 --section-start .data=3b00 -M
 
 INCPATH=-I$(LIBTI99) -I../../../../libtivgm2
 LIBPATH=-L$(LIBTI99) -L. -L../../../../libtivgm2

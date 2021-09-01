@@ -42,8 +42,13 @@ unsigned char delayvol[4][DELAYTIME];
 unsigned int delaytone[4][DELAYTIME];
 int delaypos, finalcount;
 unsigned int status;
-unsigned int nOldVol[4];
-unsigned int nOldVoice[4];
+// we use 8 channels instead of 4 by assuming arpeggio all the
+// time. By tracking even and odd frames separately, we can treat
+// it as two notes instead of a constant stream of balls. The stream
+// looks great, but we don't have enough sprites and it slows the
+// code down dispatching them all the time.
+unsigned int nOldVoice[8];	// will double up old voice
+unsigned int nOldVol[4];	// won't double up volume, arp should be close
 
 // TI trampoline expects a cartridge header and boots the first program
 const unsigned char tramp[] = {
@@ -57,7 +62,7 @@ const unsigned char tramp[] = {
 };
 
 // Windows app formats a full screen into here
-// TODO: we should display at least some of it...
+// we try to show 3 lines of it with a limited font
 const unsigned char textout[768] = {
     "~~~~DATAHERE~~~~\0"
 };
@@ -71,7 +76,8 @@ const unsigned char textout[768] = {
 // This struct must exist in all player programs
 // The older player doesn't have a ~~FLAG section, it's part of ~~~~DATAHERE~~~~,
 // so if you can't find ~~FLAG then you don't have chaining.
-const unsigned char flags[18] = {
+// THIS is accessed as word, so must be aligned
+const unsigned char flags[18] __attribute__((aligned (2))) = {
     "~~FLAGxxyySSSL\0\0:"
 };
 
@@ -79,6 +85,7 @@ unsigned int firstSong;     // for SN
 
 int main() {
 	int nextSprite = 0;
+	int frame = 0;
 
 	// init the screen
 	{
@@ -138,6 +145,14 @@ int main() {
 		}
 		// ball sprite on 1
 		vdpmemcpy(gPattern+8, ballsprite, 8);
+		
+		// and load the limited font
+		vdpmemcpy(gPattern+(240*8), font, 16*8);
+		vdpmemcpy(gPattern+(176*8), fontjl, 2*8);
+		vdpmemcpy(gPattern+(184*8), fontnp, 2*8);
+		vdpmemcpy(gPattern+(192*8), fontqt, 2*8);
+		vdpmemcpy(gPattern+(200*8), fontvy, 2*8);
+		vdpmemcpy(gPattern+(232*8), fontxz, 2*8);
 
 		// now draw the graphics
 		// Probably need some background frames, like a scaffold
@@ -178,6 +193,22 @@ int main() {
     // get the init color table into CPU memory
     vdpmemread(gColor, colortab, 32);
 
+#if 1
+	// display the first three lines of the text data - note we need to use a lookup table
+	// as our font has only 16 characters in it... (to have more characters would cause
+	// letters to flash with this setup)...
+	VDP_SET_ADDRESS_WRITE(gImage+(21*32));
+	for (int idx=0; idx<32*3; ++idx) {
+		unsigned char c = textout[idx];
+		if (c>96) c-=32;	// make uppercase
+		if ((c<32)||(c>90)) {
+			VDPWD=132;
+		} else {
+			VDPWD=charmap[c-32];
+		}
+	}
+#endif
+
 	// look up the song's address (should be 0xA000)
 	firstSong = *((unsigned int*)&flags[6]);
 	// const is fine for easy storage and patching, but for the decision making on
@@ -191,6 +222,7 @@ int main() {
 		for (int idx=0; idx<4; idx++) {
 			nOldVol[idx]=0xff;
 			nOldVoice[idx]=0;
+			nOldVoice[idx+4]=0;
 			for (int i2=0; i2<DELAYTIME; i2++) {
 				// mute the history 
 				delayvol[idx][i2]=(idx*0x20) + 0x9f;
@@ -231,8 +263,12 @@ int main() {
 				--finalcount;
 			}
 
+			++frame;
+
 			// implement frame
 			for (int idx=0; idx<4; idx++) {
+				int arpvoice = idx + ((frame&1)<<2);	// start at 0 or 4
+
 				// volume is exactly the same as the old player
 				delayvol[idx][delaypos] = songVol[idx];
 				// tone data is no longer byte swapped
@@ -254,7 +290,7 @@ int main() {
 						targ=tonetarget[x] + FIRST_TONE_COLOR;
 					}
 
-					if ((songVol[idx]+4 < nOldVol[idx])||(targ!=nOldVoice[idx])) {
+					if ((songVol[idx]+4 < nOldVol[idx])||((targ!=nOldVoice[idx])&&(targ!=nOldVoice[arpvoice]))) {
 						// trigger new ball (if available - we let them finish)
 						unsigned int y = nextSprite++;
 						nextSprite &= (MAX_SPRITES-1);  // wraparound
@@ -323,7 +359,7 @@ int main() {
 
 				// remember these values
 				nOldVol[idx]=songVol[idx];
-				nOldVoice[idx]=targ;
+				nOldVoice[arpvoice]=targ;
 			}
 			// next position
 			++delaypos;
