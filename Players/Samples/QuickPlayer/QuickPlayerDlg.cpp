@@ -14,6 +14,10 @@
 #include "quickplayColeco.c"    // remember to remove const
 #include "quickplayTI.c"        // remember to remove const and fix EA#5 header for more files
 #include "qpballsTI.c"
+#include "qpchuckTI.c"
+
+// used for the build code
+char song[24*1024];
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -108,6 +112,7 @@ BOOL CQuickPlayerDlg::OnInitDialog()
 
 	SendDlgItemMessage(IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"QuickPlayer");
 	SendDlgItemMessage(IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"Balls");
+	SendDlgItemMessage(IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"Chuck");
 	SendDlgItemMessage(IDC_COMBO1, CB_SETCURSEL, 0, 0);
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
@@ -196,7 +201,6 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 	// build
 	CString text[24];
 	CString rawtext;
-	char song[24*1024];
 	size_t songsize;
 	CString snfile;
     CString sidfile;
@@ -297,6 +301,16 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 			memcpy(program, qpballs, progsize);
 			break;
 
+		case 2:
+			// 1 file only
+			if ((sidfile.GetLength() > 0)||(ayfile.GetLength() > 0)) {
+				AfxMessageBox("This player only supports SN playback");
+				return;
+			}
+			progsize = SIZE_OF_QPCHUCKTI;
+			memcpy(program, qpchuckti, progsize);
+			break;
+
 		default:
 			AfxMessageBox("Unknown program selection");
 			return;
@@ -378,6 +392,7 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 
 	// find the location to dump the text
 	unsigned char *p;
+    int maxrows = 0;
     p=program;
     if (isTIMode) {
 		// patch the EA5 header to be sure the next file is loaded
@@ -392,8 +407,12 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 		AfxMessageBox("Internal error - can't find text buffer. Failing.");
 		return;
 	}
+    if (maxrows == 0) {
+        maxrows = atoi((char*)p+16);
+        if (maxrows > 24) maxrows = 24;
+    }
 	
-	for (idx=0; idx<24; idx++) {
+	for (idx=0; idx<maxrows; idx++) {
         // center each line into the buffer
 		int l=text[idx].GetLength();
         for (int x=0; x<16-(l/2); ++x) {

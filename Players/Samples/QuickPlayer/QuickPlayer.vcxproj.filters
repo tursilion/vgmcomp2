@@ -19,6 +19,9 @@
     <Filter Include="Console Source\balls">
       <UniqueIdentifier>{402d60ca-93ea-43f1-a4e0-36224e5418b7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Console Source\chuck">
+      <UniqueIdentifier>{d404c0e7-a0d2-417f-9aec-871cf39f9f73}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="QuickPlayer.cpp">
@@ -48,6 +51,12 @@
     <ClCompile Include="console\qpballs\main.c">
       <Filter>Console Source\balls</Filter>
     </ClCompile>
+    <ClCompile Include="console\qpchuck\chuckrock.c">
+      <Filter>Console Source\chuck</Filter>
+    </ClCompile>
+    <ClCompile Include="qpchuckTI.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="QuickPlayer.h">
@@ -61,6 +70,12 @@
     </ClInclude>
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="console\qpchuck\chuckcol.h">
+      <Filter>Console Source\chuck</Filter>
+    </ClInclude>
+    <ClInclude Include="console\qpchuck\chuckpat.h">
+      <Filter>Console Source\chuck</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -91,6 +106,12 @@
     </None>
     <None Include="console\qpballs\Makefile">
       <Filter>Console Source\balls</Filter>
+    </None>
+    <None Include="console\qpchuck\crt0_ea5.asm">
+      <Filter>Console Source\chuck</Filter>
+    </None>
+    <None Include="console\qpchuck\Makefile">
+      <Filter>Console Source\chuck</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

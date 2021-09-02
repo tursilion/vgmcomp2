@@ -54,7 +54,7 @@ const unsigned char tramp[] = {
 // This one doesn't need to be volatile because we make
 // no decisions based on its contents
 const unsigned char textout[768] = {
-    "~~~~DATAHERE~~~~\0"
+    "~~~~DATAHERE~~~~24\0"  // allow 24 rows of text
 };
 
 // 00: six bytes of flag (~~FLAG)
@@ -66,7 +66,7 @@ const unsigned char textout[768] = {
 // This struct must exist in all player programs
 // The older player doesn't have a ~~FLAG section, it's part of ~~~~DATAHERE~~~~,
 // so if you can't find ~~FLAG then you don't have chaining.
-const unsigned char flags[18] = {
+const unsigned char flags[18] __attribute__((aligned (2))) = {
     "~~FLAGxxyySSSL\0\0:"
 };
 

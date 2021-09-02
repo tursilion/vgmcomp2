@@ -171,6 +171,7 @@ bool noFwdSearch = false;
 bool noBwdSearch = false;
 bool alwaysRLE = false;
 bool checkAnyway = false;
+bool pack = false;
 
 // stats for minrun loops
 #define MAXRUN 21
@@ -1545,9 +1546,194 @@ bool compressStream(int song, int st, int minstep) {
 #define TONE_MASK_AY   0x00fff
 #define TONE_MASK_SID  0x0ffff
 
+// special mode to use as a general-purpose, single-file compressor
+// lots of copy/paste from main in this function
+int packBinary(const char *szIn, const char *szOut) {
+    // none of the other setup is done, save reading arguments, so we
+    // have to do it ourselves
+    if ((NULL == szIn)||(NULL == szOut)) {
+        printf("Can't find files for pack: In=%s, Out=%s\n", szIn, szOut);
+        return 1;
+    }
+
+    // read szIn into the song stream array, chars become ints for packing,
+    // and we have to terminate it with 0xffff
+    FILE *fp=fopen(szIn, "rb");
+    if (NULL == fp) {
+        printf("Can't open input file, code %d: %s\n", errno, szIn);
+        return 1;
+    }
+
+    currentSong = 1;
+    songs[0].streamCnt[0] = 0;
+    while (!feof(fp)) {
+        int dat = fgetc(fp);
+        if (dat == EOF) break;
+        songs[0].outStream[0][songs[0].streamCnt[0]++] = dat;
+    }
+    songs[0].outStream[0][songs[0].streamCnt[0]]=0xffff;
+    fclose(fp);
+
+    printf(" - read %d bytes...\n", songs[0].streamCnt[0]);
+
+    // prepare the output binary blob
+    memset(outputBuffer, 0xff, sizeof(outputBuffer));
+    outputPos = 0;
+
+    // store totals here
+    minRunData[MAXRUN].cntBacks.reset();
+    minRunData[MAXRUN].cntFwds.reset();
+    minRunData[MAXRUN].cntInlines.reset();
+    minRunData[MAXRUN].cntRLE32s.reset();
+    minRunData[MAXRUN].cntRLE24s.reset();
+    minRunData[MAXRUN].cntRLE16s.reset();
+    minRunData[MAXRUN].cntRLEs.reset();
+
+    // Individually compress each of the 9 channels (all treated the same)
+    for (int song=0; song<currentSong; ++song) {
+        int st = 0;     // only 1 stream
+        {
+            if (verbose) {
+                printf("SBF packing binary data...");
+            }
+            songs[song].streamOffset[st] = outputPos;
+
+            // it appears that the minRun changing is still worth it, and that it needs
+            // to be per stream. In addition, it appears that the full range is still
+            // useful, as my first test case had bests from 0 to 13 in it. Over 400 bytes
+            // were saved doing this, so gonna say worth it. Minruns /might/ also help
+            // order matter less (based on just one test, mind you)
+            int bestRun = 0;
+            int bestDive = 0;
+            int bestSize = 65536;
+
+            // experimental deep dive code - tries all the likely combinations of switches
+            // this takes a really long time and frankly doesn't help much. It only saves
+            // 178 bytes on my 680 rock title (from 32136 to 31958). So... hidden switch. ;)
+            for (int deepdive = 0; deepdive<0x40; ++deepdive) {
+                if (doDeepDive) {
+                    if (deepdive&0x01) noRLE = true; else noRLE = false;
+                    if (deepdive&0x02) noRLE16 = true; else noRLE16 = false;
+                    if (deepdive&0x04) noRLE24 = true; else noRLE24 = false;
+                    if (deepdive&0x08) noRLE32 = true; else noRLE32 = false;
+                    if (deepdive&0x10) noFwdSearch = true; else noFwdSearch = false;
+                    if (deepdive&0x20) noBwdSearch = true; else noBwdSearch = false;
+                    if (noBwdSearch == true && noFwdSearch == false) continue;
+                    if (verbose) {
+                        printf("\rSBF packing binary, dive %d...", deepdive);
+                    }
+                    if (debug2) {
+                        printf("DEEP DIVE: %d noRLE:%d noRLE16:%d noRLE24:%d noRLE32:%d noFwd:%d noBwd:%d\n", deepdive,
+                            noRLE, noRLE16, noRLE24, noRLE32, noFwdSearch, noBwdSearch);
+                    }
+                } else {
+                    // jump right to last loop, don't touch options
+                    deepdive = 0x3f;
+                }
+
+                // this loop only tests 2 starting steps - 4 and 998 (and that's more of a dummy for 'all')
+                // the intent is '4' searches inside the string starting at 4, and 998 starts the search
+                // after the string max size (normally 63, unless we're near the end of the buffer)
+                for (int stepLen = 4; stepLen < 1000;  stepLen+=994) {
+                    for (minRun = minRunMin; minRun < minRunMax; ++minRun) {
+                        minRunData[minRun].cntBacks.reset();
+                        minRunData[minRun].cntFwds.reset();
+                        minRunData[minRun].cntInlines.reset();
+                        minRunData[minRun].cntRLE32s.reset();
+                        minRunData[minRun].cntRLE24s.reset();
+                        minRunData[minRun].cntRLE16s.reset();
+                        minRunData[minRun].cntRLEs.reset();
+
+                        outputPos = songs[song].streamOffset[st];
+
+                        if (!compressStream(song, st, stepLen)) {
+                            return 1;
+                        }
+
+                        if (debug2) {
+                            printf("[%d] got size %d (Mode %d)", minRun, outputPos-songs[song].streamOffset[st], stepLen < 500 ? 1:2);
+                        }
+
+                        if (outputPos-songs[song].streamOffset[st] < bestSize) {
+                            if (debug2) printf(" (BEST!)");
+                            bestSize = outputPos-songs[song].streamOffset[st];
+                            bestRun = minRun;
+                            bestDive = deepdive;
+                            memcpy(bestRunBuffer, &outputBuffer[songs[song].streamOffset[st]], bestSize);
+                        }
+
+                        if (debug2) printf("\n");
+                    }
+                }
+
+            }// deep dive
+
+            // reload the best one...
+            if (verbose) {
+                printf("%4d bytes at minrun %d\n", bestSize, bestRun);
+                if (doDeepDive) {
+                    // okay to change these, they will be changed again before use
+                    if (bestDive&0x01) noRLE = true; else noRLE = false;
+                    if (bestDive&0x02) noRLE16 = true; else noRLE16 = false;
+                    if (bestDive&0x04) noRLE24 = true; else noRLE24 = false;
+                    if (bestDive&0x08) noRLE32 = true; else noRLE32 = false;
+                    if (bestDive&0x10) noFwdSearch = true; else noFwdSearch = false;
+                    if (bestDive&0x20) noBwdSearch = true; else noBwdSearch = false;
+                    printf("  BEST DIVE: %d noRLE:%d noRLE16:%d noRLE24:%d noRLE32:%d noFwd:%d noBwd:%d\n", 
+                        bestDive, noRLE, noRLE16, noRLE24, noRLE32, noFwdSearch, noBwdSearch);
+                }
+            }
+
+            memcpy(&outputBuffer[songs[song].streamOffset[st]], bestRunBuffer, bestSize);
+            outputPos = songs[song].streamOffset[st] + bestSize;
+            // update totals
+            minRunData[MAXRUN].cntBacks += minRunData[bestRun].cntBacks;
+            minRunData[MAXRUN].cntFwds += minRunData[bestRun].cntFwds;
+            minRunData[MAXRUN].cntInlines += minRunData[bestRun].cntInlines;
+            minRunData[MAXRUN].cntRLE32s += minRunData[bestRun].cntRLE32s;
+            minRunData[MAXRUN].cntRLE24s += minRunData[bestRun].cntRLE24s;
+            minRunData[MAXRUN].cntRLE16s += minRunData[bestRun].cntRLE16s;
+            minRunData[MAXRUN].cntRLEs += minRunData[bestRun].cntRLEs;
+        }
+    }
+
+    // word align the tables so the TI can pull a word at a time
+    if (outputPos&1) {
+        outputBuffer[outputPos++]=0;
+    }
+
+    printf("\nBinary compressed to %d bytes\n", outputPos);
+
+    // deepdive blows these stats away cause we don't keep all the run data across every combination
+    if ((verbose) && (!doDeepDive)) {
+        printf("  %d RLE encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLEs.cnt, minRunData[MAXRUN].cntRLEs.avg(3));
+        printf("  %d RLE16 encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLE16s.cnt, minRunData[MAXRUN].cntRLE16s.avg(2));
+        printf("  %d RLE24 encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLE24s.cnt, minRunData[MAXRUN].cntRLE24s.avg(2));
+        printf("  %d RLE32 encoded sequences, avg length %d\n", minRunData[MAXRUN].cntRLE32s.cnt, minRunData[MAXRUN].cntRLE32s.avg(2));
+        printf("  %d backref sequences, avg length %d\n", minRunData[MAXRUN].cntBacks.cnt, minRunData[MAXRUN].cntBacks.avg(4));
+        printf("  %d inline sequences, avg length %d\n", minRunData[MAXRUN].cntInlines.cnt, minRunData[MAXRUN].cntInlines.avg(1));
+        printf("  %d fwdref inlines, avg length %d\n", minRunData[MAXRUN].cntFwds.cnt, minRunData[MAXRUN].cntFwds.avg(1));
+    }
+
+    // write out the final file
+    {
+        FILE *fp = fopen(szFileOut, "wb");
+        if (NULL == fp) {
+            printf("Failed to open output file '%s', code %d\n", szFileOut, errno);
+            return 1;
+        }
+        fwrite(outputBuffer, 1, outputPos, fp);
+        fclose(fp);
+    }
+
+    printf("\n** DONE **\n");
+
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Compression Tool - v20210701\n\n");
+	printf("VGMComp2 Compression Tool - v20210901\n\n");
 
     // parse arguments
     int nextarg = -1;
@@ -1672,6 +1858,8 @@ int main(int argc, char *argv[])
                 doDeepDive = true;  // secret option that tries most switches on each stream - very slow
             } else if (0 == strcmp(argv[idx], "-checkanyway")) {
                 checkAnyway = true; // secret option that does a stream decode in phase 2 even if length is wrong
+            } else if (0 == strcmp(argv[idx], "-pack")) {
+                pack = true;
             } else {
                 printf("Unknown switch '%s'\n", argv[idx]);
             }
@@ -1692,7 +1880,7 @@ int main(int argc, char *argv[])
     }
 
     // TODO: the type testing needs to be extended when multiple types per command line
-    if ((strlen(szFileOut)==0)||((songs[0].isAY()==false)&&(songs[0].isSN()==false)&&(songs[0].isSID()==false))) {
+    if ((strlen(szFileOut)==0)||((songs[0].isAY()==false)&&(songs[0].isSN()==false)&&(songs[0].isSID()==false)&&(pack==false))) {
         if ((songs[0].isAY()==false)&&(songs[0].isSN()==false)&&(songs[0].isSID()==false)) {
             printf("* You must specify -ay, -sn or -sid for output type\n");
         }
@@ -1715,6 +1903,8 @@ int main(int argc, char *argv[])
         printf("-norle32 - disable 32-bit RLE encoding\n");
         printf("-nofwd - disable forward searching\n");
         printf("-nobwd - disable backward searching (implies nofwd, unlikely to be useful)\n");
+        printf("\nvgmcomp2 -pack <filenamein1.bin> <filenameout.sbf>\n");
+        printf("Special mode that packs a binary file - see documentation. Many of the above flags are helpful.\n");
         return 1;
     }
 
@@ -1725,6 +1915,10 @@ int main(int argc, char *argv[])
         return 0;
     }
 #endif
+
+    if (pack) {
+        return packBinary(argv[nextarg], szFileOut);
+    }
 
     // loop through all the songs
     int totalC = 0;

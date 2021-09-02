@@ -260,6 +260,7 @@ int main(int argc, char *argv[])
 	
 	// find the location to dump the text
 	unsigned char *p;
+    int maxrows = 0;
     if (isTIMode) {
         p = textbufferTI;
     } else {
@@ -273,7 +274,7 @@ int main(int argc, char *argv[])
         }
         int idx;
 		for (idx=0; idx<1024; idx++) {
-			if (0 == memcmp(p, "~~~~DATAHERE~~~~", 12)) break;
+			if (0 == memcmp(p, "~~~~DATAHERE~~~~", 16)) break;
 			p++;
 		}
 		if (idx>=1024) {
@@ -286,8 +287,12 @@ int main(int argc, char *argv[])
     		textbufferCOL=p;
         }
 	}
+    if (maxrows == 0) {
+        maxrows = atoi((char*)p+16);
+        if (maxrows > 24) maxrows = 24;
+    }
 
-    for (int idx=0; idx<24; idx++) {
+    for (int idx=0; idx<maxrows; idx++) {
         // center each line into the buffer
 		int l=strlen(text[idx]);
         for (int x=0; x<16-(l/2); ++x) {

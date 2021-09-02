@@ -63,8 +63,8 @@ const unsigned char tramp[] = {
 
 // Windows app formats a full screen into here
 // we try to show 3 lines of it with a limited font
-const unsigned char textout[768] = {
-    "~~~~DATAHERE~~~~\0"
+const unsigned char textout[3*32] = {
+    "~~~~DATAHERE~~~~3\0"		// allow only 3 lines of text
 };
 
 // 00: six bytes of flag (~~FLAG)
