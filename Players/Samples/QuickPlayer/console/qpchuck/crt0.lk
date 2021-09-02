@@ -1,0 +1,12 @@
+-mjwx
+-i crt0.ihx
+-b _CODE = 0x8050
+-b _DATA = 0x7000
+-k c:/program files/sdcc/bin\..\lib\z80
+-l d:/work/coleco/libti99coleco/libti99.a
+-l ../../../../libcolecovgm2/libcolecovgm2.a
+-l z80
+crt0.rel
+chuckrock.rel
+
+-e
