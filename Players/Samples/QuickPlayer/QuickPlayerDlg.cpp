@@ -11,9 +11,11 @@
 #include "stdafx.h"
 #include "QuickPlayer.h"
 #include "QuickPlayerDlg.h"
-#include "quickplayColeco.c"    // remember to remove const
-#include "quickplayTI.c"        // remember to remove const and fix EA#5 header for more files
+#include "quickplayColeco.c"
+#include "quickplayTI.c"
+//nclude "qpballsColeco.c"
 #include "qpballsTI.c"
+#include "qpChuckColeco.c"
 #include "qpchuckTI.c"
 
 // used for the build code
@@ -307,8 +309,13 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 				AfxMessageBox("This player only supports SN playback");
 				return;
 			}
-			progsize = SIZE_OF_QPCHUCKTI;
-			memcpy(program, qpchuckti, progsize);
+			if (isTIMode) {
+				progsize = SIZE_OF_QPCHUCKTI;
+				memcpy(program, qpchuckti, progsize);
+			} else {
+				progsize = SIZE_OF_QPCHUCKCOLECO;
+				memcpy(program, qpChuckColeco, progsize);
+			}
 			break;
 
 		default:

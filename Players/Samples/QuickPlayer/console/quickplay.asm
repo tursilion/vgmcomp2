@@ -64,20 +64,20 @@ _secondSong::
 ; code
 ;--------------------------------------------------------
 	.area _CODE
-;quickplay.c:74: int main() {
+;quickplay.c:83: int main() {
 ;	---------------------------------
 ; Function main
 ; ---------------------------------
 _main::
-;quickplay.c:79: set_graphics(VDP_SPR_8x8);
+;quickplay.c:88: set_graphics(VDP_SPR_8x8);
 	xor	a, a
 	push	af
 	inc	sp
 	call	_set_graphics
 	inc	sp
-;quickplay.c:80: charsetlc();
+;quickplay.c:89: charsetlc();
 	call	_charsetlc
-;quickplay.c:81: vdpmemset(gColor, 0xf4, 32);
+;quickplay.c:90: vdpmemset(gColor, 0xf4, 32);
 	ld	hl, #0x0020
 	push	hl
 	ld	a, #0xf4
@@ -94,7 +94,7 @@ _main::
 	out	(_VDPWA), a
 	ld	a, #0x87
 	out	(_VDPWA), a
-;quickplay.c:86: vdpmemcpy(gImage, textout, 768);
+;quickplay.c:95: vdpmemcpy(gImage, textout, 768);
 	ld	hl, #0x0300
 	push	hl
 	ld	hl, #_textout
@@ -105,29 +105,29 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;quickplay.c:89: firstSong = *((unsigned int*)&flags[6]);
+;quickplay.c:98: firstSong = *((unsigned int*)&flags[6]);
 	ld	hl, #(_flags + 0x0006)
 	ld	a, (hl)
 	ld	(_firstSong+0), a
 	inc	hl
 	ld	a, (hl)
 	ld	(_firstSong+1), a
-;quickplay.c:90: secondSong = *((unsigned int*)&flags[8]);
+;quickplay.c:99: secondSong = *((unsigned int*)&flags[8]);
 	ld	hl, #(_flags + 0x0008)
 	ld	a, (hl)
 	ld	(_secondSong+0), a
 	inc	hl
 	ld	a, (hl)
 	ld	(_secondSong+1), a
-;quickplay.c:103: volatile unsigned char *pLoop = (volatile unsigned char *)&flags[13];
-;quickplay.c:105: do {
+;quickplay.c:112: volatile unsigned char *pLoop = (volatile unsigned char *)&flags[13];
+;quickplay.c:114: do {
 00120$:
-;quickplay.c:107: if (0 != firstSong) {
+;quickplay.c:116: if (0 != firstSong) {
 	ld	iy, #_firstSong
 	ld	a, 1 (iy)
 	or	a, 0 (iy)
 	jr	Z, 00102$
-;quickplay.c:108: StartSong((unsigned char*)firstSong, 0);
+;quickplay.c:117: StartSong((unsigned char*)firstSong, 0);
 	ld	hl, (_firstSong)
 	xor	a, a
 	push	af
@@ -137,12 +137,12 @@ _main::
 	pop	af
 	inc	sp
 00102$:
-;quickplay.c:110: if (0 != secondSong) {
+;quickplay.c:119: if (0 != secondSong) {
 	ld	iy, #_secondSong
 	ld	a, 1 (iy)
 	or	a, 0 (iy)
 	jr	Z, 00104$
-;quickplay.c:115: ay_StartSong((unsigned char*)secondSong, 0);
+;quickplay.c:124: ay_StartSong((unsigned char*)secondSong, 0);
 	ld	hl, (_secondSong)
 	xor	a, a
 	push	af
@@ -152,67 +152,67 @@ _main::
 	pop	af
 	inc	sp
 00104$:
-;quickplay.c:120: done = 0;
+;quickplay.c:129: done = 0;
 	ld	c, #0x00
-;quickplay.c:121: while (!done) {
+;quickplay.c:130: while (!done) {
 00113$:
 	ld	a, c
 	or	a, a
 	jr	NZ, 00115$
-;quickplay.c:122: done = 1;
+;quickplay.c:131: done = 1;
 	ld	c, #0x01
-;quickplay.c:123: vdpwaitvint();	// waits for a console interrupts, allows quit/etc
+;quickplay.c:132: vdpwaitvint();	// waits for a console interrupts, allows quit/etc
 	push	bc
 	call	_vdpwaitvint
 	pop	bc
-;quickplay.c:124: if (0 != firstSong) {
+;quickplay.c:133: if (0 != firstSong) {
 	ld	iy, #_firstSong
 	ld	a, 1 (iy)
 	or	a, 0 (iy)
 	jr	Z, 00108$
-;quickplay.c:125: if (isSNPlaying) {
+;quickplay.c:134: if (isSNPlaying) {
 	ld	hl, (#(_songNote + 0x0006) + 0)
 	bit	0, l
 	jr	Z, 00108$
-;quickplay.c:126: CALL_PLAYER_SN;
+;quickplay.c:135: CALL_PLAYER_SN;
 	call	_SongLoop
-;quickplay.c:127: done = 0;
+;quickplay.c:136: done = 0;
 	ld	c, #0x00
 00108$:
-;quickplay.c:130: if (0 != secondSong) {
+;quickplay.c:139: if (0 != secondSong) {
 	ld	iy, #_secondSong
 	ld	a, 1 (iy)
 	or	a, 0 (iy)
 	jr	Z, 00113$
-;quickplay.c:138: if (isAYPlaying) {
+;quickplay.c:147: if (isAYPlaying) {
 	ld	hl, (#(_ay_songNote + 0x0006) + 0)
 	bit	0, l
 	jr	Z, 00113$
-;quickplay.c:139: CALL_PLAYER_AY;
+;quickplay.c:148: CALL_PLAYER_AY;
 	call	_ay_SongLoop
-;quickplay.c:140: done = 0;
+;quickplay.c:149: done = 0;
 	ld	c, #0x00
 	jr	00113$
 00115$:
-;quickplay.c:148: chain = (unsigned int *)(*((unsigned int*)(&flags[14])));
+;quickplay.c:157: chain = (unsigned int *)(*((unsigned int*)(&flags[14])));
 	ld	bc, (#(_flags + 0x000e) + 0)
 	ld	l, c
-;quickplay.c:149: if (chain) {
+;quickplay.c:158: if (chain) {
 	ld	a,b
 	ld	h,a
 	or	a, c
 	jr	Z, 00121$
-;quickplay.c:151: unsigned int chained = *chain;
+;quickplay.c:160: unsigned int chained = *chain;
 	ld	e, (hl)
 	inc	hl
 	ld	d, (hl)
 	ld	c, e
-;quickplay.c:152: if (chained) {
+;quickplay.c:161: if (chained) {
 	ld	a,d
 	ld	b,a
 	or	a, e
 	jr	Z, 00121$
-;quickplay.c:161: memcpy((void*)0x7000, tramp, sizeof(tramp));   // this will trounce variables but we don't need them anymore
+;quickplay.c:170: memcpy((void*)0x7000, tramp, sizeof(tramp));   // this will trounce variables but we don't need them anymore
 	push	bc
 	ld	hl, #0x0006
 	push	hl
@@ -225,20 +225,20 @@ _main::
 	pop	af
 	pop	af
 	pop	bc
-;quickplay.c:162: *((unsigned int*)0x7001) = chained;     // patch the pointer, chained should be on the stack
+;quickplay.c:171: *((unsigned int*)0x7001) = chained;     // patch the pointer, chained should be on the stack
 	ld	(0x7001), bc
-;quickplay.c:163: ((void(*)())0x7000)();                  // call the function, never return
+;quickplay.c:172: ((void(*)())0x7000)();                  // call the function, never return
 	call	0x7000
 00121$:
-;quickplay.c:167: } while (*pLoop);
+;quickplay.c:176: } while (*pLoop);
 	ld	a, (#(_flags + 0x000d) + 0)
 	or	a, a
 	jp	NZ, 00120$
-;quickplay.c:178: __endasm;
+;quickplay.c:187: __endasm;
 	rst	0x00
-;quickplay.c:182: return 2;
+;quickplay.c:191: return 2;
 	ld	hl, #0x0002
-;quickplay.c:184: }
+;quickplay.c:193: }
 	ret
 _tramp:
 	.db #0x3a	; 58
@@ -248,9 +248,7 @@ _tramp:
 	.db #0x00	; 0
 	.db #0xc0	; 192
 _textout:
-	.ascii "~~~~DATAHERE~~~~"
-	.db 0x00
-	.db 0x00
+	.ascii "~~~~DATAHERE~~~~24"
 	.db 0x00
 	.db 0x00
 	.db 0x00

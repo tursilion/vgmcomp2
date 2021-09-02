@@ -66,9 +66,16 @@ const unsigned char textout[768] = {
 // This struct must exist in all player programs
 // The older player doesn't have a ~~FLAG section, it's part of ~~~~DATAHERE~~~~,
 // so if you can't find ~~FLAG then you don't have chaining.
+#ifdef BUILD_TI99
 const unsigned char flags[18] __attribute__((aligned (2))) = {
     "~~FLAGxxyySSSL\0\0:"
 };
+#endif
+#ifdef BUILD_COLECO
+const unsigned char flags[18] = {
+    "~~FLAGxxyySSSL\0\0:"
+};
+#endif
 
 unsigned int firstSong;     // for SN
 unsigned int secondSong;    // for SID or AY

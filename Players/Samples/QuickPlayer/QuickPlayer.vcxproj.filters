@@ -57,6 +57,9 @@
     <ClCompile Include="qpchuckTI.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="qpChuckColeco.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="QuickPlayer.h">
@@ -111,6 +114,9 @@
       <Filter>Console Source\chuck</Filter>
     </None>
     <None Include="console\qpchuck\Makefile">
+      <Filter>Console Source\chuck</Filter>
+    </None>
+    <None Include="console\qpchuck\crt0.s">
       <Filter>Console Source\chuck</Filter>
     </None>
   </ItemGroup>

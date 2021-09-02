@@ -6,8 +6,7 @@ all:
 GASTI=/home/tursilion/gcc9900/bin/tms9900-as
 LDTI=/home/tursilion/gcc9900/bin/tms9900-ld
 CCTI=/home/tursilion/gcc9900/bin/tms9900-gcc
-CP=/bin/cp
-B2I=/mnt/d/tools/bin2inc.exe
+B2ITI=/mnt/d/tools/bin2inc.exe
 
 # Path to elf2cart conversion utility
 ELF2EA5=/home/tursilion/gcc9900/bin/elf2ea5
@@ -33,7 +32,7 @@ ti99: quickplay.c crt0_ea5.asm
 	$(LDTI) crt0_ea5.o quickplay.o $(LIBSTI) $(LIBPATHTI) $(LDFLAGS_EA5) -o quickplayti.ea5.elf > ea5.map
 	$(ELF2EA5) quickplayti.ea5.elf quickplayti.ea5.bin
 	$(EA5PLIT) quickplayti.ea5.bin
-	$(B2I) QUICKPLAYTI1 ../quickplayTI.c quickplayti
+	$(B2ITI) QUICKPLAYTI1 ../quickplayTI.c quickplayti
 
 ############ Coleco part ###############
 
@@ -44,12 +43,13 @@ AS = "c:/program files/sdcc/bin/sdasz80"
 AR = "c:/program files/sdcc/bin/sdar"
 MB = "c:/program files/sdcc/bin/makebin"
 DD = "D:/tools/gnuwin32/gnuwin32/bin/dd.exe"
+B2I= "D:/tools/bin2inc.exe"
 LIBTI99 = "d:/work/coleco/libti99coleco"
 RM = del /F 
 EXT=rel
-IFLAGS = "-I$(LIBTI99)" -I../../libcolecovgm2
-CFLAGS = -mz80 -c $(IFLAGS) -DBUILD_COLECO --opt-code-size --max-allocs-per-node 18000 --std-sdcc99 --vc
-LFLAGS = --no-std-crt0 -l$(LIBTI99)/libti99.a -l../../libcolecovgm2/libcolecovgm2.a
+IFLAGS = "-I$(LIBTI99)" -I../../../libcolecovgm2
+CFLAGS = -mz80 -c $(IFLAGS) -DBUILD_COLECO --opt-code-size --fsigned-char --max-allocs-per-node 18000 --std-sdcc99 --vc
+LFLAGS = --no-std-crt0 -l$(LIBTI99)/libti99.a -l../../../libcolecovgm2/libcolecovgm2.a
 AFLAGS = -plosgff
 
 # this rule links the files into the ihx
@@ -65,9 +65,9 @@ coleco: crt0.s quickplay.c
 
 # Recipe to clean all compiled objects
 clean:
-	rm *.o
-	rm *.elf
-	rm *.map
-	rm *.bin
+	-rm *.o
+	-rm *.elf
+	-rm *.map
+	-rm *.bin
 	-rm *.rel *.map *.lst *.sym *.ihx *.rom
 
