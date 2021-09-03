@@ -5,8 +5,16 @@
 // uses libti99 and libtivgm2
 #include "vdp.h"
 #include "sound.h"
+#ifdef BUILD_TI99
 #include "system.h"
 #include <TISNPlay.h>
+typedef unsigned int idx_t;
+#endif
+#ifdef BUILD_COLECO
+#include <ColecoSNPlay.h>
+typedef unsigned char idx_t;
+#endif
+
 #include "ani1.c"
 void *memcpy(void *destination, const void *source, int num);
 
@@ -17,8 +25,12 @@ void *memcpy(void *destination, const void *source, int num);
 
 #define SPRITE_OFF 193
 
-// MUST be power of 2
-#define MAX_SPRITES 32
+#ifdef BUILD_TI99
+#define MAX_SPRITES 30
+#endif
+#ifdef BUILD_COLECO
+#define MAX_SPRITES 24
+#endif
 struct SPRITE {
 	// hardware struct - order matters
 	unsigned char y,x;
@@ -26,10 +38,20 @@ struct SPRITE {
 } spritelist[MAX_SPRITES];
 
 struct SPRPATH {
-	unsigned int delay;
-	int xstep,ystep,zstep;
 	unsigned int x,y;
+	int xstep,ystep;
+
+	// z does double duty as a delay counter - when positive, it's a delay,
+	// when it reaches zero, the ball launches and it is set negative by zstep.
+	// when it becomes zero or positive again, the ball is done.
+#ifdef BUILD_TI99
+	int zstep;
 	int z;
+#endif
+#ifdef BUILD_COLECO
+	signed char zstep;
+	signed char z;
+#endif
 } sprpath[MAX_SPRITES];
 
 // buffer for working with color table in CPU RAM
@@ -37,18 +59,31 @@ unsigned char colortab[32];
 
 // ring buffer for delaying audio - multiple of 15 steps
 // sadly, yes, 15 and not 16, which we could mask
+
+#ifdef BUILD_TI99
+// The TI has enough RAM
 #define DELAYTIME 30
+#endif
+#ifdef BUILD_COLECO
+// I just couldn't free enough RAM for the Coleco version
+#define DELAYTIME 15
+#endif
+
 unsigned char delayvol[4][DELAYTIME];
 unsigned int delaytone[4][DELAYTIME];
-int delaypos, finalcount;
+idx_t delaypos, finalcount;
+
+#ifdef BUILD_TI99
 unsigned int status;
+#endif
+
 // we use 8 channels instead of 4 by assuming arpeggio all the
 // time. By tracking even and odd frames separately, we can treat
 // it as two notes instead of a constant stream of balls. The stream
 // looks great, but we don't have enough sprites and it slows the
 // code down dispatching them all the time.
-unsigned int nOldVoice[8];	// will double up old voice
-unsigned int nOldVol[4];	// won't double up volume, arp should be close
+idx_t nOldTarg[8];	// will double up old targ
+idx_t nOldVol[4];	// won't double up volume, arp should be close
 
 // TI trampoline expects a cartridge header and boots the first program
 const unsigned char tramp[] = {
@@ -77,52 +112,34 @@ const unsigned char textout[3*32] = {
 // The older player doesn't have a ~~FLAG section, it's part of ~~~~DATAHERE~~~~,
 // so if you can't find ~~FLAG then you don't have chaining.
 // THIS is accessed as word, so must be aligned
+#ifdef BUILD_TI99
 const unsigned char flags[18] __attribute__((aligned (2))) = {
+#endif
+#ifdef BUILD_COLECO
+const unsigned char flags[18] = {
+#endif
     "~~FLAGxxyySSSL\0\0:"
 };
 
 unsigned int firstSong;     // for SN
 
-int main() {
-	int nextSprite = 0;
-	int frame = 0;
+idx_t nextSprite = 0;
+idx_t frame = 0;
+idx_t idx, i2;
 
+int main() {
 	// init the screen
 	{
-		int x = set_graphics_raw(VDP_SPR_8x8);	// set graphics mode with 8x8 sprites
+		unsigned char x = set_graphics_raw(VDP_SPR_8x8);	// set graphics mode with 8x8 sprites
 		vdpmemset(gColor, 0x10, 32);			// all colors to black on transparent
 		vdpmemset(gPattern, 0, 8);				// char 0 is blank
 		vdpmemset(gImage, 0, 768);				// clear screen to char 0
 		vdpchar(gSprite, 0xd0);					// all sprites disabled
 		VDP_SET_REGISTER(VDP_REG_COL, COLOR_MAGENTA);	// background color
 
-        // before we go too far, patch the music library NOT to play audio
-        // by writing to ROM instead. There's just one place to change, and
-        // we'll search for it rather than assuming. This is more reliable
-        // than a binary patch but it DOES mean we can't run this from ROM.
-        {
-            unsigned int *pSrch = (unsigned int*)SongLoop;
-            unsigned int x = 50;   // somewhere in the first 50 words
-            while (x--) {
-                if (*pSrch == 0x8400) {
-                    // here it is
-                    *pSrch = 0;
-                    break;
-                }
-                ++pSrch;
-            }
-            // imperfect test, but there's no reason to expect this to change...
-            if (*pSrch) {
-                // do we even have a character set? ;)
-                vdpmemcpy(0,"bad lib", 7);
-                VDP_SET_REGISTER(VDP_REG_MODE1, x);		// enable the display
-                halt();
-            }
-        }
-        
         // preload the buffer with mutes
-        for (int idx=0; idx<4; ++idx) {
-            for (int i2=0; i2<DELAYTIME; ++i2) {
+        for (idx=0; idx<4; ++idx) {
+            for (i2=0; i2<DELAYTIME; ++i2) {
                 delayvol[idx][i2] = 0x0f | (0x90+(idx*0x20));
                 delaytone[idx][i2] = idx*0x2000+0x8001;
             }
@@ -137,10 +154,10 @@ int main() {
 		// instead or use bitmap mode, but whatever. ;)
 		// (we could just use the spare characters and
 		// live with the occasional color flash...)
-		for (int idx = 2; idx < 178; idx += 8) {
+		for (idx = 2; idx < 178; idx += 8) {
 			vdpmemcpy(gPattern+(idx*8), tonehit, 6*8);
 		}
-		for (int idx = 178; idx < 242; idx += 8) {
+		for (idx = 178; idx < 242; idx += 8) {
 			vdpmemcpy(gPattern+(idx*8), drumhit, 6*8);
 		}
 		// ball sprite on 1
@@ -156,10 +173,10 @@ int main() {
 
 		// now draw the graphics
 		// Probably need some background frames, like a scaffold
-		for (int idx=0; idx<22; idx++) {
-			int r=tones[idx*2];
-			int c=tones[idx*2+1];
-			int ch=idx*8+FIRST_TONE_CHAR;
+		for (idx=0; idx<22; idx++) {
+			idx_t r=tones[idx*2];
+			idx_t c=tones[idx*2+1];
+			idx_t ch=idx*8+FIRST_TONE_CHAR;
 
 			vdpscreenchar(VDP_SCREEN_POS(r-1,c-1), ch);
 			vdpscreenchar(VDP_SCREEN_POS(r,c-1), ch+1);
@@ -171,10 +188,10 @@ int main() {
 			vdpscreenchar(VDP_SCREEN_POS(r,c+1), ch+5);
 		}
 
-		for (int idx=0; idx<8; idx++) {
-			int r=drums[idx*2];
-			int c=drums[idx*2+1];
-			int ch=idx*8+FIRST_DRUM_CHAR;
+		for (idx=0; idx<8; idx++) {
+			idx_t r=drums[idx*2];
+			idx_t c=drums[idx*2+1];
+			idx_t ch=idx*8+FIRST_DRUM_CHAR;
 
 			vdpscreenchar(VDP_SCREEN_POS(r,c-1), ch);
 			vdpscreenchar(VDP_SCREEN_POS(r+1,c-1), ch+1);
@@ -187,7 +204,9 @@ int main() {
 		}
 
 		VDP_SET_REGISTER(VDP_REG_MODE1, x);		// enable the display
+#ifdef BUILD_TI99
 		VDP_REG1_KSCAN_MIRROR = x;				// must have a copy of VDP Reg 1 if you ever use KSCAN
+#endif
 	}
 
     // get the init color table into CPU memory
@@ -198,7 +217,7 @@ int main() {
 	// as our font has only 16 characters in it... (to have more characters would cause
 	// letters to flash with this setup)...
 	VDP_SET_ADDRESS_WRITE(gImage+(21*32));
-	for (int idx=0; idx<32*3; ++idx) {
+	for (idx=0; idx<32*3; ++idx) {
 		unsigned char c = textout[idx];
 		if (c>96) c-=32;	// make uppercase
 		if ((c<32)||(c>90)) {
@@ -219,17 +238,17 @@ int main() {
 		// post-song delay to allow it to finish
 		finalcount = 30;
 
-		for (int idx=0; idx<4; idx++) {
+		for (idx=0; idx<4; idx++) {
 			nOldVol[idx]=0xff;
-			nOldVoice[idx]=0;
-			nOldVoice[idx+4]=0;
-			for (int i2=0; i2<DELAYTIME; i2++) {
+			nOldTarg[idx]=255;
+			nOldTarg[idx+4]=255;
+			for (i2=0; i2<DELAYTIME; i2++) {
 				// mute the history 
 				delayvol[idx][i2]=(idx*0x20) + 0x9f;
 			}
 		}
 
-		for (int idx=0; idx<MAX_SPRITES; idx++) {
+		for (idx=0; idx<MAX_SPRITES; idx++) {
 			spritelist[idx].y=SPRITE_OFF;
 			spritelist[idx].ch=1;
 		}
@@ -248,12 +267,25 @@ int main() {
 		delaypos = 0;
 
 		while (finalcount) {
+			// no need for a coleco reboot
+#ifdef BUILD_TI99
 			// check for quit and reboot
 			// will be checkquit() in libti99 eventually
 			__asm__("li r12,>0024\n\tldcr @>0012,3\n\tsrc r12,7\n\tli r12,6\n\tstcr r0,8\n\tandi r0,>1100\n\tjne 4\n\tblwp @>0000" : : : "r12","r0");
+#endif
 
+#ifdef BUILD_TI99
 			VDP_WAIT_VBLANK_CRU_STATUS(status);		// waits for int and clears it
-			vdpmemcpy(gSprite, (unsigned char*)&spritelist[0], 128);
+#endif
+#ifdef BUILD_COLECO
+			VDP_WAIT_VBLANK_CRU;					// wait for int
+			VDP_CLEAR_VBLANK;						// clear it
+#endif
+
+			vdpmemcpy(gSprite, (unsigned char*)&spritelist[0], MAX_SPRITES*4);
+#if MAX_SPRITES != 32
+			VDPWD = 0xd0;	// terminate the sprite table
+#endif
 
 			// now that the screen is set, NOW we can play
 			CALL_PLAYER_SN;
@@ -266,8 +298,8 @@ int main() {
 			++frame;
 
 			// implement frame
-			for (int idx=0; idx<4; idx++) {
-				int arpvoice = idx + ((frame&1)<<2);	// start at 0 or 4
+			for (idx=0; idx<4; idx++) {
+				idx_t arpvoice = idx + ((frame&1)<<2);	// start at 0 or 4
 
 				// volume is exactly the same as the old player
 				delayvol[idx][delaypos] = songVol[idx];
@@ -282,30 +314,29 @@ int main() {
 				}
 
 				// do nothing if muted channel
-				int targ = -1;
+				idx_t targ = 255;
 				if (((songVol[idx]&0x0f) < 0x0f)) {
 					if (idx == 3) {
-						targ=((x>>8)&0x07)+FIRST_DRUM_COLOR;
+						targ=((x>>8)&0x07);		//+FIRST_DRUM_COLOR;
 					} else {
-						targ=tonetarget[x] + FIRST_TONE_COLOR;
+						targ=tonetarget[x];		// + FIRST_TONE_COLOR;
 					}
 
-					if ((songVol[idx]+4 < nOldVol[idx])||((targ!=nOldVoice[idx])&&(targ!=nOldVoice[arpvoice]))) {
+					if ((songVol[idx]+4 < nOldVol[idx])||((targ!=nOldTarg[idx])&&(targ!=nOldTarg[arpvoice]))) {
 						// trigger new ball (if available - we let them finish)
-						unsigned int y = nextSprite++;
-						nextSprite &= (MAX_SPRITES-1);  // wraparound
-						// this could steal delayed sprites...
-						if (spritelist[y].y == SPRITE_OFF) {
+						if (spritelist[nextSprite].y == SPRITE_OFF) {
+							idx_t y = nextSprite++;
+							if (nextSprite >= MAX_SPRITES) nextSprite = 0;	// wraparound
 							// find target and source
-							unsigned int tx,ty;
+							idx_t tx,ty;
 							// source at the middle
-							const unsigned int sx=124,sy=15*8;
+							const idx_t sx=124,sy=15*8;
 							if (idx == 3) {
-								unsigned int p = ((x>>8)&0x07)*2;
+								idx_t p = ((x>>8)&0x07)*2;
 								tx=drums[p+1]*8;
 								ty=drums[p]*8;
 							} else {
-								unsigned int p = tonetarget[x] * 2;
+								idx_t p = tonetarget[x] * 2;
 								tx=tones[p+1]*8;
 								ty=tones[p]*8-4;
 							}
@@ -316,7 +347,12 @@ int main() {
 							// a bit wasteful we have to cue the ball up but not launch it,
 							// but I guess that's okay
 							{
+#ifdef BUILD_TI99
 								int d;
+#endif
+#ifdef BUILD_COLECO
+								signed char d;
+#endif
 
 								if (tx >= sx) {
 									d = tx-sx;
@@ -330,36 +366,50 @@ int main() {
 								}
 								// now we have a+b=d, not quite a^2+b^2=c^2, but close enough
 								// based on math, a divider of 8 should give a max count of 15. Yay!
+#if DELAYTIME == 30
 								d >>= 2;	// 3 for DELAYTIME=15
+#elif DELAYTIME == 15
+								d >>= 3;
+#else
+#error Specify a delaytime I can deal with!
+#endif
 								if (d > DELAYTIME) d=DELAYTIME;
-								sprpath[y].delay = DELAYTIME-d;
+								sprpath[y].z = (DELAYTIME+1)-d;
 
 								// work around signed divide issues
 								if (tx >= sx) {
-									sprpath[y].xstep = ((tx-sx)<<4) / d;
+									sprpath[y].xstep = ((int)(tx-sx)<<4) / d;
 								} else {
-									sprpath[y].xstep = -(((sx-tx)<<4) / d);
+									sprpath[y].xstep = -(((int)(sx-tx)<<4) / d);
 								}
 								if (ty >= sy) {
-									sprpath[y].ystep = ((ty-sy)<<4) / d;
+									sprpath[y].ystep = ((int)(ty-sy)<<4) / d;
 								} else {
-									sprpath[y].ystep = -(((sy-ty)<<4) / d);
+									sprpath[y].ystep = -(((int)(sy-ty)<<4) / d);
 								}
+#if DELAYTIME == 30
 								sprpath[y].zstep = -(d/2);	// half time up, half time down
+#elif DELAYTIME == 15
+								sprpath[y].zstep = -d;	// still half time up, half time down, but step farther
+#endif
 								sprpath[y].x = (sx<<4);
 								sprpath[y].y = (sy<<4);
-								sprpath[y].z = 0;
+								//sprpath[y].z = 0;		// used above for delay
 
 								spritelist[y].col=colorchan[idx]>>4;
-								spritelist[y].y=SPRITE_OFF+1;	// prepare to show on first frame
+								spritelist[y].y=(unsigned char)(SPRITE_OFF+1);	// prepare to show on first frame
 							}
-						} 
+						} else {
+							// we missed this cycle, but scan ahead for the next one!
+							nextSprite++;
+							if (nextSprite >= MAX_SPRITES) nextSprite = 0;	// wraparound
+						}
 					}
 				}
 
 				// remember these values
 				nOldVol[idx]=songVol[idx];
-				nOldVoice[arpvoice]=targ;
+				nOldTarg[arpvoice]=targ;	// this may be idx or idx+4
 			}
 			// next position
 			++delaypos;
@@ -367,17 +417,18 @@ int main() {
 
 			// fade out any colors
 			{
-				static int lastFade = 0;
+				static idx_t lastFade = 0;
 				lastFade &= 0x1f;
-				for (int idx=0; idx<4; ++idx) {
+				for (idx=0; idx<4; ++idx) {
 					colortab[lastFade]=colorfade[colortab[lastFade]>>4];
 					++lastFade;
 				}
 
 				// play it out (and set any fresh colors)
-				for (int idx=0; idx<3; idx++) {
+				for (idx=0; idx<3; idx++) {
 					// tone is in correct order here
 					unsigned int x = delaytone[idx][delaypos];
+#ifdef BUILD_TI99
 					__asm__(
 						"movb %0,@>8400\n\t"    
 						"swpb %0\n\t"
@@ -386,6 +437,11 @@ int main() {
 						:
 						: "r"(x)
 					);
+#endif
+#ifdef BUILD_COLECO
+					SOUND = x>>8;
+					SOUND = x&0xff;
+#endif
 					// and volume just is
 					SOUND = delayvol[idx][delaypos];
 
@@ -401,16 +457,21 @@ int main() {
 				{
 					// noise is in msb here
 					unsigned int x = delaytone[3][delaypos];
+#ifdef BUILD_TI99
 					__asm__(
 						"movb %0,@>8400"
 						:
 						: "r"(x)
 					);
+#endif
+#ifdef BUILD_COLECO
+					SOUND = x>>8;
+#endif
 					// and volume just is
 					SOUND = delayvol[3][delaypos];
 
 					if ((delayvol[3][delaypos]&0x0f) < 0x0f) {
-						unsigned int set = ((x>>8)&0x7)+FIRST_DRUM_COLOR;
+						idx_t set = ((x>>8)&0x7)+FIRST_DRUM_COLOR;
 						colortab[set] = colorchan[3];
 					}
 				}
@@ -420,18 +481,18 @@ int main() {
 			}
 
 			// and animate the sprites
-			for (int idx = 0; idx<MAX_SPRITES; idx++) {
-				if (sprpath[idx].delay) {
-					--sprpath[idx].delay;
-					if (0 != sprpath[idx].delay) {
-						continue;
-					}
-				} else {
-					if (spritelist[idx].y == SPRITE_OFF) continue;
+			for (idx = 0; idx<MAX_SPRITES; idx++) {
+				// if it's not active at all
+				if (spritelist[idx].y == SPRITE_OFF) continue;
+
+				// if it's being delayed
+				if (sprpath[idx].z > 0) {
+					--sprpath[idx].z;
+					continue;
 				}
 
+				// otherwise move it
 				sprpath[idx].z += sprpath[idx].zstep;
-				++sprpath[idx].zstep;
 
 				// end when it hits bottom of arc
 				if (sprpath[idx].z >= 0) {
@@ -439,10 +500,20 @@ int main() {
 					continue;
 				}
 
+				// update step for gravity
+#if DELAYTIME == 30
+				++sprpath[idx].zstep;
+#elif DELAYTIME == 15
+				sprpath[idx].zstep += 2;
+#endif
+
+				// move towards the target - this is a straight line move, z fakes the arc for us
 				sprpath[idx].x += sprpath[idx].xstep;
 				sprpath[idx].y += sprpath[idx].ystep;
 				// no need to check, since we use the arc to end it
 
+				// update the position in the sprite table, removing the fixed point fraction
+				// and adding the z offset for the bounce
 				spritelist[idx].y=(sprpath[idx].y>>4)+(sprpath[idx].z);
 				spritelist[idx].x=(sprpath[idx].x>>4);
 			}

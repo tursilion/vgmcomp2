@@ -13,7 +13,7 @@
 #include "QuickPlayerDlg.h"
 #include "quickplayColeco.c"
 #include "quickplayTI.c"
-//nclude "qpballsColeco.c"
+#include "qpballsColeco.c"
 #include "qpballsTI.c"
 #include "qpChuckColeco.c"
 #include "qpchuckTI.c"
@@ -288,19 +288,51 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 			break;
 
 		case 1:
-			// TI only, 1 file only
+			// 1 file only
 			if ((sidfile.GetLength() > 0)||(ayfile.GetLength() > 0)) {
 				AfxMessageBox("This player only supports SN playback");
 				return;
 			}
-			if (!isTIMode) {
-				// maybe temporary? uses too much RAM right now...
-				// only by 64 bytes+stack space, though...
-				AfxMessageBox("This player only supports TI-99/4A");
-				return;
+			if (isTIMode) {
+				progsize = SIZE_OF_QPBALLS;
+				memcpy(program, qpballs, progsize);
+				// The TI build stuffs the address of SongLoop at offset 0xb8.
+				// From there, search the first 50 words for 0x8400, and
+				// change it to 0x0000 to mute the player library (only one instance)
+				int pSrch = program[0xb8]*256+program[0xb9];	// big endian
+				pSrch -= 0x2000;						// from address to offset
+				while ((pSrch < 0x8191)&&((program[pSrch] != 0x84)||(program[pSrch+1]!=0x00))) pSrch+=2;	// must be even!
+				if (pSrch < 8191) {
+					OutputDebugString("Patched TI code...\n");
+					program[pSrch]=0;	// from LI R8,>8400
+					program[pSrch+1]=0;	// to LI R8,>0000 (so writes go to ROM instead)
+				}
+				if (pSrch >= 8191) {
+					AfxMessageBox("Warning: Failed to patch TI code!");
+				}
+
+			} else {
+				progsize = SIZE_OF_QPBALLSCOLECO;
+				memcpy(program, qpBallsColeco, progsize);
+				// The Coleco build stuffs the address of SongLoop at offset 0x28.
+				// From there, search and change the first 8 instances of 0xD3,0xFF
+				// to 00,00 to mute the player library.
+				int pSrch = program[0x28]+program[0x29]*256;	// little endian
+				pSrch -= 0x8000;						// from address to offset
+				int cnt = 0;
+				for (int idx=0; idx<8; idx++) {
+					while ((pSrch < 0x8191)&&((program[pSrch] != 0xd3)||(program[pSrch+1]!=0xff))) pSrch++;
+					if (pSrch < 8191) {
+						OutputDebugString("Patched Coleco (expect 8 of these!)...\n");
+						program[pSrch]=0;	// from out (0xff),a
+						program[pSrch+1]=0;	// to nop, nop
+						++cnt;
+					}
+				}
+				if (cnt != 8) {
+					AfxMessageBox("Warning: Failed to patch Coleco code!");
+				}
 			}
-			progsize = SIZE_OF_QPBALLS;
-			memcpy(program, qpballs, progsize);
 			break;
 
 		case 2:

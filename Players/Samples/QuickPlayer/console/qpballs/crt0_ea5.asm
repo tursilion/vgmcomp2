@@ -54,6 +54,8 @@ bss_clear_end:
 # reset the console on return
   blwp @>0000
 
+# store the address of SongLoop for the patching code
+  data SongLoop
 
 # Data initialization structure
 #
