@@ -109,27 +109,35 @@ const unsigned char drums[16] = {
 	19,7,17,9,15,11,15,7,19,23,17,21,15,19,15,23
 };
 
-// there's not much of a character set left - this provides mapping from 32 to 90 (so, uppercase only)
-// there are only 16 actual characters, but we'll show crap for numbers and letters that will hopefully
-// be mostly readable in context...
-
+// this BASIC program takes the above position data and calculates delay frames for each, based on
+// an overall 30 frame delay (divide by 2 for 15)
 /*
-     10 num$="OISEFSGIBF"
-     20 L$="ABCDEFGHIIKIMMOFORSIUUWKHS"
-     25 C$="ABCDEFGHIKMORSUW"
-     30 PRINT "0,";
-     40 FOR A=33 TO 90
-     55 X$=" "
-     60 IF A>=ASC("0") AND A<=ASC("9") THEN X$=MID$(NUM$,A-ASC("0")+1,1)
-     70 IF A>=ASC("A") AND A<=ASC("Z") THEN X$=MID$(L$,A-ASC("A")+1,1)
-     75 REM PRINT:PRINT CHR$(A);"->";X$;"=";
-     80 IF X$=" " THEN PRINT"0,";:GOTO 100
-     90 PRINT 240+INSTR(C$,X$)-1;",";
-    100 NEXT A
-
-    // above hand patched to delete numbers and add missing characters along
-    // the white noise drums
+     10 sx=124
+     20 sy=15*8
+     29 REM tones (22 pairs)
+     30 DATA         13,1,11,3,9,5,12,7,7,7,10,9,5,9,8,11,11,12,6,13,9,15,4,15,6,17,11,18,8,19,10,21,5,21,12,23,7,23,9,25,11,27,13,29
+     39 REM drums (8 pairs)
+     40 DATA 19,7,17,9,15,11,15,7,19,23,17,21,15,19,15,23
+     50 RESTORE
+     60 FOR a=1 TO 22+8
+     70 READ ty,tx
+     73 tx=tx*8
+     76 ty=ty*8
+     79 IF a<=22 THEN ty=ty-4
+     80 d=ABS(tx-sx)+ABS(ty-sy)
+     90 d=INT(d/4)
+    100 IF d>30 THEN d=30
+    110 PRINT d;",";
+    120 IF a=22 THEN PRINT
+    130 NEXT a
+    140 PRINT
 */
+const unsigned char delayTones[22] = {
+    30,30,30,24,30,24,30,24,16,24,14,24,22,14,22,22,30,22,30,30,30,30
+};
+const unsigned char delayDrums[8] = {
+    25,17,9,17,23,15,7,15
+};
 
 // map from 32 to 90 - some shuffling for manual color set
 // selection on XZ

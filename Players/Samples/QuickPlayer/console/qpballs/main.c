@@ -1,4 +1,5 @@
 // Fourth musical animation - Tursi 2020
+// Fourth musical animation - Tursi 2020
 // ported to quickplayer system 2021
 // TI only at this point
 
@@ -23,19 +24,15 @@ void *memcpy(void *destination, const void *source, int num);
 #define FIRST_TONE_COLOR 0
 #define FIRST_DRUM_COLOR 22
 
-#define SPRITE_OFF 193
-
+// oversubscribe the sprite table a little to reduce starvation caused by
+// the delay system - only active sprites are actually copied to the sprite table
 #ifdef BUILD_TI99
-#define MAX_SPRITES 30
+#define MAX_SPRITES 40
 #endif
 #ifdef BUILD_COLECO
-#define MAX_SPRITES 24
+// coleco code isn't quite as efficient, in particular with the fixed-point math
+#define MAX_SPRITES 34
 #endif
-struct SPRITE {
-	// hardware struct - order matters
-	unsigned char y,x;
-	unsigned char ch,col;
-} spritelist[MAX_SPRITES];
 
 struct SPRPATH {
 	unsigned int x,y;
@@ -52,6 +49,8 @@ struct SPRPATH {
 	signed char zstep;
 	signed char z;
 #endif
+
+	unsigned char col;
 } sprpath[MAX_SPRITES];
 
 // buffer for working with color table in CPU RAM
@@ -60,14 +59,8 @@ unsigned char colortab[32];
 // ring buffer for delaying audio - multiple of 15 steps
 // sadly, yes, 15 and not 16, which we could mask
 
-#ifdef BUILD_TI99
-// The TI has enough RAM
+// now works on both systems
 #define DELAYTIME 30
-#endif
-#ifdef BUILD_COLECO
-// I just couldn't free enough RAM for the Coleco version
-#define DELAYTIME 15
-#endif
 
 unsigned char delayvol[4][DELAYTIME];
 unsigned int delaytone[4][DELAYTIME];
@@ -127,10 +120,15 @@ idx_t nextSprite = 0;
 idx_t frame = 0;
 idx_t idx, i2;
 
+#define sx (124)
+#define sy (15*8)
+
 int main() {
 	// init the screen
 	{
 		unsigned char x = set_graphics_raw(VDP_SPR_8x8);	// set graphics mode with 8x8 sprites
+		VDP_SET_REGISTER(VDP_REG_CT, 0x0f);		// move color table to 0x03c0
+		gColor = 0x03c0;
 		vdpmemset(gColor, 0x10, 32);			// all colors to black on transparent
 		vdpmemset(gPattern, 0, 8);				// char 0 is blank
 		vdpmemset(gImage, 0, 768);				// clear screen to char 0
@@ -249,8 +247,8 @@ int main() {
 		}
 
 		for (idx=0; idx<MAX_SPRITES; idx++) {
-			spritelist[idx].y=SPRITE_OFF;
-			spritelist[idx].ch=1;
+			//sprpath[idx].y=SPRITE_OFF<<4;
+			sprpath[idx].z=0;
 		}
 
 		if (0 != firstSong) {
@@ -282,10 +280,18 @@ int main() {
 			VDP_CLEAR_VBLANK;						// clear it
 #endif
 
-			vdpmemcpy(gSprite, (unsigned char*)&spritelist[0], MAX_SPRITES*4);
-#if MAX_SPRITES != 32
+			// copy active sprites into the sprite table
+			VDP_SET_ADDRESS_WRITE(gSprite);
+			for (idx=0; idx<MAX_SPRITES; ++idx) {
+				if (sprpath[idx].z < 0) {
+					VDPWD=(sprpath[idx].y>>4)+(sprpath[idx].z);	// integer y position plus z bounce
+					VDPWD=sprpath[idx].x>>4;
+					VDP_SAFE_DELAY;	// need delay cause no calculation on next one
+					VDPWD=1;		// char 1 is the ball
+					VDPWD=sprpath[idx].col;
+				}
+			}
 			VDPWD = 0xd0;	// terminate the sprite table
-#endif
 
 			// now that the screen is set, NOW we can play
 			CALL_PLAYER_SN;
@@ -317,88 +323,75 @@ int main() {
 				idx_t targ = 255;
 				if (((songVol[idx]&0x0f) < 0x0f)) {
 					if (idx == 3) {
-						targ=((x>>8)&0x07);		//+FIRST_DRUM_COLOR;
+						targ=((x>>8)&0x07);		//+FIRST_DRUM_COLOR;	// added just to be unique?
 					} else {
-						targ=tonetarget[x];		// + FIRST_TONE_COLOR;
+						targ=tonetarget[x];		//+FIRST_TONE_COLOR;	// added to just be unique?
 					}
 
 					if ((songVol[idx]+4 < nOldVol[idx])||((targ!=nOldTarg[idx])&&(targ!=nOldTarg[arpvoice]))) {
 						// trigger new ball (if available - we let them finish)
-						if (spritelist[nextSprite].y == SPRITE_OFF) {
+						if (sprpath[nextSprite].z == 0) {
+#ifdef BUILD_TI99
+							int d;
+#endif
+#ifdef BUILD_COLECO
+							signed char d;
+#endif
 							idx_t y = nextSprite++;
 							if (nextSprite >= MAX_SPRITES) nextSprite = 0;	// wraparound
 							// find target and source
 							idx_t tx,ty;
 							// source at the middle
-							const idx_t sx=124,sy=15*8;
 							if (idx == 3) {
-								idx_t p = ((x>>8)&0x07)*2;
+								idx_t p = targ*2;
 								tx=drums[p+1]*8;
 								ty=drums[p]*8;
+								d = delayDrums[targ];
 							} else {
-								idx_t p = tonetarget[x] * 2;
+								idx_t p = targ * 2;
 								tx=tones[p+1]*8;
 								ty=tones[p]*8-4;
+								d = delayTones[targ];
 							}
-
+#if DELAYTIME == 15
+							d >>= 1;
+#endif
 							// fill in the path data (12.4 fixed point)
-							// paths are not pre-calculated - we calculate them here
-							// calculate distance and delay - total time is DELAYTIME
-							// a bit wasteful we have to cue the ball up but not launch it,
-							// but I guess that's okay
-							{
+							// paths are not pre-calculated - we calculate the trajectory here
+							// calculate distance and delay - total time is based on distance, max DELAYTIME
+							sprpath[y].z = (DELAYTIME+1)-d;	// so it's always at least 1
+
 #ifdef BUILD_TI99
-								int d;
+							// work around signed divide issues on the TI compiler
+							if (tx >= sx) {
+								sprpath[y].xstep = ((int)(tx-sx)<<4) / d;
+							} else {
+								sprpath[y].xstep = -(((int)(sx-tx)<<4) / d);
+							}
+							if (ty >= sy) {
+								sprpath[y].ystep = ((int)(ty-sy)<<4) / d;
+							} else {
+								sprpath[y].ystep = -(((int)(sy-ty)<<4) / d);
+							}
 #endif
 #ifdef BUILD_COLECO
-								signed char d;
+							// signed division should be fine on the Coleco compiler
+							sprpath[y].xstep = ((int)(tx-sx)<<4) / d;
+							sprpath[y].ystep = ((int)(ty-sy)<<4) / d;
 #endif
 
-								if (tx >= sx) {
-									d = tx-sx;
-								} else {
-									d = sx-tx;
-								}
-								if (ty >= sy) {
-									d += ty-sy;
-								} else {
-									d += sy-ty;
-								}
-								// now we have a+b=d, not quite a^2+b^2=c^2, but close enough
-								// based on math, a divider of 8 should give a max count of 15. Yay!
 #if DELAYTIME == 30
-								d >>= 2;	// 3 for DELAYTIME=15
+							// biggest negative z should be -120 (30 down to 1)
+							sprpath[y].zstep = -(d/2);	// half time up, half time down
 #elif DELAYTIME == 15
-								d >>= 3;
-#else
-#error Specify a delaytime I can deal with!
+							sprpath[y].zstep = -d;	// still half time up, half time down, but step farther
 #endif
-								if (d > DELAYTIME) d=DELAYTIME;
-								sprpath[y].z = (DELAYTIME+1)-d;
 
-								// work around signed divide issues
-								if (tx >= sx) {
-									sprpath[y].xstep = ((int)(tx-sx)<<4) / d;
-								} else {
-									sprpath[y].xstep = -(((int)(sx-tx)<<4) / d);
-								}
-								if (ty >= sy) {
-									sprpath[y].ystep = ((int)(ty-sy)<<4) / d;
-								} else {
-									sprpath[y].ystep = -(((int)(sy-ty)<<4) / d);
-								}
-#if DELAYTIME == 30
-								sprpath[y].zstep = -(d/2);	// half time up, half time down
-#elif DELAYTIME == 15
-								sprpath[y].zstep = -d;	// still half time up, half time down, but step farther
-#endif
-								sprpath[y].x = (sx<<4);
-								sprpath[y].y = (sy<<4);
-								//sprpath[y].z = 0;		// used above for delay
+							sprpath[y].x = (sx<<4);
+							sprpath[y].y = (sy<<4);	// need to set this after the delay
+							//sprpath[y].z = 0;		// used above for delay
 
-								spritelist[y].col=colorchan[idx]>>4;
-								spritelist[y].y=(unsigned char)(SPRITE_OFF+1);	// prepare to show on first frame
-							}
+							sprpath[y].col=colorchan[idx]>>4;
 						} else {
 							// we missed this cycle, but scan ahead for the next one!
 							nextSprite++;
@@ -483,20 +476,26 @@ int main() {
 			// and animate the sprites
 			for (idx = 0; idx<MAX_SPRITES; idx++) {
 				// if it's not active at all
-				if (spritelist[idx].y == SPRITE_OFF) continue;
+				if (sprpath[idx].z == 0) continue;
 
 				// if it's being delayed
 				if (sprpath[idx].z > 0) {
 					--sprpath[idx].z;
-					continue;
+					// the 1 offset was causing late balls
+					if (sprpath[idx].z > 1) {
+						continue;
+					} else {
+						// reset it, since otherwise we'll be off by 1
+						sprpath[idx].z = sprpath[idx].zstep;
+					}
+				} else {
+					// otherwise move it
+					sprpath[idx].z += sprpath[idx].zstep;
 				}
-
-				// otherwise move it
-				sprpath[idx].z += sprpath[idx].zstep;
 
 				// end when it hits bottom of arc
 				if (sprpath[idx].z >= 0) {
-					spritelist[idx].y = SPRITE_OFF;
+					sprpath[idx].z = 0;
 					continue;
 				}
 
@@ -511,11 +510,6 @@ int main() {
 				sprpath[idx].x += sprpath[idx].xstep;
 				sprpath[idx].y += sprpath[idx].ystep;
 				// no need to check, since we use the arc to end it
-
-				// update the position in the sprite table, removing the fixed point fraction
-				// and adding the z offset for the bounce
-				spritelist[idx].y=(sprpath[idx].y>>4)+(sprpath[idx].z);
-				spritelist[idx].x=(sprpath[idx].x>>4);
 			}
 		}
 		

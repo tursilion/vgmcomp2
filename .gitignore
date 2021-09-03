@@ -362,3 +362,6 @@ players/libcolecovgm2/*.asm
 *.map
 *.ihx
 *.noi
+
+# coleco/TI stuff
+*.lk
