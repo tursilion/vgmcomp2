@@ -1,7 +1,8 @@
 // Fourth musical animation - Tursi 2020
-// Fourth musical animation - Tursi 2020
 // ported to quickplayer system 2021
-// TI only at this point
+// WARNING: this will not work standalone - you must mute the audio output
+// from the library so that we can play it delayed here. This is done in
+// the quickplayer tool itself before writing the final file.
 
 // uses libti99 and libtivgm2
 #include "vdp.h"

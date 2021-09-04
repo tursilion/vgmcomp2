@@ -22,6 +22,9 @@
     <Filter Include="Console Source\chuck">
       <UniqueIdentifier>{d404c0e7-a0d2-417f-9aec-871cf39f9f73}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Console Source\blinken">
+      <UniqueIdentifier>{1c872448-9ab8-4d5c-8556-aa5596403ba1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="QuickPlayer.cpp">
@@ -61,6 +64,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="qpBallsColeco.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="console\blinken\blinken.c">
+      <Filter>Console Source\blinken</Filter>
+    </ClCompile>
+    <ClCompile Include="qpBlinkenColeco.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="qpBlinkenTI.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -124,6 +136,15 @@
     </None>
     <None Include="console\qpballs\crt0.s">
       <Filter>Console Source\balls</Filter>
+    </None>
+    <None Include="console\blinken\crt0.s">
+      <Filter>Console Source\blinken</Filter>
+    </None>
+    <None Include="console\blinken\crt0_ea5.asm">
+      <Filter>Console Source\blinken</Filter>
+    </None>
+    <None Include="console\blinken\Makefile">
+      <Filter>Console Source\blinken</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

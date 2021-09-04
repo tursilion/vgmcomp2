@@ -17,6 +17,8 @@
 #include "qpballsTI.c"
 #include "qpChuckColeco.c"
 #include "qpchuckTI.c"
+#include "qpBlinkenColeco.c"
+#include "qpBlinkenTI.c"
 
 // used for the build code
 char song[24*1024];
@@ -114,6 +116,7 @@ BOOL CQuickPlayerDlg::OnInitDialog()
 
 	SendDlgItemMessage(IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"QuickPlayer");
 	SendDlgItemMessage(IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"Balls");
+	SendDlgItemMessage(IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"Blinkenlights");
 	SendDlgItemMessage(IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"Chuck");
 	SendDlgItemMessage(IDC_COMBO1, CB_SETCURSEL, 0, 0);
 
@@ -276,7 +279,7 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 	unsigned char *program = (unsigned char*)malloc(32768);	// big enough to make the Coleco cart
 	int progsize = 0;
 	switch (playerNum) {
-		case 0:
+		case 0:	// quickplayer
 			// no limits
 			if (isTIMode) {
 				progsize = SIZE_OF_QUICKPLAYTI;
@@ -287,7 +290,7 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 			}
 			break;
 
-		case 1:
+		case 1:	// balls
 			// 1 file only
 			if ((sidfile.GetLength() > 0)||(ayfile.GetLength() > 0)) {
 				AfxMessageBox("This player only supports SN playback");
@@ -335,7 +338,18 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 			}
 			break;
 
-		case 2:
+		case 2:	// blinken
+			// no limits
+			if (isTIMode) {
+				progsize = SIZE_OF_QPBLINKENTI;
+				memcpy(program, qpBlinkenTI, progsize);
+			} else {
+				progsize = SIZE_OF_QPBLINKENCOLECO;
+				memcpy(program, qpBlinkenColeco, progsize);
+			}
+			break;
+
+		case 3:	// chuck
 			// 1 file only
 			if ((sidfile.GetLength() > 0)||(ayfile.GetLength() > 0)) {
 				AfxMessageBox("This player only supports SN playback");
