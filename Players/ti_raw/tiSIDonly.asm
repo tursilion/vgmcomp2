@@ -29,7 +29,6 @@ SidCtrl3 bss 3
 
 R3LSB EQU >8307
 R2LSB EQU >8305
-R6LSB EQU >830D
 songActive EQU sidNote+7
 SidCtrl2 equ SidCtrl3+1
 SidCtrl1 equ SidCtrl3+2
@@ -438,7 +437,7 @@ VLOOPDONE
     clr  @>5832             * force a write to the read-only POTX reg to ensure we move the address latch
     mov  r7,r7              * end of loop - check if outSongActive was set
     jne  RETHOME            * skip if not zero
-    movb @R6LSB,@songActive	 * turn off the active bit and the mutes (this BYTE writes a >00)
+    movb r7,@songActive	 	* turn off the active bit and the mutes (this BYTE writes a >00)
 
 RETHOME
     mov  @sidSave,r11       * back to caller

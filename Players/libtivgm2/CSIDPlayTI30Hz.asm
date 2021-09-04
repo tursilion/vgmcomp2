@@ -24,7 +24,6 @@ oldSidTS    bss 2    * saved timestream byte from first half of processing
 * we sometimes need to directly access the LSB of some registers - addresses here
 * Note this assumes that this code uses a workspace of >8300
 R3LSB EQU >8307
-R6LSB EQU >830D
 
 * SongActive is stored in the LSB of the noise channel
 songActive EQU sidNote+7
@@ -157,7 +156,7 @@ VLOOPDONE
     clr  @>5832             * force a write to the read-only POTX reg to ensure we move the address latch
     mov  r7,r7              * end of loop - check if outSongActive was set
     jne  RETHOME            * skip if not zero
-    movb @R6LSB,@songActive	 * turn off the active bit and the mutes (this BYTE writes a >00)
+    movb r7,@songActive	 	* turn off the active bit and the mutes (this BYTE writes a >00)
 
 RETHOME
     mov  @sidSave,r11       * back to caller

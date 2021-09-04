@@ -16,7 +16,6 @@ R2LSB EQU >8305
 * we sometimes need to directly access the LSB of some registers - addresses here
 * Note this assumes that this code uses a workspace of >8300
 R3LSB EQU >8307
-R6LSB EQU >830D
 
 * SongActive is stored in the LSB of the noise channel
 songActive EQU songNote+7
@@ -49,7 +48,7 @@ nullptr
 	ci   r2,strDat+78   * check if we did the last (9th) one (9*8=72,+6 offset = 78. I dont know why GCC used an offset,but no biggie)
 	jne  STARTLP        * loop around if not done
 
-* TODO: this init for notes isn't right, should be 8001,a001,c001,e001...
+* TODO: this init for notes isnt right, should be 8001,a001,c001,e001...
 	li   r2,>1          * set all three notes to >0001
 	mov  r2,@songNote
 	mov  r2,@songNote+2

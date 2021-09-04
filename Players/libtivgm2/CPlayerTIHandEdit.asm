@@ -14,7 +14,6 @@ R2LSB EQU >8305
 * we sometimes need to directly access the LSB of some registers - addresses here
 * Note this assumes that this code uses a workspace of >8300
 R3LSB EQU >8307
-R6LSB EQU >830D
 
 * access the data
     ref strDat,songVol,songNote,workBuf,retSave
@@ -110,7 +109,7 @@ VMUTED
 VLOOPDONE
     mov  r7,r7              * end of loop - check if outSongActive was set
     jne  RETHOME            * skip if not zero
-    movb @R6LSB,@songActive	 * turn off the active bit and the mutes (this BYTE writes a >00)
+    movb r7,@songActive	 	* turn off the active bit and the mutes (this BYTE writes a >00)
 
 RETHOME
     mov  @retSave,r11       * back to caller

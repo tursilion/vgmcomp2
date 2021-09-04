@@ -40,7 +40,6 @@ R2LSB EQU >8305
 * we sometimes need to directly access the LSB of some registers - addresses here
 * Note this assumes that this code uses a workspace of >8300
 R3LSB EQU >8307
-R6LSB EQU >830D
 
 * songActive is stored in the LSB of the noise channel
 songActive EQU songNote+7

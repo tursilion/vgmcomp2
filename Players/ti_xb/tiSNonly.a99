@@ -1,20 +1,11 @@
-* enable these DEFs if you need them
-*    def getDatInline,getDatRLE16,getDatRLE24,getDatRLE32,getDatRLE
-*	def	getCompressedByte,getDatZero
-*	def	SongLoop30
-*	def	StartSong
-*	def	StopSong
-*    def strDat
-*	def songVol
-*	def songNote
-*	def workBuf
-*    def retSave
+** XB VERSION
+** Manual edit - workspace moved to >8320, CALL LINKs added, made fully relocatable with 8 bit workspace
+
+	DEF SONGGO,STOPSN
 
     even
-* it will be placed after the bss section (normally in low RAM)
-* in the makefile (ie: to put it in scratchpad). If you do nothing,
-* this data is in a special section so that you can relocate it at will
-oldTS   bss 2    * saved timestream byte from first half of processing
+MYWP
+	bss 32
 strDat
 	bss 72
 songVol
@@ -25,10 +16,83 @@ workBuf
 	bss 2
 retSave
     bss 2
-
-R3LSB EQU >8307
-R2LSB EQU >8305
+xbInt
+    data >0000
+    
 songActive EQU songNote+7
+
+* SONGGO must go here so we can find the data structures above
+SONGGO
+* find the MUSIC def
+	li r1,>3ff8		* first entry
+SGLP1
+	c r1,@>2004
+	jl sgdn1		* done search, no luck
+	li r0,>4d55
+	c r0,*r1
+	jne sgnx1		* not MU
+	li r0,>5349
+	c r0,@2(r1)
+	jne sgnx1		* not SI
+	li r0,>4320
+	c r0,@4(r1)
+	jeq sgok1		* full match!
+SGNX1
+	ai r1,-8
+	jmp sglp1
+SGDN1
+	b *r11			* not found, just return
+	
+SGOK1
+	mov r11,@retSave
+	mov @6(r1),r1	* address of soundbank
+	li r2,0			* song index (now its patchable!)
+	bl @StartSong
+	
+* before patching the interrupt hook, make sure it's
+* not already patched, else recursive call will crash
+	mov @>83c4,r0
+	ci r0,XBLoop
+	jeq NOPATCH
+	
+	mov @>83c4,@xbInt	* copy old interrupt hook
+	li r0,XBLoop
+	mov r0,@>83c4		* save our new hook
+	
+NOPATCH
+	mov @retSave,r11
+	b *r11
+	
+* stop the playing music and undo the hook
+STOPSN
+	mov r11,@retSave
+	bl @StopSong
+	mov @xbInt,@>83C4	* restore the hook
+	li r0,>9fbf
+	movb r0,@>8400		* mute all channels
+	swpb r0
+	movb r0,@>8400
+	li r0,>dfff
+	movb r0,@>8400
+	swpb r0
+	movb r0,@>8400
+	mov @retSave,r11
+	b *r11
+	
+* called from the interrupt routine
+XBLoop
+	LWPI MYWP
+	BL @SongLoop
+	LWPI >83E0
+	mov @xbInt,r0
+	jeq noChain
+	B *R0
+noChain
+	B *R11
+	
+*****************************
+* REST OF CODE IS UNTOUCHED MACHINE GENERATED
+*****************************
 
     even
 * code that is //shared// between multiple instances of the player
@@ -233,9 +297,10 @@ L24
 	mov  r5,*r15            * set curPtr to mainPtr after fetch
 	andi r3,>3F 			* get count from command (fixes MSB too!)
 *	inc  r3					* add minimum size of 1 (but dont do this, because we will fetch the first byte)
-	movb @R3LSB,@>6(r15)   	* store to curbytes
 	a    r3,r5				* add length of string to address
 	mov  r5,@>2(r15)		* store back to mainPtr (note that we got the 1 we dropped from curbytes for free from the postinc)
+	swpb r3					* __ change for XB - moved so don't have to restore r3 __
+	movb r3,@>6(r15)   		* store to curbytes
 	b    *r11               * r2 must be non-zero (contains setup function)
 
 L30_B
@@ -249,7 +314,8 @@ L30_B
 	inct r3					* add default count of 2
 	sla  r3,>1				* multiply by 2
 	dec  r3                 * minus the one we are taking
-	movb @R3LSB,@>6(r15)    * save curBytes
+	swpb r3					* __ change for XB - don't have to restore r3 __
+	movb r3,@>6(r15)    	* save curBytes
 	b    *r11               * r2 must be non-zero (contains setup function)
 	
 L28
@@ -264,7 +330,8 @@ L28
 	a    r4,r3				* x2
 	a    r4,r3				* x3
 	ai   r3,5				* add 6 (minimum 2, x3), minus the one we are taking
-	movb @R3LSB,@>6(r15)    * write to curBytes
+	swpb r3					* __ change for XB - moved so don't have to restore r3 __
+	movb r3,@>6(r15)    	* write to curBytes
 	b    *r11               * r2 must be non-zero (contains setup function)
 
 L26
@@ -278,7 +345,8 @@ L26
 	inct r3					* add default count of 2
 	sla  r3,>2				* multiply by 4
 	dec  r3                 * minus the one we are taking
-	movb @R3LSB,@>6(r15)    * save curBytes
+	swpb r3					* __ change for XB - moved so don't have to restore r3 __
+	movb r3,@>6(r15)    	* save curBytes
 	b    *r11               * r2 must be non-zero (contains setup function)
 
 L25
@@ -289,7 +357,8 @@ L25
 	mov  r5,@>2(r15) 		* save mainPtr
 	andi r3,>1F		    	* get command count
 	inct r3  				* add default of 3, minus the one we are taking
-	movb @R3LSB,@>6(r15)    * save curBytes
+	swpb r3					* __ change for XB - moved so don't have to restore r3 __
+	movb r3,@>6(r15)    	* save curBytes
 	b    *r11               * r2 must be non-zero (contains setup function)
 
 L29
@@ -308,7 +377,8 @@ L29
 	mov  r5,@>2(r15)    	* save mainPtr
 	andi r3,>3F			    * mask out just the count bits (fixes MSB)
 	ai   r3,>3				* add minimum of 4 (minus one cause we are taking one)
-	movb @R3LSB,@>6(r15)    * save curBytes
+	swpb r3					* __ change for XB - moved so don't have to restore r3 __
+	movb r3,@>6(r15)    	* save curBytes
 	b    *r11               * r2 must be non-zero (contains setup function)
 
 L39
@@ -320,14 +390,15 @@ getDatZero
 	clr  r1					* zero out return
 	b    *r11				* back to caller - r2 may be anything but is probably zero
 * code that is specific to a single instance of the player
-* This is the split 30hz player - you should still call it at
-* 60hz, but only 2 channels are processed each call instead
-* of all 4. Two bytes of extra RAM is used.
+* Hand edit of CPlayerTI.c assembly by Tursi, with SN mode
+* and mute enabled in songActive. Due to hard coded addresses,
+* you need a separate build for sfx (CPlayerCommon is shared)
 * Public Domain
 
 * we sometimes need to directly access the LSB of some registers - addresses here
 * Note this assumes a workspace of >8300 and that it can pretty much completely
 * wipe it out. If you need to preserve your own registers, use a different workspace.
+
 
 * we sometimes need to directly access the LSB of some registers - addresses here
 * Note this assumes that this code uses a workspace of >8300
@@ -336,9 +407,6 @@ getDatZero
 
 * SongActive is stored in the LSB of the noise channel
 
-
-    even
-
 * this needs to be called 60 times per second by your system
 * if this function can be interrupted, dont manipulate songActive
 * in any function that can do so, or your change will be lost.
@@ -346,18 +414,12 @@ getDatZero
 * By replacing GCC regs 3-6 with 12,0,7,8, and knowing that we dont need to
 * preserve or restore ANY registers on entry, we can do away with
 * the stack usage completely. (We do preserve R10, the C stack.)
-* Since this is the 30 hz player, only two channels are processed
-* per call (1/2, and 3/4)
 	even
 
-* bits for songActive - MSB assumed
-BITS01 DATA >0100
-BITS02 DATA >0200
-
-SongLoop30
+SongLoop
     movb @songActive,r1     * need to check if its active
-    coc @BITS01,r1          * isolate the bit
-	jne  RETHOME2           * if clear, back to caller (normal case drops through faster)
+    andi r1,>0100           * isolate the bit
+	jeq  RETHOME2           * if clear, back to caller (normal case drops through faster)
 
 * load some default values for the whole call
     mov  r11,@retSave       * save the return address
@@ -365,48 +427,24 @@ SongLoop30
     li   r8,>8400           * address of the sound chip (warning: don''t move too much, my sample code relies on this offset)
     li   r6,>0100           * 1 in a byte for byte math
 
-	mov  @strDat+66,r2      * timestream mainPtr
+	mov  @strDat+66,r1      * timestream mainPtr
 	jne  HASTIMESTR         * keep working if we still have a timestream
 
 NOTIMESTR
     clr  r7                 * no timestream - zero outSongActive for volume loop
-    coc @BITS02,r1          * are we on the second half?
-    jne DONETONEFIRST       * no
-    jmp DONETONESEC
+    jmp  DONETONEACT        * go work on volumes
 
 HASTIMESTR
-    seto r7                 * assume we are still playing
-    coc @BITS02,r1          * are we on the second half?
-    jne FIRSTHALF           * no
-    mov @oldTS,r9           * yes, get back the timestream flags
-	li r15,strDat+16		* start with stream 2, curPtr
-	li r0,songNote+4		* output pointer for songNote[2]
-	li r14,>C000			* third command nibble
-	mov @workBuf,r7         * get song address
-	movb @songActive,r12	* get the songActive mutes
-    sla r12,2               * skip first two
-    jmp CKTONE1             * and go process it
-
-FIRSTHALF
+	seto r7                 * set outSongActive to true for later testing
     sb r6,@strDat+71        * decrement the timestream frames left
     jnc  DOTIMESTR          * if it was zero, jump over volumes to get a new byte
 
 * volume processing loop
-DONETONEFIRST
-    socb @bits02,@songActive    * set the bitflag for half
+DONETONEACT
 	li   r15,strDat+32      * stream 4 curPtr (vol[0])  r15
 	li   r0,songVol         * songVol table pointer     r0
 	li   r14,>9000          * command nibble            r14
     movb @songActive,r12    * actual mute flags         r12
-	jmp  VLOOPEND           * jump to bottom of loop
-
-DONETONESEC
-    szcb @bits02,@songActive    * clear the bitflag for half
-	li   r15,strDat+48      * stream 4 curPtr (vol[2])  r15
-	li   r0,songVol+2       * songVol table pointer     r0
-	li   r14,>d000          * command nibble            r14
-    movb @songActive,r12    * actual mute flags         r12
-    sla  r12,2              * skip the first two
 	jmp  VLOOPEND           * jump to bottom of loop
 
 VLOOPDEC
@@ -419,9 +457,7 @@ VLOOPSHIFT
 VLOOPNEXT
 	ai   r15,>8             * next curPtr
 	ai   r14,>2000          * next command nibble
-    joc  VLOOPDONE          * that was the last one (wrap around after >F000)
-    ci   r14,>d000          * check if we finished the first two
-    jeq  VLOOPDONE          * end if so
+    joc  VLOOPDONE          * that was the last one
 
 VLOOPEND
 	mov  @2(r15),r1         * check if mainPtr is valid
@@ -507,27 +543,23 @@ WRTONE1
 	sla  r12,1              * check songActive - carry is mute
 	joc  CKTONE2            * jump over if muted
 	movb r2,*r8             * move command byte to sound chip
-	movb @R2LSB,*r8         * move other byte to sound chip
+	swpb r2					** _ CHANGE FOR XB - do not need to restore R2 _
+	movb r2,*r8        		* move other byte to sound chip
 	
 CKTONE2
 	ai r15,>8				* next curPtr
 	ai r14,>2000			* next command nibble
 	ci r14,>e000            * did we reach noise?
-	jeq CKNOISE             * yes, go do noise
-    ci r14,>c000            * did we reach the end of the first pass?
-    jne CKTONE1             * no, loop around
-
-    mov r9,@oldTS           * save the timestream status for next call
-    jmp DONETONEFIRST       * go work on volumes, first half
+	jne CKTONE1             * no, do the next one
 
 CKNOISE
     sla  r9,1               * test (technically) >10 (noise)
-	jnc  DONETONESEC        * not set, so jump
+	jnc  DONETONEACT        * not set, so jump
 	mov  @2(r15),r1         * stream 3 mainPtr
-	jeq  DONETONESEC        * jump if zero
+	jeq  DONETONEACT        * jump if zero
 	bl   *r13               * getCompressedByte
 	mov  r2,r2              * check if stream was ended
-	jeq  DONETONESEC        * jump if so
+	jeq  DONETONEACT        * jump if so
 
     soc  r14,r1				* no tone table here, just OR in the command bits
 	sla  r12,1              * check songActive - carry is mute
@@ -538,7 +570,7 @@ NOISEMUTE
 	movb r1,*r0             * save byte only in the songNote, no need to increment
 
 DONETONE
-	jmp  DONETONESEC        * go work on the volumes with outSongActive set
+	jmp  DONETONEACT        * go work on the volumes with outSongActive set
 
 CKTONE2SHIFT
 	sla r12,1               * shift just to stay in sync
@@ -627,3 +659,5 @@ StopSong
 	even
 
     even
+
+	END
