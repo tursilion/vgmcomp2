@@ -1,9 +1,7 @@
 // Chuck Rock based visualizer
 // gfx converted by Tursi, owned by probably too many people
 
-#define VDP_SCREEN_POS VDP_SCREEN_POS_FUNC
 #include "vdp.h"
-#undef VDP_SCREEN_POS
 #include "sound.h"
 #include "player.h"
 #ifdef BUILD_TI99
@@ -34,10 +32,10 @@ STREAM strDat[2];
 
 // turn this into a macro for the tables below
 #ifdef BUILD_TI99
-#define VDP_SCREEN_POS(r,c) (((r)<<5)+(c))
+#define MAKE_SCREEN_POS(r,c) (((r)<<5)+(c))
 #endif
 #ifdef BUILD_COLECO
-#define VDP_SCREEN_POS(r,c) ((((r)<<5)+(c))&0xff),((((r)<<5)+(c))>>8)
+#define MAKE_SCREEN_POS(r,c) ((((r)<<5)+(c))&0xff),((((r)<<5)+(c))>>8)
 #endif
 
 extern const unsigned char TrueLowerCase[];
@@ -233,38 +231,42 @@ void chuckinit() {
 // animation functions per character
 // note they assume that the base graphics are drawn and update only the
 // ones that actually change!
-
 void processList(const idx_t *pList) {
-	while (*pList) {
 #ifdef BUILD_TI99
+	while (*pList) {
 		vdpwritescreeninc(*pList, *(pList+1), *(pList+2));
-		pList+=3;
+		pList+=3;	// 3 words
 #endif
 #ifdef BUILD_COLECO
+	while (*((const unsigned int*)pList)) {
+		// warning: on COLECO the MAKE_SCREEN_POS macro drops /two/ bytes, so this cast
+		// is intentional!
 		vdpwritescreeninc(*((const unsigned int*)pList), *(pList+2), *(pList+3));
-		pList+=4;
+		pList+=4;	// 4 bytes
 #endif
 	}
 }
 
 // dino (channel 1)
 const idx_t dinof1dat[] = {
-	VDP_SCREEN_POS(8,0), 1, 2,
-	VDP_SCREEN_POS(9,0), 27, 5,
-	VDP_SCREEN_POS(10,2), 52, 3,
-	VDP_SCREEN_POS(11,3), 75, 2,
-	0
+	MAKE_SCREEN_POS(8,0), 1, 2,
+	MAKE_SCREEN_POS(9,0), 27, 5,
+	MAKE_SCREEN_POS(10,2), 52, 3,
+	MAKE_SCREEN_POS(11,3), 75, 2,
+
+	MAKE_SCREEN_POS(0,0)
 };
 inline void dinof1() {
 	processList(dinof1dat);
 }
 
 const idx_t dinof2dat[] = {
-	VDP_SCREEN_POS(8,0), 112, 2,
-	VDP_SCREEN_POS(9,0), 124, 5,
-	VDP_SCREEN_POS(10,2), 135, 3,
-	VDP_SCREEN_POS(11,3), 141, 2,
-	0
+	MAKE_SCREEN_POS(8,0), 112, 2,
+	MAKE_SCREEN_POS(9,0), 124, 5,
+	MAKE_SCREEN_POS(10,2), 135, 3,
+	MAKE_SCREEN_POS(11,3), 141, 2,
+
+	MAKE_SCREEN_POS(0,0)
 };
 inline void dinof2() {
 	processList(dinof2dat);
@@ -273,30 +275,32 @@ inline void dinof2() {
 // gary gritter (channel 3)
 
 const idx_t garyf1dat[] = {
-	VDP_SCREEN_POS(3,9), 1, 1,
-	VDP_SCREEN_POS(3,13), 4, 1,
-	VDP_SCREEN_POS(4,9), 7, 1,
-	VDP_SCREEN_POS(4,13), 11, 2,
-	VDP_SCREEN_POS(5,9), 22, 2,
-	VDP_SCREEN_POS(5,13), 26, 2,
-	VDP_SCREEN_POS(6,9), 44, 3,
-	VDP_SCREEN_POS(6,13), 48, 2,
-	0
+	MAKE_SCREEN_POS(3,9), 1, 1,
+	MAKE_SCREEN_POS(3,13), 4, 1,
+	MAKE_SCREEN_POS(4,9), 7, 1,
+	MAKE_SCREEN_POS(4,13), 11, 2,
+	MAKE_SCREEN_POS(5,9), 22, 2,
+	MAKE_SCREEN_POS(5,13), 26, 2,
+	MAKE_SCREEN_POS(6,9), 44, 3,
+	MAKE_SCREEN_POS(6,13), 48, 2,
+
+	MAKE_SCREEN_POS(0,0)
 };
 inline void garyf1() {
 	processList(garyf1dat);
 }
 
 const idx_t garyf2dat[] = {
-	VDP_SCREEN_POS(3,9), 87, 1,
-	VDP_SCREEN_POS(3,13), 88, 1,
-	VDP_SCREEN_POS(4,9), 89, 1,
-	VDP_SCREEN_POS(4,13), 90, 2,
-	VDP_SCREEN_POS(5,9), 92, 2,
-	VDP_SCREEN_POS(5,13), 94, 2,
-	VDP_SCREEN_POS(6,9), 99, 3,
-	VDP_SCREEN_POS(6,13), 102, 2,
-	0
+	MAKE_SCREEN_POS(3,9), 87, 1,
+	MAKE_SCREEN_POS(3,13), 88, 1,
+	MAKE_SCREEN_POS(4,9), 89, 1,
+	MAKE_SCREEN_POS(4,13), 90, 2,
+	MAKE_SCREEN_POS(5,9), 92, 2,
+	MAKE_SCREEN_POS(5,13), 94, 2,
+	MAKE_SCREEN_POS(6,9), 99, 3,
+	MAKE_SCREEN_POS(6,13), 102, 2,
+
+	MAKE_SCREEN_POS(0,0)
 };
 inline void garyf2() {
 	processList(garyf2dat);
@@ -304,22 +308,24 @@ inline void garyf2() {
 
 // ophelia (channel 2)
 const idx_t opheliaf1dat[] = {
-	VDP_SCREEN_POS(7,30), 85, 2,
-	VDP_SCREEN_POS(8,27), 22, 5,
-	VDP_SCREEN_POS(9,27), 47, 3,
-	VDP_SCREEN_POS(10,28), 71, 1,
-	0
+	MAKE_SCREEN_POS(7,30), 85, 2,
+	MAKE_SCREEN_POS(8,27), 22, 5,
+	MAKE_SCREEN_POS(9,27), 47, 3,
+	MAKE_SCREEN_POS(10,28), 71, 1,
+
+	MAKE_SCREEN_POS(0,0)
 };
 inline void opheliaf1() {
 	processList(opheliaf1dat);
 }
 
 const idx_t opheliaf2dat[] = {
-	VDP_SCREEN_POS(7,30), 111, 2,
-	VDP_SCREEN_POS(8,27), 119, 5,
-	VDP_SCREEN_POS(9,27), 132, 3,
-	VDP_SCREEN_POS(10,28), 140, 1,
-	0
+	MAKE_SCREEN_POS(7,30), 111, 2,
+	MAKE_SCREEN_POS(8,27), 119, 5,
+	MAKE_SCREEN_POS(9,27), 132, 3,
+	MAKE_SCREEN_POS(10,28), 140, 1,
+
+	MAKE_SCREEN_POS(0,0)
 };
 
 inline void opheliaf2() {
@@ -328,30 +334,32 @@ inline void opheliaf2() {
 
 // chuck rock (channel 0)
 const idx_t chuckf1dat[] = {
-	VDP_SCREEN_POS(5,21), 31, 3,
-	VDP_SCREEN_POS(6,21), 54, 3,
-	VDP_SCREEN_POS(7,20), 77, 4,
-	VDP_SCREEN_POS(8,19), 16, 5,
-	VDP_SCREEN_POS(9,20), 42, 1,
-	VDP_SCREEN_POS(9,22), 44, 2,
-	VDP_SCREEN_POS(10,22), 67, 2,
-	VDP_SCREEN_POS(11,21), 87, 3,
-	0
+	MAKE_SCREEN_POS(5,21), 31, 3,
+	MAKE_SCREEN_POS(6,21), 54, 3,
+	MAKE_SCREEN_POS(7,20), 77, 4,
+	MAKE_SCREEN_POS(8,19), 16, 5,
+	MAKE_SCREEN_POS(9,20), 42, 1,
+	MAKE_SCREEN_POS(9,22), 44, 2,
+	MAKE_SCREEN_POS(10,22), 67, 2,
+	MAKE_SCREEN_POS(11,21), 87, 3,
+
+	MAKE_SCREEN_POS(0,0)
 };
 inline void chuckf1() {
 	processList(chuckf1dat);
 }
 
 const idx_t chuckf2dat[] = {
-	VDP_SCREEN_POS(5,21), 96, 3,
-	VDP_SCREEN_POS(6,21), 104, 3,
-	VDP_SCREEN_POS(7,20), 107, 4,
-	VDP_SCREEN_POS(8,19), 114, 5,
-   	VDP_SCREEN_POS(9,20), 129, 1,
-	VDP_SCREEN_POS(9,22), 130, 2,
-	VDP_SCREEN_POS(10,22), 138, 2,
-	VDP_SCREEN_POS(11,21), 143, 3,
-	0
+	MAKE_SCREEN_POS(5,21), 96, 3,
+	MAKE_SCREEN_POS(6,21), 104, 3,
+	MAKE_SCREEN_POS(7,20), 107, 4,
+	MAKE_SCREEN_POS(8,19), 114, 5,
+   	MAKE_SCREEN_POS(9,20), 129, 1,
+	MAKE_SCREEN_POS(9,22), 130, 2,
+	MAKE_SCREEN_POS(10,22), 138, 2,
+	MAKE_SCREEN_POS(11,21), 143, 3,
+
+	MAKE_SCREEN_POS(0,0)
 };
 inline void chuckf2() {
 	processList(chuckf2dat);

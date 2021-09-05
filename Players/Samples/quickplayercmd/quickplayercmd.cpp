@@ -15,9 +15,15 @@
 
 #include "..\QuickPlayer\quickplayColeco.c"
 #include "..\QuickPlayer\quickplayTI.c"
+#include "..\QuickPlayer\qpballsColeco.c"
+#include "..\QuickPlayer\qpballsTI.c"
+#include "..\QuickPlayer\qpChuckColeco.c"
+#include "..\QuickPlayer\qpchuckTI.c"
+#include "..\QuickPlayer\qpBlinkenColeco.c"
+#include "..\QuickPlayer\qpBlinkenTI.c"
+#include "..\QuickPlayer\qpPianoColeco.c"
+#include "..\QuickPlayer\qpPianoTI.c"
 
-unsigned char *textbufferTI=NULL;       // address of the text buffer in the TI file
-unsigned char *textbufferCOL=NULL;      // address of the text buffer in the Coleco file
 bool isTIMode = false;                  // whether in TI mode (else Coleco)
 bool isColecoMode = false;              // only used to make sure you select one
 bool loop = false;                      // whether to loop
@@ -28,6 +34,16 @@ const char *textPath = NULL;            // path to the text file
 int sidctl[3] = { 0x40, 0x40, 0x40 };   // SID control bytes for TI player
 char text[24][33];                      // lines of text for centering
 char rawtext[768+2*32+1];               // room for line endings, regardless of type
+
+enum players {
+	QUICKPLAYER,
+	BALLS,
+	BLINK,
+	CHUCK,
+	PIANO
+};
+
+// used for the build code
 char song[24*1024];                     // 24k for the song data
 size_t songsize;                        // size of song data
 
@@ -63,13 +79,14 @@ void DoTIFILES(FILE *fp, int nSize) {
 
 int main(int argc, char *argv[]) 
 {
-	printf("VGMComp2 Quickplayer Tool - v20200726\n\n");
+	printf("VGMComp2 Quickplayer Tool - v20210904\n\n");
 
     if (argc < 4) {
-        printf("quickplayercmd (-ti|-coleco) [-loop] [-sn <sn music>] [-sid <sid music>] [-ay <ay music>] [-sidctl c1 c2 c3] [-text <textfile>] <output>\n");
+        printf("quickplayercmd (-ti|-coleco) [-viz <name>] [-loop] [-sn <sn music>] [-sid <sid music>] [-ay <ay music>] [-sidctl c1 c2 c3] [-text <textfile>] <output>\n");
         printf("Generates a playable music file for the target machine. Max 1 song, 24k of music.\n");
         printf("-ti - select TI output - this or -coleco MUST be specified\n");
         printf("-coleco - select ColecoVision output - this or -ti MUST be specified\n");
+		printf("-viz - select an alternate viz, either balls, chuck, blink or piano (leave out for default text screen)\n");
         printf("-loop - loop the music - if not specified the music will stop at the end\n");
         printf("-sn - specify file for SN chip - no SN is played if blank\n");
         printf("-sid - specify file for SID chip - no SID is played if blank. Valid on TI only. Requires sidctl.\n");
@@ -81,6 +98,7 @@ int main(int argc, char *argv[])
 
     // check arguments
     int arg = 1;
+	int playerNum = QUICKPLAYER;
     while (argv[arg][0] == '-') {
         if (0 == strcmp(argv[arg], "-ti")) {
             isTIMode = true;
@@ -94,6 +112,20 @@ int main(int argc, char *argv[])
                 printf("You can not select both TI and Coleco mode.\n");
                 return 1;
             }
+        } else if (0 == strcmp(argv[arg], "-viz")) {
+            ++arg;
+            if (arg+1>=argc) {
+                printf("Not enough arguments for -viz\n");
+                return 1;
+            }
+			if (0 == strcmp(argv[arg],"balls")) playerNum = BALLS;
+			else if (0 == strcmp(argv[arg],"chuck")) playerNum = CHUCK;
+			else if (0 == strcmp(argv[arg],"blink")) playerNum = BLINK;
+			else if (0 == strcmp(argv[arg],"piano")) playerNum = PIANO;
+			else {
+				printf("-viz must be balls, chuck, blink or piano.\n");
+				return 1;
+			}
         } else if (0 == strcmp(argv[arg], "-loop")) {
             loop = true;
         } else if (0 == strcmp(argv[arg], "-sn")) {
@@ -186,6 +218,117 @@ int main(int argc, char *argv[])
         offset = songsize;
     }
 
+	// check limitations and load pointer to program
+	// rather than rely on removing the const, we'll just copy
+	// into a buffer we can modify
+	unsigned char *program = (unsigned char*)malloc(32768);	// big enough to make the Coleco cart
+	int progsize = 0;
+	switch (playerNum) {
+		case QUICKPLAYER:	// quickplayer
+			// no limits
+			if (isTIMode) {
+				progsize = SIZE_OF_QUICKPLAYTI;
+				memcpy(program, quickplayti, progsize);
+			} else {
+				progsize = SIZE_OF_QUICKPLAYCOLECO;
+				memcpy(program, quickplaycoleco, progsize);
+			}
+			break;
+
+		case BALLS:	// balls
+			// 1 file only
+			if ((sidPath != NULL)||(ayPath != NULL)) {
+				printf("This player only supports SN playback");
+				return 1;
+			}
+			if (isTIMode) {
+				progsize = SIZE_OF_QPBALLS;
+				memcpy(program, qpballs, progsize);
+				// The TI build stuffs the address of SongLoop at offset 0xb8.
+				// From there, search the first 50 words for 0x8400, and
+				// change it to 0x0000 to mute the player library (only one instance)
+				int pSrch = program[0xb8]*256+program[0xb9];	// big endian
+				pSrch -= 0x2000;						// from address to offset
+				while ((pSrch < 0x8191)&&((program[pSrch] != 0x84)||(program[pSrch+1]!=0x00))) pSrch+=2;	// must be even!
+				if (pSrch < 8191) {
+					printf("Patched TI code...\n");
+					program[pSrch]=0;	// from LI R8,>8400
+					program[pSrch+1]=0;	// to LI R8,>0000 (so writes go to ROM instead)
+				}
+				if (pSrch >= 8191) {
+					printf("Warning: Failed to patch TI code!");
+				}
+
+			} else {
+				progsize = SIZE_OF_QPBALLSCOLECO;
+				memcpy(program, qpBallsColeco, progsize);
+				// The Coleco build stuffs the address of SongLoop at offset 0x28.
+				// From there, search and change the first 8 instances of 0xD3,0xFF
+				// to 00,00 to mute the player library.
+				int pSrch = program[0x28]+program[0x29]*256;	// little endian
+				pSrch -= 0x8000;						// from address to offset
+				int cnt = 0;
+				for (int idx=0; idx<8; idx++) {
+					while ((pSrch < 0x8191)&&((program[pSrch] != 0xd3)||(program[pSrch+1]!=0xff))) pSrch++;
+					if (pSrch < 8191) {
+						printf("Patched Coleco (expect 8 of these!)...\n");
+						program[pSrch]=0;	// from out (0xff),a
+						program[pSrch+1]=0;	// to nop, nop
+						++cnt;
+					}
+				}
+				if (cnt != 8) {
+					printf("Warning: Failed to patch Coleco code!");
+				}
+			}
+			break;
+
+		case BLINK:	// blinken
+			// no limits
+			if (isTIMode) {
+				progsize = SIZE_OF_QPBLINKENTI;
+				memcpy(program, qpBlinkenTI, progsize);
+			} else {
+				progsize = SIZE_OF_QPBLINKENCOLECO;
+				memcpy(program, qpBlinkenColeco, progsize);
+			}
+			break;
+
+		case CHUCK:	// chuck
+			// 1 file only
+			if ((sidPath != NULL)||(ayPath != NULL)) {
+				printf("This player only supports SN playback");
+				return 1;
+			}
+			if (isTIMode) {
+				progsize = SIZE_OF_QPCHUCKTI;
+				memcpy(program, qpchuckti, progsize);
+			} else {
+				progsize = SIZE_OF_QPCHUCKCOLECO;
+				memcpy(program, qpChuckColeco, progsize);
+			}
+			break;
+
+		case PIANO:	// piano
+			// 1 file only
+			if ((sidPath != NULL)||(ayPath != NULL)) {
+				printf("This player only supports SN playback");
+				return 1;
+			}
+			if (isTIMode) {
+				progsize = SIZE_OF_QPPIANOTI;
+				memcpy(program, qpPianoTI, progsize);
+			} else {
+				progsize = SIZE_OF_QPPIANOCOLECO;
+				memcpy(program, qpPianoColeco, progsize);
+			}
+			break;
+
+		default:
+			printf("Unknown program selection");
+			return 1;
+	}
+
     // song 2 can only be SID /or/ AY
     if (isTIMode) {
         // TI mode
@@ -261,31 +404,20 @@ int main(int argc, char *argv[])
 	// find the location to dump the text
 	unsigned char *p;
     int maxrows = 0;
+    p=program;
     if (isTIMode) {
-        p = textbufferTI;
-    } else {
-        p = textbufferCOL;
+		// patch the EA5 header to be sure the next file is loaded
+		p[128] = 0xff;
+		p[129] = 0xff;
     }
-	if (NULL == p) {
-        if (isTIMode) {
-    		p=quickplayti;
-        } else {
-            p=quickplaycoleco;
-        }
-        int idx;
-		for (idx=0; idx<1024; idx++) {
-			if (0 == memcmp(p, "~~~~DATAHERE~~~~", 16)) break;
-			p++;
-		}
-		if (idx>=1024) {
-			printf("Internal error - can't find text buffer. Failing.\n");
-			return 1;
-		}
-        if (isTIMode) {
-    		textbufferTI=p;
-        } else {
-    		textbufferCOL=p;
-        }
+	int idx;
+	for (idx=0; idx<progsize; idx++) {
+		if (0 == memcmp(p, "~~~~DATAHERE~~~~", 12)) break;
+		p++;
+	}
+	if (idx>=progsize) {
+		printf("Internal error - can't find text buffer. Failing.\n");
+		return 1;
 	}
     if (maxrows == 0) {
         maxrows = atoi((char*)p+16);
@@ -307,21 +439,39 @@ int main(int argc, char *argv[])
 		memcpy(p+(idx*32), text[idx], 32);
 	}
 
-    // now fill in the options
+	// also go ahead and find the flags section
+	p=program;
+	for (idx=0; idx<progsize; idx++) {
+		if (0 == memcmp(p, "~~FLAG", 6)) break;
+		p++;
+	}
+	if (idx>=progsize) {
+		printf("Internal error - can't find flags buffer. Failing.");
+		return 1;
+	}
+
+	// 0-5 = ~~FLAG
+	// 6-7 - first song
+	// 8-9 - second song
+	// 10-12 - 3 SID flags (ignored elsewhere)
+	// 13 - loop
+	// 14-15 - chain address (zeroed here)
+
+	// now fill in the options
     if (snPath != NULL) {
         // first file is always at 0xA000
         if (isTIMode) {
             // big endian 9900
-            p[768] = 0xa0;
-            p[769] = 0x00;
+			p[6] = 0xa0;
+			p[7] = 0x00;
         } else {
             // little endian z80
-            p[768] = 0x00;
-            p[769] = 0xa0;
+			p[6] = 0x00;
+			p[7] = 0xa0;
         }
     } else {
-        p[768] = 0;
-        p[769] = 0;
+		p[6] = 0;
+		p[7] = 0;
     }
 
     offset+=0xa000;
@@ -329,35 +479,38 @@ int main(int argc, char *argv[])
     if (isTIMode) {
         if (snPath != NULL) {
             // big endian 9900
-            p[770] = offset/256;
-            p[771] = offset%256;
-            p[772] = sidctl[0];
-            p[773] = sidctl[1];
-            p[774] = sidctl[2];
+            p[8] = offset/256;
+            p[9] = offset%256;
+            p[10] = sidctl[0];
+            p[11] = sidctl[1];
+            p[12] = sidctl[2];
         } else {
-            p[770] = 0;
-            p[771] = 0;
+            p[8] = 0;
+            p[9] = 0;
             // don't need to fill in the SID controls
         }
     } else {
         if (ayPath != NULL) {
             // little endian z80
-            p[770] = offset%256;
-            p[771] = offset/256;
+            p[8] = offset%256;
+            p[9] = offset/256;
             // don't need to fill in the SID controls
         } else {
-            p[770] = 0;
-            p[771] = 0;
+            p[8] = 0;
+            p[9] = 0;
             // don't need to fill in the SID controls
         }
     }
 
     if (loop) {
-        p[775] = 1;
+        p[13] = 1;
     } else {
-        p[775] = 0;
+        p[13] = 0;
     }
 
+	// chain address is never set here - that's for external programs to set
+	p[14] = 0;
+	p[15] = 0;
 	// now dump it
     printf("Writing %s...\n", argv[arg]);
 	fp=fopen(argv[arg], "wb");
@@ -367,7 +520,7 @@ int main(int argc, char *argv[])
 	}
 
     if (isTIMode) {
-		fwrite(quickplayti, 1, SIZE_OF_QUICKPLAYTI, fp);
+	    fwrite(program, 1, progsize, fp);
 		fclose(fp);
 
 		// increment last char of name and then write the song into that
@@ -415,8 +568,9 @@ int main(int argc, char *argv[])
     } else {
         // Coleco mode
         // We will just patch and write out the Coleco ROM file
-        memcpy(&quickplaycoleco[0xa000-0x8000], song, songsize);
-        fwrite(quickplaycoleco, 1, 32768, fp);
+        memcpy(&program[0xa000-0x8000], song, songsize);
+        fwrite(program, 1, 32768, fp);
         fclose(fp);
     }
+	free(program);
 }
