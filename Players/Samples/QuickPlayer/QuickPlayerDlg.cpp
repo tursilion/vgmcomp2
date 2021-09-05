@@ -19,6 +19,8 @@
 #include "qpchuckTI.c"
 #include "qpBlinkenColeco.c"
 #include "qpBlinkenTI.c"
+#include "qpPianoColeco.c"
+#include "qpPianoTI.c"
 
 // used for the build code
 char song[24*1024];
@@ -118,6 +120,7 @@ BOOL CQuickPlayerDlg::OnInitDialog()
 	SendDlgItemMessage(IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"Balls");
 	SendDlgItemMessage(IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"Blinkenlights");
 	SendDlgItemMessage(IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"Chuck");
+	SendDlgItemMessage(IDC_COMBO1, CB_ADDSTRING, 0, (LPARAM)"Piano");
 	SendDlgItemMessage(IDC_COMBO1, CB_SETCURSEL, 0, 0);
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
@@ -361,6 +364,21 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 			} else {
 				progsize = SIZE_OF_QPCHUCKCOLECO;
 				memcpy(program, qpChuckColeco, progsize);
+			}
+			break;
+
+		case 4:	// piano
+			// 1 file only
+			if ((sidfile.GetLength() > 0)||(ayfile.GetLength() > 0)) {
+				AfxMessageBox("This player only supports SN playback");
+				return;
+			}
+			if (isTIMode) {
+				progsize = SIZE_OF_QPPIANOTI;
+				memcpy(program, qpPianoTI, progsize);
+			} else {
+				progsize = SIZE_OF_QPPIANOCOLECO;
+				memcpy(program, qpPianoColeco, progsize);
 			}
 			break;
 

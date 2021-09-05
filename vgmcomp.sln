@@ -280,6 +280,38 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "bestPacker", "bestPacker\be
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "maximizevolume", "maximizevolume\maximizevolume.vcxproj", "{32AFABAE-221F-4204-B2AC-8C30FEF8BA3A}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ti_raw", "ti_raw", "{B7957B0D-3AB6-4B22-A224-45ECD0E4C2C3}"
+	ProjectSection(SolutionItems) = preProject
+		Players\ti_raw\makerawasm.bat = Players\ti_raw\makerawasm.bat
+		Players\ti_raw\readme.txt = Players\ti_raw\readme.txt
+		Players\ti_raw\tiSfxSN.asm = Players\ti_raw\tiSfxSN.asm
+		Players\ti_raw\tiSfxSN30.asm = Players\ti_raw\tiSfxSN30.asm
+		Players\ti_raw\tiSIDonly.asm = Players\ti_raw\tiSIDonly.asm
+		Players\ti_raw\tiSIDonly30.asm = Players\ti_raw\tiSIDonly30.asm
+		Players\ti_raw\tiSNonly.asm = Players\ti_raw\tiSNonly.asm
+		Players\ti_raw\tiSNonly30.asm = Players\ti_raw\tiSNonly30.asm
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ti_xb", "ti_xb", "{7A95369F-E8EF-425C-A008-8D8F7D2CB3FB}"
+	ProjectSection(SolutionItems) = preProject
+		Players\ti_xb\readme.txt = Players\ti_xb\readme.txt
+		Players\ti_xb\tiSNonly.a99 = Players\ti_xb\tiSNonly.a99
+		Players\ti_xb\tiSNonly30.a99 = Players\ti_xb\tiSNonly30.a99
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sfxsnsample", "sfxsnsample", "{BE728A16-4E04-47DE-9878-FFBF84EA3756}"
+	ProjectSection(SolutionItems) = preProject
+		Players\ti_raw\SfxSNSample\main.a99 = Players\ti_raw\SfxSNSample\main.a99
+		Players\ti_raw\SfxSNSample\readme.txt = Players\ti_raw\SfxSNSample\readme.txt
+		Players\ti_raw\SfxSNSample\tiSfxSN.asm = Players\ti_raw\SfxSNSample\tiSfxSN.asm
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sample", "sample", "{C4B08B58-3BFA-4E0A-AEFF-D677A60069CC}"
+	ProjectSection(SolutionItems) = preProject
+		Players\ti_xb\XBSample\guile.a99 = Players\ti_xb\XBSample\guile.a99
+		Players\ti_xb\XBSample\xbload.txt = Players\ti_xb\XBSample\xbload.txt
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -705,6 +737,10 @@ Global
 		{CD06B18D-F871-4D28-838E-1DE486B2F5C6} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 		{937E1C62-E21A-4D45-974C-ACE39DB38AD3} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 		{32AFABAE-221F-4204-B2AC-8C30FEF8BA3A} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
+		{B7957B0D-3AB6-4B22-A224-45ECD0E4C2C3} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
+		{7A95369F-E8EF-425C-A008-8D8F7D2CB3FB} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
+		{BE728A16-4E04-47DE-9878-FFBF84EA3756} = {B7957B0D-3AB6-4B22-A224-45ECD0E4C2C3}
+		{C4B08B58-3BFA-4E0A-AEFF-D677A60069CC} = {7A95369F-E8EF-425C-A008-8D8F7D2CB3FB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}
