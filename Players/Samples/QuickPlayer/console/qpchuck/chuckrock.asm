@@ -4546,7 +4546,7 @@ _main::
 ;chuckrock.c:462: SOUND=0xFF;
 	ld	a, #0xff
 	out	(_SOUND), a
-;chuckrock.c:466: chain = (unsigned int *)(*((unsigned int*)(&flags[14])));
+;chuckrock.c:466: chain = (unsigned int *)(*((volatile unsigned int*)(&flags[14])));
 	ld	bc, (#(_flags + 0x000e) + 0)
 	ld	l, c
 ;chuckrock.c:467: if (chain) {

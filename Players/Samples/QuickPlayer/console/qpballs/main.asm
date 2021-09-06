@@ -106,7 +106,7 @@ _frame::
 	.area _GSINIT
 	.area _GSFINAL
 	.area _GSINIT
-;main.c:413: static idx_t lastFade = 0;
+;main.c:414: static idx_t lastFade = 0;
 	ld	iy, #_main_lastFade_262145_94
 	ld	0 (iy), #0x00
 ;--------------------------------------------------------
@@ -118,7 +118,7 @@ _frame::
 ; code
 ;--------------------------------------------------------
 	.area _CODE
-;main.c:126: int main() {
+;main.c:127: int main() {
 ;	---------------------------------
 ; Function main
 ; ---------------------------------
@@ -127,7 +127,7 @@ _main::
 	ld	hl, #-9
 	add	hl, sp
 	ld	sp, hl
-;main.c:129: unsigned char x = set_graphics_raw(VDP_SPR_8x8);	// set graphics mode with 8x8 sprites
+;main.c:130: unsigned char x = set_graphics_raw(VDP_SPR_8x8);	// set graphics mode with 8x8 sprites
 	xor	a, a
 	push	af
 	inc	sp
@@ -139,10 +139,10 @@ _main::
 	out	(_VDPWA), a
 	ld	a, #0x83
 	out	(_VDPWA), a
-;main.c:131: gColor = 0x03c0;
+;main.c:132: gColor = 0x03c0;
 	ld	hl, #0x03c0
 	ld	(_gColor), hl
-;main.c:132: vdpmemset(gColor, 0x10, 32);			// all colors to black on transparent
+;main.c:133: vdpmemset(gColor, 0x10, 32);			// all colors to black on transparent
 	ld	hl, #0x0020
 	push	hl
 	ld	a, #0x10
@@ -152,7 +152,7 @@ _main::
 	push	hl
 	call	_vdpmemset
 	pop	af
-;main.c:133: vdpmemset(gPattern, 0, 8);				// char 0 is blank
+;main.c:134: vdpmemset(gPattern, 0, 8);				// char 0 is blank
 	inc	sp
 	ld	hl,#0x0008
 	ex	(sp),hl
@@ -163,7 +163,7 @@ _main::
 	push	hl
 	call	_vdpmemset
 	pop	af
-;main.c:134: vdpmemset(gImage, 0, 768);				// clear screen to char 0
+;main.c:135: vdpmemset(gImage, 0, 768);				// clear screen to char 0
 	inc	sp
 	ld	hl,#0x0300
 	ex	(sp),hl
@@ -176,7 +176,7 @@ _main::
 	pop	af
 	pop	af
 	inc	sp
-;main.c:135: vdpchar(gSprite, 0xd0);					// all sprites disabled
+;main.c:136: vdpchar(gSprite, 0xd0);					// all sprites disabled
 	ld	a, #0xd0
 	push	af
 	inc	sp
@@ -190,15 +190,15 @@ _main::
 	out	(_VDPWA), a
 	ld	a, #0x87
 	out	(_VDPWA), a
-;main.c:139: for (idx=0; idx<4; ++idx) {
+;main.c:140: for (idx=0; idx<4; ++idx) {
 	ld	hl, #_idx
 	ld	(hl), #0x00
 00198$:
-;main.c:140: for (i2=0; i2<DELAYTIME; ++i2) {
+;main.c:141: for (i2=0; i2<DELAYTIME; ++i2) {
 	ld	hl, #_i2
 	ld	(hl), #0x00
 00196$:
-;main.c:141: delayvol[idx][i2] = 0x0f | (0x90+(idx*0x20));
+;main.c:142: delayvol[idx][i2] = 0x0f | (0x90+(idx*0x20));
 	ld	bc, (_idx)
 	ld	b, #0x00
 	ld	l, c
@@ -228,7 +228,7 @@ _main::
 	add	a, #0x90
 	or	a, #0x0f
 	ld	(bc), a
-;main.c:142: delaytone[idx][i2] = idx*0x2000+0x8001;
+;main.c:143: delaytone[idx][i2] = idx*0x2000+0x8001;
 	ld	bc, (_idx)
 	ld	b, #0x00
 	ld	l, c
@@ -265,22 +265,22 @@ _main::
 	inc	bc
 	ld	a, d
 	ld	(bc), a
-;main.c:140: for (i2=0; i2<DELAYTIME; ++i2) {
+;main.c:141: for (i2=0; i2<DELAYTIME; ++i2) {
 	ld	iy, #_i2
 	inc	0 (iy)
 	ld	a, 0 (iy)
 	sub	a, #0x1e
 	jr	C, 00196$
-;main.c:139: for (idx=0; idx<4; ++idx) {
+;main.c:140: for (idx=0; idx<4; ++idx) {
 	ld	iy, #_idx
 	inc	0 (iy)
 	ld	a, 0 (iy)
 	sub	a, #0x04
 	jp	C, 00198$
-;main.c:155: for (idx = 2; idx < 178; idx += 8) {
+;main.c:156: for (idx = 2; idx < 178; idx += 8) {
 	ld	0 (iy), #0x02
 00200$:
-;main.c:156: vdpmemcpy(gPattern+(idx*8), tonehit, 6*8);
+;main.c:157: vdpmemcpy(gPattern+(idx*8), tonehit, 6*8);
 	ld	bc, #_tonehit
 	ld	a, (#_idx + 0)
 	ld	l, a
@@ -298,7 +298,7 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;main.c:155: for (idx = 2; idx < 178; idx += 8) {
+;main.c:156: for (idx = 2; idx < 178; idx += 8) {
 	ld	iy, #_idx
 	ld	a, 0 (iy)
 	add	a, #0x08
@@ -306,10 +306,10 @@ _main::
 	ld	a, 0 (iy)
 	sub	a, #0xb2
 	jr	C, 00200$
-;main.c:158: for (idx = 178; idx < 242; idx += 8) {
+;main.c:159: for (idx = 178; idx < 242; idx += 8) {
 	ld	0 (iy), #0xb2
 00202$:
-;main.c:159: vdpmemcpy(gPattern+(idx*8), drumhit, 6*8);
+;main.c:160: vdpmemcpy(gPattern+(idx*8), drumhit, 6*8);
 	ld	bc, #_drumhit
 	ld	a, (#_idx + 0)
 	ld	l, a
@@ -327,7 +327,7 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;main.c:158: for (idx = 178; idx < 242; idx += 8) {
+;main.c:159: for (idx = 178; idx < 242; idx += 8) {
 	ld	iy, #_idx
 	ld	a, 0 (iy)
 	add	a, #0x08
@@ -335,7 +335,7 @@ _main::
 	ld	a, 0 (iy)
 	sub	a, #0xf2
 	jr	C, 00202$
-;main.c:162: vdpmemcpy(gPattern+8, ballsprite, 8);
+;main.c:163: vdpmemcpy(gPattern+8, ballsprite, 8);
 	ld	bc, #_ballsprite+0
 	ld	hl, (_gPattern)
 	ld	de, #0x0008
@@ -348,7 +348,7 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;main.c:165: vdpmemcpy(gPattern+(240*8), font, 16*8);
+;main.c:166: vdpmemcpy(gPattern+(240*8), font, 16*8);
 	ld	bc, #_font+0
 	ld	hl, (_gPattern)
 	ld	de, #0x0780
@@ -361,7 +361,7 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;main.c:166: vdpmemcpy(gPattern+(176*8), fontjl, 2*8);
+;main.c:167: vdpmemcpy(gPattern+(176*8), fontjl, 2*8);
 	ld	bc, #_fontjl+0
 	ld	hl, (_gPattern)
 	ld	de, #0x0580
@@ -374,7 +374,7 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;main.c:167: vdpmemcpy(gPattern+(184*8), fontnp, 2*8);
+;main.c:168: vdpmemcpy(gPattern+(184*8), fontnp, 2*8);
 	ld	bc, #_fontnp+0
 	ld	hl, (_gPattern)
 	ld	de, #0x05c0
@@ -387,7 +387,7 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;main.c:168: vdpmemcpy(gPattern+(192*8), fontqt, 2*8);
+;main.c:169: vdpmemcpy(gPattern+(192*8), fontqt, 2*8);
 	ld	bc, #_fontqt+0
 	ld	hl, (_gPattern)
 	ld	de, #0x0600
@@ -400,7 +400,7 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;main.c:169: vdpmemcpy(gPattern+(200*8), fontvy, 2*8);
+;main.c:170: vdpmemcpy(gPattern+(200*8), fontvy, 2*8);
 	ld	bc, #_fontvy+0
 	ld	hl, (_gPattern)
 	ld	de, #0x0640
@@ -413,7 +413,7 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;main.c:170: vdpmemcpy(gPattern+(232*8), fontxz, 2*8);
+;main.c:171: vdpmemcpy(gPattern+(232*8), fontxz, 2*8);
 	ld	bc, #_fontxz+0
 	ld	hl, (_gPattern)
 	ld	de, #0x0740
@@ -426,11 +426,11 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;main.c:174: for (idx=0; idx<22; idx++) {
+;main.c:175: for (idx=0; idx<22; idx++) {
 	ld	hl, #_idx
 	ld	(hl), #0x00
 00204$:
-;main.c:175: idx_t r=tones[idx*2];
+;main.c:176: idx_t r=tones[idx*2];
 	ld	iy, #_idx
 	ld	l, 0 (iy)
 	ld	h, #0x00
@@ -438,7 +438,7 @@ _main::
 	ld	de, #_tones
 	add	hl, de
 	ld	e, (hl)
-;main.c:176: idx_t c=tones[idx*2+1];
+;main.c:177: idx_t c=tones[idx*2+1];
 	ld	d, 0 (iy)
 	ld	a, d
 	add	a, a
@@ -451,14 +451,14 @@ _main::
 	add	hl, bc
 	ld	a, (hl)
 	ld	-9 (ix), a
-;main.c:177: idx_t ch=idx*8+FIRST_TONE_CHAR;
+;main.c:178: idx_t ch=idx*8+FIRST_TONE_CHAR;
 	ld	a, d
 	add	a, a
 	add	a, a
 	add	a, a
 	add	a, #0x02
 	ld	-8 (ix), a
-;main.c:179: vdpscreenchar(VDP_SCREEN_POS(r-1,c-1), ch);
+;main.c:180: vdpscreenchar(VDP_SCREEN_POS(r-1,c-1), ch);
 	ld	a, -9 (ix)
 	ld	-6 (ix), a
 	ld	c, a
@@ -489,7 +489,7 @@ _main::
 	ld	a, b
 	adc	a, h
 	ld	h, a
-;main.c:179: vdpscreenchar(VDP_SCREEN_POS(r-1,c-1), ch);
+;main.c:180: vdpscreenchar(VDP_SCREEN_POS(r-1,c-1), ch);
 	push	bc
 	push	de
 	ld	a, -8 (ix)
@@ -501,7 +501,7 @@ _main::
 	inc	sp
 	pop	de
 	pop	bc
-;main.c:180: vdpscreenchar(VDP_SCREEN_POS(r,c-1), ch+1);
+;main.c:181: vdpscreenchar(VDP_SCREEN_POS(r,c-1), ch+1);
 	ld	a, -8 (ix)
 	ld	-3 (ix), a
 	inc	a
@@ -517,7 +517,7 @@ _main::
 	add	hl, hl
 	ld	b, #0x00
 	add	hl, bc
-;main.c:180: vdpscreenchar(VDP_SCREEN_POS(r,c-1), ch+1);
+;main.c:181: vdpscreenchar(VDP_SCREEN_POS(r,c-1), ch+1);
 	push	de
 	ld	a, -4 (ix)
 	push	af
@@ -527,7 +527,7 @@ _main::
 	pop	af
 	inc	sp
 	pop	de
-;main.c:182: vdpscreenchar(VDP_SCREEN_POS(r-1,c), ch+2);
+;main.c:183: vdpscreenchar(VDP_SCREEN_POS(r-1,c), ch+2);
 	ld	a, -3 (ix)
 	add	a, #0x02
 	ld	-4 (ix), a
@@ -542,7 +542,7 @@ _main::
 	ld	c, -9 (ix)
 	ld	b, #0x00
 	add	hl, bc
-;main.c:182: vdpscreenchar(VDP_SCREEN_POS(r-1,c), ch+2);
+;main.c:183: vdpscreenchar(VDP_SCREEN_POS(r-1,c), ch+2);
 	push	bc
 	push	de
 	ld	a, -4 (ix)
@@ -554,7 +554,7 @@ _main::
 	inc	sp
 	pop	de
 	pop	bc
-;main.c:183: vdpscreenchar(VDP_SCREEN_POS(r,c), ch+3);
+;main.c:184: vdpscreenchar(VDP_SCREEN_POS(r,c), ch+3);
 	ld	h, -3 (ix)
 	inc	h
 	inc	h
@@ -573,7 +573,7 @@ _main::
 	ld	a, d
 	adc	a, b
 	ld	b, a
-;main.c:183: vdpscreenchar(VDP_SCREEN_POS(r,c), ch+3);
+;main.c:184: vdpscreenchar(VDP_SCREEN_POS(r,c), ch+3);
 	push	de
 	push	hl
 	inc	sp
@@ -582,7 +582,7 @@ _main::
 	pop	af
 	inc	sp
 	pop	de
-;main.c:185: vdpscreenchar(VDP_SCREEN_POS(r-1,c+1), ch+4);
+;main.c:186: vdpscreenchar(VDP_SCREEN_POS(r-1,c+1), ch+4);
 	ld	a, -3 (ix)
 	add	a, #0x04
 	ld	-4 (ix), a
@@ -603,7 +603,7 @@ _main::
 	ld	a, b
 	adc	a, h
 	ld	h, a
-;main.c:185: vdpscreenchar(VDP_SCREEN_POS(r-1,c+1), ch+4);
+;main.c:186: vdpscreenchar(VDP_SCREEN_POS(r-1,c+1), ch+4);
 	push	bc
 	push	de
 	ld	a, -4 (ix)
@@ -615,7 +615,7 @@ _main::
 	inc	sp
 	pop	de
 	pop	bc
-;main.c:186: vdpscreenchar(VDP_SCREEN_POS(r,c+1), ch+5);
+;main.c:187: vdpscreenchar(VDP_SCREEN_POS(r,c+1), ch+5);
 	ld	a, -3 (ix)
 	add	a, #0x05
 	ld	b, a
@@ -623,23 +623,23 @@ _main::
 	ld	l, c
 	ld	h, #0x00
 	add	hl, de
-;main.c:186: vdpscreenchar(VDP_SCREEN_POS(r,c+1), ch+5);
+;main.c:187: vdpscreenchar(VDP_SCREEN_POS(r,c+1), ch+5);
 	push	bc
 	inc	sp
 	push	hl
 	call	_vdpscreenchar
 	pop	af
 	inc	sp
-;main.c:174: for (idx=0; idx<22; idx++) {
+;main.c:175: for (idx=0; idx<22; idx++) {
 	ld	iy, #_idx
 	inc	0 (iy)
 	ld	a, 0 (iy)
 	sub	a, #0x16
 	jp	C, 00204$
-;main.c:189: for (idx=0; idx<8; idx++) {
+;main.c:190: for (idx=0; idx<8; idx++) {
 	ld	0 (iy), #0x00
 00206$:
-;main.c:190: idx_t r=drums[idx*2];
+;main.c:191: idx_t r=drums[idx*2];
 	ld	iy, #_idx
 	ld	l, 0 (iy)
 	ld	h, #0x00
@@ -648,7 +648,7 @@ _main::
 	add	hl, de
 	ld	a, (hl)
 	ld	-6 (ix), a
-;main.c:191: idx_t c=drums[idx*2+1];
+;main.c:192: idx_t c=drums[idx*2+1];
 	ld	b, 0 (iy)
 	ld	a, b
 	add	a, a
@@ -660,14 +660,14 @@ _main::
 	ld	hl, #_drums
 	add	hl, de
 	ld	c, (hl)
-;main.c:192: idx_t ch=idx*8+FIRST_DRUM_CHAR;
+;main.c:193: idx_t ch=idx*8+FIRST_DRUM_CHAR;
 	ld	a, b
 	add	a, a
 	add	a, a
 	add	a, a
 	add	a, #0xb2
 	ld	-1 (ix), a
-;main.c:194: vdpscreenchar(VDP_SCREEN_POS(r,c-1), ch);
+;main.c:195: vdpscreenchar(VDP_SCREEN_POS(r,c-1), ch);
 	ld	-5 (ix), c
 	ld	a, c
 	add	a, #0xff
@@ -686,7 +686,7 @@ _main::
 	add	hl, hl
 	ld	d, #0x00
 	add	hl, de
-;main.c:194: vdpscreenchar(VDP_SCREEN_POS(r,c-1), ch);
+;main.c:195: vdpscreenchar(VDP_SCREEN_POS(r,c-1), ch);
 	push	bc
 	ld	a, -1 (ix)
 	push	af
@@ -696,7 +696,7 @@ _main::
 	pop	af
 	inc	sp
 	pop	bc
-;main.c:195: vdpscreenchar(VDP_SCREEN_POS(r+1,c-1), ch+1);
+;main.c:196: vdpscreenchar(VDP_SCREEN_POS(r+1,c-1), ch+1);
 	ld	b, -1 (ix)
 	inc	b
 	ld	e, -4 (ix)
@@ -714,7 +714,7 @@ _main::
 	add	hl, hl
 	ld	d, #0x00
 	add	hl, de
-;main.c:195: vdpscreenchar(VDP_SCREEN_POS(r+1,c-1), ch+1);
+;main.c:196: vdpscreenchar(VDP_SCREEN_POS(r+1,c-1), ch+1);
 	push	bc
 	push	bc
 	inc	sp
@@ -723,7 +723,7 @@ _main::
 	pop	af
 	inc	sp
 	pop	bc
-;main.c:197: vdpscreenchar(VDP_SCREEN_POS(r,c), ch+2);
+;main.c:198: vdpscreenchar(VDP_SCREEN_POS(r,c), ch+2);
 	ld	d, -1 (ix)
 	inc	d
 	inc	d
@@ -737,7 +737,7 @@ _main::
 	add	hl, hl
 	ld	b, #0x00
 	add	hl, bc
-;main.c:197: vdpscreenchar(VDP_SCREEN_POS(r,c), ch+2);
+;main.c:198: vdpscreenchar(VDP_SCREEN_POS(r,c), ch+2);
 	push	bc
 	push	de
 	inc	sp
@@ -746,7 +746,7 @@ _main::
 	pop	af
 	inc	sp
 	pop	bc
-;main.c:198: vdpscreenchar(VDP_SCREEN_POS(r+1,c), ch+3);
+;main.c:199: vdpscreenchar(VDP_SCREEN_POS(r+1,c), ch+3);
 	ld	h, -1 (ix)
 	inc	h
 	inc	h
@@ -767,7 +767,7 @@ _main::
 	ld	a, d
 	adc	a, b
 	ld	b, a
-;main.c:198: vdpscreenchar(VDP_SCREEN_POS(r+1,c), ch+3);
+;main.c:199: vdpscreenchar(VDP_SCREEN_POS(r+1,c), ch+3);
 	push	de
 	push	hl
 	inc	sp
@@ -776,7 +776,7 @@ _main::
 	pop	af
 	inc	sp
 	pop	de
-;main.c:200: vdpscreenchar(VDP_SCREEN_POS(r,c+1), ch+4);
+;main.c:201: vdpscreenchar(VDP_SCREEN_POS(r,c+1), ch+4);
 	ld	a, -1 (ix)
 	add	a, #0x04
 	ld	-4 (ix), a
@@ -797,7 +797,7 @@ _main::
 	ld	a, b
 	adc	a, h
 	ld	h, a
-;main.c:200: vdpscreenchar(VDP_SCREEN_POS(r,c+1), ch+4);
+;main.c:201: vdpscreenchar(VDP_SCREEN_POS(r,c+1), ch+4);
 	push	bc
 	push	de
 	ld	a, -4 (ix)
@@ -809,7 +809,7 @@ _main::
 	inc	sp
 	pop	de
 	pop	bc
-;main.c:201: vdpscreenchar(VDP_SCREEN_POS(r+1,c+1), ch+5);
+;main.c:202: vdpscreenchar(VDP_SCREEN_POS(r+1,c+1), ch+5);
 	ld	a, -1 (ix)
 	add	a, #0x05
 	ld	b, a
@@ -818,14 +818,14 @@ _main::
 	ld	h, #0x00
 	ld	l, a
 	add	hl, de
-;main.c:201: vdpscreenchar(VDP_SCREEN_POS(r+1,c+1), ch+5);
+;main.c:202: vdpscreenchar(VDP_SCREEN_POS(r+1,c+1), ch+5);
 	push	bc
 	inc	sp
 	push	hl
 	call	_vdpscreenchar
 	pop	af
 	inc	sp
-;main.c:189: for (idx=0; idx<8; idx++) {
+;main.c:190: for (idx=0; idx<8; idx++) {
 	ld	iy, #_idx
 	inc	0 (iy)
 	ld	a, 0 (iy)
@@ -836,7 +836,7 @@ _main::
 	out	(_VDPWA), a
 	ld	a, #0x81
 	out	(_VDPWA), a
-;main.c:211: vdpmemread(gColor, colortab, 32);
+;main.c:212: vdpmemread(gColor, colortab, 32);
 	ld	hl, #0x0020
 	push	hl
 	ld	hl, #_colortab
@@ -847,7 +847,7 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;main.c:217: VDP_SET_ADDRESS_WRITE(gImage+(21*32));
+;main.c:218: VDP_SET_ADDRESS_WRITE(gImage+(21*32));
 	ld	iy, #_gImage
 	ld	a, 0 (iy)
 	add	a, #0xa0
@@ -861,17 +861,17 @@ _main::
 	ld	a, c
 	or	a, #0x40
 	out	(_VDPWA), a
-;main.c:218: for (idx=0; idx<32*3; ++idx) {
+;main.c:219: for (idx=0; idx<32*3; ++idx) {
 	ld	hl, #_idx
 	ld	(hl), #0x00
 	ld	bc, #_textout+0
 00208$:
-;main.c:219: unsigned char c = textout[idx];
+;main.c:220: unsigned char c = textout[idx];
 	ld	hl, (_idx)
 	ld	h, #0x00
 	add	hl, bc
 	ld	e, (hl)
-;main.c:220: if (c>96) c-=32;	// make uppercase
+;main.c:221: if (c>96) c-=32;	// make uppercase
 	ld	a, #0x60
 	sub	a, e
 	jr	NC, 00108$
@@ -879,7 +879,7 @@ _main::
 	add	a, #0xe0
 	ld	e, a
 00108$:
-;main.c:221: if ((c<32)||(c>90)) {
+;main.c:222: if ((c<32)||(c>90)) {
 	ld	a, e
 	sub	a, #0x20
 	jr	C, 00109$
@@ -887,12 +887,12 @@ _main::
 	sub	a, e
 	jr	NC, 00110$
 00109$:
-;main.c:222: VDPWD=132;
+;main.c:223: VDPWD=132;
 	ld	a, #0x84
 	out	(_VDPWD), a
 	jr	00209$
 00110$:
-;main.c:224: VDPWD=charmap[c-32];
+;main.c:225: VDPWD=charmap[c-32];
 	ld	a, e
 	add	a, #0xe0
 	ld	e, a
@@ -904,30 +904,30 @@ _main::
 	ld	a, (hl)
 	out	(_VDPWD), a
 00209$:
-;main.c:218: for (idx=0; idx<32*3; ++idx) {
+;main.c:219: for (idx=0; idx<32*3; ++idx) {
 	ld	iy, #_idx
 	inc	0 (iy)
 	ld	a, 0 (iy)
 	sub	a, #0x60
 	jr	C, 00208$
-;main.c:230: firstSong = *((unsigned int*)&flags[6]);
+;main.c:231: firstSong = *((unsigned int*)&flags[6]);
 	ld	hl, #(_flags + 0x0006)
 	ld	a, (hl)
 	ld	(_firstSong+0), a
 	inc	hl
 	ld	a, (hl)
 	ld	(_firstSong+1), a
-;main.c:233: volatile unsigned char *pLoop = (volatile unsigned char *)&flags[13];
-;main.c:235: do {
+;main.c:234: volatile unsigned char *pLoop = (volatile unsigned char *)&flags[13];
+;main.c:236: do {
 00176$:
-;main.c:237: finalcount = 30;
+;main.c:238: finalcount = 30;
 	ld	hl, #_finalcount
 	ld	(hl), #0x1e
-;main.c:239: for (idx=0; idx<4; idx++) {
+;main.c:240: for (idx=0; idx<4; idx++) {
 	ld	hl, #_idx
 	ld	(hl), #0x00
 00212$:
-;main.c:240: nOldVol[idx]=0xff;
+;main.c:241: nOldVol[idx]=0xff;
 	ld	a, #<(_nOldVol)
 	ld	hl, #_idx
 	add	a, (hl)
@@ -937,7 +937,7 @@ _main::
 	ld	b, a
 	ld	a, #0xff
 	ld	(bc), a
-;main.c:241: nOldTarg[idx]=255;
+;main.c:242: nOldTarg[idx]=255;
 	ld	a, #<(_nOldTarg)
 	ld	hl, #_idx
 	add	a, (hl)
@@ -947,7 +947,7 @@ _main::
 	ld	b, a
 	ld	a, #0xff
 	ld	(bc), a
-;main.c:242: nOldTarg[idx+4]=255;
+;main.c:243: nOldTarg[idx+4]=255;
 	ld	a,(#_idx + 0)
 	add	a, #0x04
 	ld	c, a
@@ -957,11 +957,11 @@ _main::
 	ld	hl, #_nOldTarg
 	add	hl, bc
 	ld	(hl), #0xff
-;main.c:243: for (i2=0; i2<DELAYTIME; i2++) {
+;main.c:244: for (i2=0; i2<DELAYTIME; i2++) {
 	ld	hl, #_i2
 	ld	(hl), #0x00
 00210$:
-;main.c:245: delayvol[idx][i2]=(idx*0x20) + 0x9f;
+;main.c:246: delayvol[idx][i2]=(idx*0x20) + 0x9f;
 	ld	bc, (_idx)
 	ld	b, #0x00
 	ld	l, c
@@ -990,22 +990,22 @@ _main::
 	and	a, #0xe0
 	add	a, #0x9f
 	ld	(bc), a
-;main.c:243: for (i2=0; i2<DELAYTIME; i2++) {
+;main.c:244: for (i2=0; i2<DELAYTIME; i2++) {
 	ld	iy, #_i2
 	inc	0 (iy)
 	ld	a, 0 (iy)
 	sub	a, #0x1e
 	jr	C, 00210$
-;main.c:239: for (idx=0; idx<4; idx++) {
+;main.c:240: for (idx=0; idx<4; idx++) {
 	ld	iy, #_idx
 	inc	0 (iy)
 	ld	a, 0 (iy)
 	sub	a, #0x04
 	jr	C, 00212$
-;main.c:249: for (idx=0; idx<MAX_SPRITES; idx++) {
+;main.c:250: for (idx=0; idx<MAX_SPRITES; idx++) {
 	ld	0 (iy), #0x00
 00214$:
-;main.c:251: sprpath[idx].z=0;
+;main.c:252: sprpath[idx].z=0;
 	ld	bc, (_idx)
 	ld	b, #0x00
 	ld	l, c
@@ -1020,18 +1020,18 @@ _main::
 	ld	bc, #0x0009
 	add	hl, bc
 	ld	(hl), #0x00
-;main.c:249: for (idx=0; idx<MAX_SPRITES; idx++) {
+;main.c:250: for (idx=0; idx<MAX_SPRITES; idx++) {
 	ld	iy, #_idx
 	inc	0 (iy)
 	ld	a, 0 (iy)
 	sub	a, #0x22
 	jr	C, 00214$
-;main.c:254: if (0 != firstSong) {
+;main.c:255: if (0 != firstSong) {
 	ld	iy, #_firstSong
 	ld	a, 1 (iy)
 	or	a, 0 (iy)
 	jr	Z, 00118$
-;main.c:255: StartSong((unsigned char*)firstSong,0);
+;main.c:256: StartSong((unsigned char*)firstSong,0);
 	ld	hl, (_firstSong)
 	xor	a, a
 	push	af
@@ -1040,38 +1040,38 @@ _main::
 	call	_StartSong
 	pop	af
 	inc	sp
-;main.c:260: songNote[0]=0x8001;
+;main.c:261: songNote[0]=0x8001;
 	ld	hl, #0x8001
 	ld	(_songNote), hl
-;main.c:261: songNote[1]=0xa001;
+;main.c:262: songNote[1]=0xa001;
 	ld	h, #0xa0
 	ld	((_songNote + 0x0002)), hl
-;main.c:262: songNote[2]=0xc001;
+;main.c:263: songNote[2]=0xc001;
 	ld	h, #0xc0
 	ld	((_songNote + 0x0004)), hl
-;main.c:263: songNote[3]=0xe101;
+;main.c:264: songNote[3]=0xe101;
 	ld	h, #0xe1
 	ld	((_songNote + 0x0006)), hl
 00118$:
-;main.c:265: delaypos = 0;
+;main.c:266: delaypos = 0;
 	ld	hl, #_delaypos
 	ld	(hl), #0x00
-;main.c:267: while (finalcount) {
+;main.c:268: while (finalcount) {
 00169$:
 	ld	a,(#_finalcount + 0)
 	or	a, a
 	jp	Z, 00171$
-;main.c:279: VDP_WAIT_VBLANK_CRU;					// wait for int
+;main.c:280: VDP_WAIT_VBLANK_CRU;					// wait for int
 00119$:
 	ld	a,(#_vdpLimi + 0)
 	rlca
 	jr	NC, 00119$
-;main.c:280: VDP_CLEAR_VBLANK;						// clear it
+;main.c:281: VDP_CLEAR_VBLANK;						// clear it
 	ld	hl, #_vdpLimi
 	ld	(hl), #0x00
 	in	a, (_VDPST)
 	ld	(_VDP_STATUS_MIRROR+0), a
-;main.c:284: VDP_SET_ADDRESS_WRITE(gSprite);
+;main.c:285: VDP_SET_ADDRESS_WRITE(gSprite);
 	ld	bc, (_gSprite)
 ;d:/work/coleco/libti99coleco/vdp.h:64: inline void VDP_SET_ADDRESS_WRITE(unsigned int x)					{	VDPWA=((x)&0xff); VDPWA=(((x)>>8)|0x40); }
 	ld	a, c
@@ -1079,11 +1079,11 @@ _main::
 	ld	a, b
 	or	a, #0x40
 	out	(_VDPWA), a
-;main.c:285: for (idx=0; idx<MAX_SPRITES; ++idx) {
+;main.c:286: for (idx=0; idx<MAX_SPRITES; ++idx) {
 	ld	hl, #_idx
 	ld	(hl), #0x00
 00216$:
-;main.c:286: if (sprpath[idx].z < 0) {
+;main.c:287: if (sprpath[idx].z < 0) {
 	ld	bc, (_idx)
 	ld	b, #0x00
 	ld	l, c
@@ -1104,7 +1104,7 @@ _main::
 	ld	c, (hl)
 	bit	7, c
 	jr	Z, 00217$
-;main.c:287: VDPWD=(sprpath[idx].y>>4)+(sprpath[idx].z);	// integer y position plus z bounce
+;main.c:288: VDPWD=(sprpath[idx].y>>4)+(sprpath[idx].z);	// integer y position plus z bounce
 	ld	l, e
 	ld	h, d
 	inc	hl
@@ -1121,7 +1121,7 @@ _main::
 	ld	a, l
 	add	a, c
 	out	(_VDPWD), a
-;main.c:288: VDPWD=sprpath[idx].x>>4;
+;main.c:289: VDPWD=sprpath[idx].x>>4;
 	ld	l, e
 	ld	h, d
 	ld	c, (hl)
@@ -1134,42 +1134,42 @@ _main::
 	djnz	00526$
 	ld	a, c
 	out	(_VDPWD), a
-;main.c:290: VDPWD=1;		// char 1 is the ball
+;main.c:291: VDPWD=1;		// char 1 is the ball
 	ld	a, #0x01
 	out	(_VDPWD), a
-;main.c:291: VDPWD=sprpath[idx].col;
+;main.c:292: VDPWD=sprpath[idx].col;
 	ld	hl, #10
 	add	hl, de
 	ld	a, (hl)
 	out	(_VDPWD), a
 00217$:
-;main.c:285: for (idx=0; idx<MAX_SPRITES; ++idx) {
+;main.c:286: for (idx=0; idx<MAX_SPRITES; ++idx) {
 	ld	iy, #_idx
 	inc	0 (iy)
 	ld	a, 0 (iy)
 	sub	a, #0x22
 	jr	C, 00216$
-;main.c:294: VDPWD = 0xd0;	// terminate the sprite table
+;main.c:295: VDPWD = 0xd0;	// terminate the sprite table
 	ld	a, #0xd0
 	out	(_VDPWD), a
-;main.c:297: CALL_PLAYER_SN;
+;main.c:298: CALL_PLAYER_SN;
 	call	_SongLoop
-;main.c:299: if (!(songActive&SONGACTIVEACTIVE)) {
+;main.c:300: if (!(songActive&SONGACTIVEACTIVE)) {
 	ld	hl, (#(_songNote + 0x0006) + 0)
 	bit	0, l
 	jr	NZ, 00126$
-;main.c:301: --finalcount;
+;main.c:302: --finalcount;
 	ld	hl, #_finalcount
 	dec	(hl)
 00126$:
-;main.c:304: ++frame;
+;main.c:305: ++frame;
 	ld	hl, #_frame
 	inc	(hl)
-;main.c:307: for (idx=0; idx<4; idx++) {
+;main.c:308: for (idx=0; idx<4; idx++) {
 	ld	hl, #_idx
 	ld	(hl), #0x00
 00218$:
-;main.c:308: idx_t arpvoice = idx + ((frame&1)<<2);	// start at 0 or 4
+;main.c:309: idx_t arpvoice = idx + ((frame&1)<<2);	// start at 0 or 4
 	ld	a,(#_frame + 0)
 	and	a, #0x01
 	add	a, a
@@ -1178,7 +1178,7 @@ _main::
 	ld	c, (hl)
 	add	a, c
 	ld	-5 (ix), a
-;main.c:311: delayvol[idx][delaypos] = songVol[idx];
+;main.c:312: delayvol[idx][delaypos] = songVol[idx];
 	ld	bc, (_idx)
 	ld	b, #0x00
 	ld	l, c
@@ -1206,7 +1206,7 @@ _main::
 	add	hl, de
 	ld	a, (hl)
 	ld	(bc), a
-;main.c:313: unsigned int x = songNote[idx];
+;main.c:314: unsigned int x = songNote[idx];
 	ld	bc, #_songNote+0
 	ld	a, (#_idx + 0)
 	ld	l, a
@@ -1218,7 +1218,7 @@ _main::
 	inc	hl
 	ld	a, (hl)
 	ld	-1 (ix), a
-;main.c:314: delaytone[idx][delaypos] = x;
+;main.c:315: delaytone[idx][delaypos] = x;
 	ld	bc, (_idx)
 	ld	b, #0x00
 	ld	l, c
@@ -1243,11 +1243,11 @@ _main::
 	inc	hl
 	ld	a, -1 (ix)
 	ld	(hl), a
-;main.c:317: if (idx != 3) {
+;main.c:318: if (idx != 3) {
 	ld	a,(#_idx + 0)
 	sub	a, #0x03
 	jr	Z, 00128$
-;main.c:319: x=((x<<4)&0x03f0)|((x>>8)&0x0f);
+;main.c:320: x=((x<<4)&0x03f0)|((x>>8)&0x0f);
 	ld	l, -2 (ix)
 	ld	h, -1 (ix)
 	add	hl, hl
@@ -1271,9 +1271,9 @@ _main::
 	ld	-2 (ix), c
 	ld	-1 (ix), b
 00128$:
-;main.c:323: idx_t targ = 255;
+;main.c:324: idx_t targ = 255;
 	ld	-4 (ix), #0xff
-;main.c:324: if (((songVol[idx]&0x0f) < 0x0f)) {
+;main.c:325: if (((songVol[idx]&0x0f) < 0x0f)) {
 	ld	bc, #_songVol+0
 	ld	hl, (_idx)
 	ld	h, #0x00
@@ -1290,17 +1290,17 @@ _main::
 	rra
 	sbc	a, #0x80
 	jp	NC, 00147$
-;main.c:325: if (idx == 3) {
+;main.c:326: if (idx == 3) {
 	ld	a,(#_idx + 0)
 	sub	a, #0x03
 	jr	NZ, 00130$
-;main.c:326: targ=((x>>8)&0x07);		//+FIRST_DRUM_COLOR;	// added just to be unique?
+;main.c:327: targ=((x>>8)&0x07);		//+FIRST_DRUM_COLOR;	// added just to be unique?
 	ld	a, -1 (ix)
 	and	a, #0x07
 	ld	-4 (ix), a
 	jr	00131$
 00130$:
-;main.c:328: targ=tonetarget[x];		//+FIRST_TONE_COLOR;	// added to just be unique?
+;main.c:329: targ=tonetarget[x];		//+FIRST_TONE_COLOR;	// added to just be unique?
 	ld	a, #<(_tonetarget)
 	add	a, -2 (ix)
 	ld	c, a
@@ -1310,7 +1310,7 @@ _main::
 	ld	a, (bc)
 	ld	-4 (ix), a
 00131$:
-;main.c:331: if ((songVol[idx]+4 < nOldVol[idx])||((targ!=nOldTarg[idx])&&(targ!=nOldTarg[arpvoice]))) {
+;main.c:332: if ((songVol[idx]+4 < nOldVol[idx])||((targ!=nOldTarg[idx])&&(targ!=nOldTarg[arpvoice]))) {
 	ld	bc, #_songVol+0
 	ld	hl, (_idx)
 	ld	h, #0x00
@@ -1361,7 +1361,7 @@ _main::
 	sub	a,(hl)
 	jp	Z,00147$
 00142$:
-;main.c:333: if (sprpath[nextSprite].z == 0) {
+;main.c:334: if (sprpath[nextSprite].z == 0) {
 	ld	bc, (_nextSprite)
 	ld	b, #0x00
 	ld	l, c
@@ -1376,34 +1376,34 @@ _main::
 	ld	de, #0x0009
 	add	hl, de
 	ld	a, (hl)
-;main.c:340: idx_t y = nextSprite++;
+;main.c:341: idx_t y = nextSprite++;
 	ld	iy, #_nextSprite
 	ld	c, 0 (iy)
 	inc	c
-;main.c:333: if (sprpath[nextSprite].z == 0) {
+;main.c:334: if (sprpath[nextSprite].z == 0) {
 	or	a, a
 	jp	NZ, 00140$
-;main.c:340: idx_t y = nextSprite++;
+;main.c:341: idx_t y = nextSprite++;
 	ld	b, 0 (iy)
 	ld	0 (iy), c
 	ld	-1 (ix), b
-;main.c:341: if (nextSprite >= MAX_SPRITES) nextSprite = 0;	// wraparound
+;main.c:342: if (nextSprite >= MAX_SPRITES) nextSprite = 0;	// wraparound
 	ld	a, 0 (iy)
 	sub	a, #0x22
 	jr	C, 00133$
 	ld	0 (iy), #0x00
 00133$:
-;main.c:346: idx_t p = targ*2;
+;main.c:347: idx_t p = targ*2;
 	ld	a, -4 (ix)
 	add	a, a
 	ld	-2 (ix), a
-;main.c:345: if (idx == 3) {
+;main.c:346: if (idx == 3) {
 	ld	a,(#_idx + 0)
 	sub	a, #0x03
 	jr	NZ, 00135$
-;main.c:346: idx_t p = targ*2;
+;main.c:347: idx_t p = targ*2;
 	ld	e, -2 (ix)
-;main.c:347: tx=drums[p+1]*8;
+;main.c:348: tx=drums[p+1]*8;
 	ld	a, e
 	inc	a
 	ld	c, a
@@ -1417,7 +1417,7 @@ _main::
 	add	a, a
 	add	a, a
 	ld	b, a
-;main.c:348: ty=drums[p]*8;
+;main.c:349: ty=drums[p]*8;
 	ld	hl, #_drums
 	ld	d, #0x00
 	add	hl, de
@@ -1426,7 +1426,7 @@ _main::
 	add	a, a
 	add	a, a
 	ld	-3 (ix), a
-;main.c:349: d = delayDrums[targ];
+;main.c:350: d = delayDrums[targ];
 	ld	a, #<(_delayDrums)
 	add	a, -4 (ix)
 	ld	l, a
@@ -1436,9 +1436,9 @@ _main::
 	ld	c, (hl)
 	jr	00136$
 00135$:
-;main.c:351: idx_t p = targ * 2;
+;main.c:352: idx_t p = targ * 2;
 	ld	e, -2 (ix)
-;main.c:352: tx=tones[p+1]*8;
+;main.c:353: tx=tones[p+1]*8;
 	ld	a, e
 	inc	a
 	ld	c, a
@@ -1452,7 +1452,7 @@ _main::
 	add	a, a
 	add	a, a
 	ld	b, a
-;main.c:353: ty=tones[p]*8-4;
+;main.c:354: ty=tones[p]*8-4;
 	ld	hl, #_tones
 	ld	d, #0x00
 	add	hl, de
@@ -1462,7 +1462,7 @@ _main::
 	add	a, a
 	add	a, #0xfc
 	ld	-3 (ix), a
-;main.c:354: d = delayTones[targ];
+;main.c:355: d = delayTones[targ];
 	ld	a, #<(_delayTones)
 	add	a, -4 (ix)
 	ld	l, a
@@ -1471,7 +1471,7 @@ _main::
 	ld	h, a
 	ld	c, (hl)
 00136$:
-;main.c:362: sprpath[y].z = (DELAYTIME+1)-d;	// so it's always at least 1
+;main.c:363: sprpath[y].z = (DELAYTIME+1)-d;	// so it's always at least 1
 	ld	e, -1 (ix)
 	ld	d, #0x00
 	ld	l, e
@@ -1490,7 +1490,7 @@ _main::
 	ld	a, #0x1f
 	sub	a, c
 	ld	(hl), a
-;main.c:379: sprpath[y].xstep = ((int)(tx-sx)<<4) / d;
+;main.c:380: sprpath[y].xstep = ((int)(tx-sx)<<4) / d;
 	ld	l, -2 (ix)
 	ld	h, -1 (ix)
 	ld	de, #0x0004
@@ -1526,7 +1526,7 @@ _main::
 	ld	(hl), e
 	inc	hl
 	ld	(hl), d
-;main.c:380: sprpath[y].ystep = ((int)(ty-sy)<<4) / d;
+;main.c:381: sprpath[y].ystep = ((int)(ty-sy)<<4) / d;
 	ld	l, -2 (ix)
 	ld	h, -1 (ix)
 	ld	de, #0x0006
@@ -1557,7 +1557,7 @@ _main::
 	ld	(hl), e
 	inc	hl
 	ld	(hl), d
-;main.c:385: sprpath[y].zstep = -(d/2);	// half time up, half time down
+;main.c:386: sprpath[y].zstep = -(d/2);	// half time up, half time down
 	ld	a, -2 (ix)
 	add	a, #0x08
 	ld	e, a
@@ -1577,13 +1577,13 @@ _main::
 	xor	a, a
 	sub	a, l
 	ld	(de), a
-;main.c:390: sprpath[y].x = (sx<<4);
+;main.c:391: sprpath[y].x = (sx<<4);
 	ld	l, -2 (ix)
 	ld	h, -1 (ix)
 	ld	(hl), #0xc0
 	inc	hl
 	ld	(hl), #0x07
-;main.c:391: sprpath[y].y = (sy<<4);	// need to set this after the delay
+;main.c:392: sprpath[y].y = (sy<<4);	// need to set this after the delay
 	ld	l, -2 (ix)
 	ld	h, -1 (ix)
 	inc	hl
@@ -1591,7 +1591,7 @@ _main::
 	ld	(hl), #0x80
 	inc	hl
 	ld	(hl), #0x07
-;main.c:394: sprpath[y].col=colorchan[idx]>>4;
+;main.c:395: sprpath[y].col=colorchan[idx]>>4;
 	ld	a, -2 (ix)
 	add	a, #0x0a
 	ld	c, a
@@ -1614,16 +1614,16 @@ _main::
 	ld	(bc), a
 	jr	00147$
 00140$:
-;main.c:397: nextSprite++;
+;main.c:398: nextSprite++;
 	ld	iy, #_nextSprite
-;main.c:398: if (nextSprite >= MAX_SPRITES) nextSprite = 0;	// wraparound
+;main.c:399: if (nextSprite >= MAX_SPRITES) nextSprite = 0;	// wraparound
 	ld	0 (iy), c
 	ld	a, c
 	sub	a, #0x22
 	jr	C, 00147$
 	ld	0 (iy), #0x00
 00147$:
-;main.c:404: nOldVol[idx]=songVol[idx];
+;main.c:405: nOldVol[idx]=songVol[idx];
 	ld	a, #<(_nOldVol)
 	ld	hl, #_idx
 	add	a, (hl)
@@ -1637,7 +1637,7 @@ _main::
 	add	hl, de
 	ld	a, (hl)
 	ld	(bc), a
-;main.c:405: nOldTarg[arpvoice]=targ;	// this may be idx or idx+4
+;main.c:406: nOldTarg[arpvoice]=targ;	// this may be idx or idx+4
 	ld	a, -5 (ix)
 	add	a, #<(_nOldTarg)
 	ld	c, a
@@ -1646,30 +1646,30 @@ _main::
 	ld	b, a
 	ld	a, -4 (ix)
 	ld	(bc), a
-;main.c:307: for (idx=0; idx<4; idx++) {
+;main.c:308: for (idx=0; idx<4; idx++) {
 	ld	iy, #_idx
 	inc	0 (iy)
 	ld	a, 0 (iy)
 	sub	a, #0x04
 	jp	C, 00218$
-;main.c:408: ++delaypos;
+;main.c:409: ++delaypos;
 	ld	iy, #_delaypos
 	inc	0 (iy)
-;main.c:409: if (delaypos>=DELAYTIME) delaypos=0;
+;main.c:410: if (delaypos>=DELAYTIME) delaypos=0;
 	ld	a, 0 (iy)
 	sub	a, #0x1e
 	jr	C, 00150$
 	ld	0 (iy), #0x00
 00150$:
-;main.c:414: lastFade &= 0x1f;
+;main.c:415: lastFade &= 0x1f;
 	ld	a,(#_main_lastFade_262145_94 + 0)
 	and	a, #0x1f
 	ld	(_main_lastFade_262145_94+0), a
-;main.c:415: for (idx=0; idx<4; ++idx) {
+;main.c:416: for (idx=0; idx<4; ++idx) {
 	ld	hl, #_idx
 	ld	(hl), #0x04
 00222$:
-;main.c:416: colortab[lastFade]=colorfade[colortab[lastFade]>>4];
+;main.c:417: colortab[lastFade]=colorfade[colortab[lastFade]>>4];
 	ld	a, #<(_colortab)
 	ld	hl, #_main_lastFade_262145_94
 	add	a, (hl)
@@ -1690,19 +1690,19 @@ _main::
 	ld	d, a
 	ld	a, (de)
 	ld	(bc), a
-;main.c:417: ++lastFade;
+;main.c:418: ++lastFade;
 	ld	hl, #_main_lastFade_262145_94
 	inc	(hl)
 	ld	iy, #_idx
 	dec	0 (iy)
-;main.c:415: for (idx=0; idx<4; ++idx) {
+;main.c:416: for (idx=0; idx<4; ++idx) {
 	ld	a, 0 (iy)
 	or	a, a
 	jr	NZ, 00222$
-;main.c:421: for (idx=0; idx<3; idx++) {
+;main.c:422: for (idx=0; idx<3; idx++) {
 	ld	0 (iy), #0x00
 00223$:
-;main.c:423: unsigned int x = delaytone[idx][delaypos];
+;main.c:424: unsigned int x = delaytone[idx][delaypos];
 	ld	bc, (_idx)
 	ld	b, #0x00
 	ld	l, c
@@ -1726,15 +1726,15 @@ _main::
 	ld	c, (hl)
 	inc	hl
 	ld	b, (hl)
-;main.c:435: SOUND = x>>8;
+;main.c:436: SOUND = x>>8;
 	ld	-2 (ix), b
 	ld	-1 (ix), #0x00
 	ld	a, -2 (ix)
 	out	(_SOUND), a
-;main.c:436: SOUND = x&0xff;
+;main.c:437: SOUND = x&0xff;
 	ld	a, c
 	out	(_SOUND), a
-;main.c:439: SOUND = delayvol[idx][delaypos];
+;main.c:440: SOUND = delayvol[idx][delaypos];
 	ld	de, (_idx)
 	ld	d, #0x00
 	ld	l, e
@@ -1750,9 +1750,9 @@ _main::
 	ld	hl, #_delayvol
 	add	hl, de
 	ex	de, hl
-;main.c:311: delayvol[idx][delaypos] = songVol[idx];
+;main.c:312: delayvol[idx][delaypos] = songVol[idx];
 	ld	a, 0 (iy)
-;main.c:439: SOUND = delayvol[idx][delaypos];
+;main.c:440: SOUND = delayvol[idx][delaypos];
 	add	a, e
 	ld	e, a
 	ld	a, #0x00
@@ -1760,7 +1760,7 @@ _main::
 	ld	d, a
 	ld	a, (de)
 	out	(_SOUND), a
-;main.c:441: if ((delayvol[idx][delaypos]&0x0f) < 0x0f) {
+;main.c:442: if ((delayvol[idx][delaypos]&0x0f) < 0x0f) {
 	ld	a, (de)
 	and	a, #0x0f
 	ld	e, a
@@ -1773,7 +1773,7 @@ _main::
 	rra
 	sbc	a, #0x80
 	jr	NC, 00224$
-;main.c:443: x=((x<<4)&0x03f0)|((x>>8)&0x0f);
+;main.c:444: x=((x<<4)&0x03f0)|((x>>8)&0x0f);
 	ld	l, c
 	ld	h, b
 	add	hl, hl
@@ -1796,11 +1796,11 @@ _main::
 	ld	a, b
 	or	a, d
 	ld	b, a
-;main.c:444: unsigned char set = tonetarget[x] + FIRST_TONE_COLOR;
+;main.c:445: unsigned char set = tonetarget[x] + FIRST_TONE_COLOR;
 	ld	hl, #_tonetarget
 	add	hl, bc
 	ld	a, (hl)
-;main.c:445: colortab[set] = colorchan[idx];
+;main.c:446: colortab[set] = colorchan[idx];
 	add	a, #<(_colortab)
 	ld	c, a
 	ld	a, #0x00
@@ -1816,13 +1816,13 @@ _main::
 	ld	a, (de)
 	ld	(bc), a
 00224$:
-;main.c:421: for (idx=0; idx<3; idx++) {
+;main.c:422: for (idx=0; idx<3; idx++) {
 	ld	iy, #_idx
 	inc	0 (iy)
 	ld	a, 0 (iy)
 	sub	a, #0x03
 	jp	C, 00223$
-;main.c:452: unsigned int x = delaytone[3][delaypos];
+;main.c:453: unsigned int x = delaytone[3][delaypos];
 	ld	iy, #_delaypos
 	ld	a, 0 (iy)
 	add	a, a
@@ -1834,12 +1834,12 @@ _main::
 	ld	c, (hl)
 	inc	hl
 	ld	e, (hl)
-;main.c:461: SOUND = x>>8;
+;main.c:462: SOUND = x>>8;
 	ld	a, e
 	out	(_SOUND), a
-;main.c:311: delayvol[idx][delaypos] = songVol[idx];
+;main.c:312: delayvol[idx][delaypos] = songVol[idx];
 	ld	a, 0 (iy)
-;main.c:464: SOUND = delayvol[3][delaypos];
+;main.c:465: SOUND = delayvol[3][delaypos];
 	add	a, #<((_delayvol + 0x005a))
 	ld	c, a
 	ld	a, #0x00
@@ -1847,7 +1847,7 @@ _main::
 	ld	b, a
 	ld	a, (bc)
 	out	(_SOUND), a
-;main.c:466: if ((delayvol[3][delaypos]&0x0f) < 0x0f) {
+;main.c:467: if ((delayvol[3][delaypos]&0x0f) < 0x0f) {
 	ld	a, (bc)
 	and	a, #0x0f
 	ld	b, a
@@ -1860,11 +1860,11 @@ _main::
 	rra
 	sbc	a, #0x80
 	jr	NC, 00156$
-;main.c:467: idx_t set = ((x>>8)&0x7)+FIRST_DRUM_COLOR;
+;main.c:468: idx_t set = ((x>>8)&0x7)+FIRST_DRUM_COLOR;
 	ld	a, e
 	and	a, #0x07
 	add	a, #0x16
-;main.c:468: colortab[set] = colorchan[3];
+;main.c:469: colortab[set] = colorchan[3];
 	add	a, #<(_colortab)
 	ld	c, a
 	ld	a, #0x00
@@ -1873,7 +1873,7 @@ _main::
 	ld	a, (#_colorchan + 3)
 	ld	(bc), a
 00156$:
-;main.c:473: vdpmemcpy(gColor, colortab, 32);
+;main.c:474: vdpmemcpy(gColor, colortab, 32);
 	ld	hl, #0x0020
 	push	hl
 	ld	hl, #_colortab
@@ -1884,11 +1884,11 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;main.c:477: for (idx = 0; idx<MAX_SPRITES; idx++) {
+;main.c:478: for (idx = 0; idx<MAX_SPRITES; idx++) {
 	ld	hl, #_idx
 	ld	(hl), #0x00
 00225$:
-;main.c:479: if (sprpath[idx].z == 0) continue;
+;main.c:480: if (sprpath[idx].z == 0) continue;
 	ld	bc, (_idx)
 	ld	b, #0x00
 	ld	l, c
@@ -1910,18 +1910,18 @@ _main::
 	ld	c, a
 	or	a, a
 	jp	Z, 00167$
-;main.c:482: if (sprpath[idx].z > 0) {
+;main.c:483: if (sprpath[idx].z > 0) {
 	xor	a, a
 	sub	a, c
 	jp	PO, 00537$
 	xor	a, #0x80
 00537$:
 	jp	P, 00163$
-;main.c:483: --sprpath[idx].z;
+;main.c:484: --sprpath[idx].z;
 	ld	a, c
 	dec	a
 	ld	(de), a
-;main.c:485: if (sprpath[idx].z > 1) {
+;main.c:486: if (sprpath[idx].z > 1) {
 	ld	bc, (_idx)
 	ld	b, #0x00
 	ld	l, c
@@ -1947,14 +1947,14 @@ _main::
 	xor	a, #0x80
 00538$:
 	jp	M, 00167$
-;main.c:489: sprpath[idx].z = sprpath[idx].zstep;
+;main.c:490: sprpath[idx].z = sprpath[idx].zstep;
 	ld	de, #0x0008
 	add	hl, de
 	ld	a, (hl)
 	ld	(bc), a
 	jr	00164$
 00163$:
-;main.c:493: sprpath[idx].z += sprpath[idx].zstep;
+;main.c:494: sprpath[idx].z += sprpath[idx].zstep;
 	push	bc
 	ld	bc, #0x0008
 	add	hl, bc
@@ -1963,7 +1963,7 @@ _main::
 	add	a, c
 	ld	(de), a
 00164$:
-;main.c:497: if (sprpath[idx].z >= 0) {
+;main.c:498: if (sprpath[idx].z >= 0) {
 	ld	bc, (_idx)
 	ld	b, #0x00
 	ld	l, c
@@ -1981,16 +1981,16 @@ _main::
 	add	hl, de
 	bit	7, (hl)
 	jr	NZ, 00166$
-;main.c:498: sprpath[idx].z = 0;
+;main.c:499: sprpath[idx].z = 0;
 	ld	(hl), #0x00
-;main.c:499: continue;
+;main.c:500: continue;
 	jr	00167$
 00166$:
-;main.c:504: ++sprpath[idx].zstep;
+;main.c:505: ++sprpath[idx].zstep;
 	ld	hl, #0x0008
 	add	hl, de
 	inc	(hl)
-;main.c:510: sprpath[idx].x += sprpath[idx].xstep;
+;main.c:511: sprpath[idx].x += sprpath[idx].xstep;
 	ld	bc, (_idx)
 	ld	b, #0x00
 	ld	l, c
@@ -2028,7 +2028,7 @@ _main::
 	inc	bc
 	ld	a, d
 	ld	(bc), a
-;main.c:511: sprpath[idx].y += sprpath[idx].ystep;
+;main.c:512: sprpath[idx].y += sprpath[idx].ystep;
 	ld	bc, (_idx)
 	ld	b, #0x00
 	ld	l, c
@@ -2069,7 +2069,7 @@ _main::
 	ld	a, d
 	ld	(bc), a
 00167$:
-;main.c:477: for (idx = 0; idx<MAX_SPRITES; idx++) {
+;main.c:478: for (idx = 0; idx<MAX_SPRITES; idx++) {
 	ld	iy, #_idx
 	inc	0 (iy)
 	ld	a, 0 (iy)
@@ -2077,25 +2077,25 @@ _main::
 	jp	C, 00225$
 	jp	00169$
 00171$:
-;main.c:518: unsigned int *chain = (unsigned int *)(*((unsigned int*)(&flags[14])));
+;main.c:519: unsigned int *chain = (unsigned int *)(*((volatile unsigned int*)(&flags[14])));
 	ld	bc, (#(_flags + 0x000e) + 0)
 	ld	l, c
-;main.c:519: if (chain) {
+;main.c:520: if (chain) {
 	ld	a,b
 	ld	h,a
 	or	a, c
 	jr	Z, 00177$
-;main.c:521: unsigned int chained = *chain;
+;main.c:522: unsigned int chained = *chain;
 	ld	e, (hl)
 	inc	hl
 	ld	d, (hl)
 	ld	c, e
-;main.c:522: if (chained) {
+;main.c:523: if (chained) {
 	ld	a,d
 	ld	b,a
 	or	a, e
 	jr	Z, 00177$
-;main.c:525: memcpy((void*)0x8320, tramp, sizeof(tramp));   // 0x8320 so we don't overwrite the C registers
+;main.c:526: memcpy((void*)0x8320, tramp, sizeof(tramp));   // 0x8320 so we don't overwrite the C registers
 	push	bc
 	ld	hl, #0x000e
 	push	hl
@@ -2108,30 +2108,30 @@ _main::
 	pop	af
 	pop	af
 	pop	bc
-;main.c:526: *((unsigned int*)0x8322) = chained;     // patch the pointer
+;main.c:527: *((unsigned int*)0x8322) = chained;     // patch the pointer
 	ld	(0x8322), bc
-;main.c:527: ((void(*)())0x8320)();                  // call the function, never return
+;main.c:528: ((void(*)())0x8320)();                  // call the function, never return
 	call	0x8320
 00177$:
-;main.c:531: } while (*pLoop);
+;main.c:532: } while (*pLoop);
 	ld	a, (#(_flags + 0x000d) + 0)
 	or	a, a
 	jp	NZ, 00176$
-;main.c:534: SOUND=0x9F;
+;main.c:535: SOUND=0x9F;
 	ld	a, #0x9f
 	out	(_SOUND), a
-;main.c:535: SOUND=0xBF;
+;main.c:536: SOUND=0xBF;
 	ld	a, #0xbf
 	out	(_SOUND), a
-;main.c:536: SOUND=0xDF;
+;main.c:537: SOUND=0xDF;
 	ld	a, #0xdf
 	out	(_SOUND), a
-;main.c:537: SOUND=0xFF;
+;main.c:538: SOUND=0xFF;
 	ld	a, #0xff
 	out	(_SOUND), a
-;main.c:540: return 0;
+;main.c:541: return 0;
 	ld	hl, #0x0000
-;main.c:541: }
+;main.c:542: }
 	ld	sp, ix
 	pop	ix
 	ret

@@ -463,7 +463,7 @@ int main() {
 
         // loop, chain, or reset if it is finished
         // chain is normally set by a loader and takes priority
-        chain = (unsigned int *)(*((unsigned int*)(&flags[14])));
+        chain = (unsigned int *)(*((volatile unsigned int*)(&flags[14])));
         if (chain) {
             // look up the value to chain to
             unsigned int chained = *chain;

@@ -194,7 +194,7 @@ _main::
 	ld	c, #0x00
 	jr	00113$
 00115$:
-;quickplay.c:157: chain = (unsigned int *)(*((unsigned int*)(&flags[14])));
+;quickplay.c:157: chain = (unsigned int *)(*((volatile unsigned int*)(&flags[14])));
 	ld	bc, (#(_flags + 0x000e) + 0)
 	ld	l, c
 ;quickplay.c:158: if (chain) {

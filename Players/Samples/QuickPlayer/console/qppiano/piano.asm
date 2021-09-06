@@ -1686,22 +1686,22 @@ _main::
 	push	bc
 	call	_vdpwaitvint
 	pop	bc
-;piano.c:361: if (isSNPlaying) {
+;piano.c:362: if (isSNPlaying) {
 	ld	hl, (#(_songNote + 0x0006) + 0)
 	bit	0, l
 	jr	Z, 00143$
-;piano.c:362: CALL_PLAYER_SN;
+;piano.c:363: CALL_PLAYER_SN;
 	call	_SongLoop
-;piano.c:363: done = 0;
+;piano.c:364: done = 0;
 	ld	c, #0x00
-;piano.c:367: for (idx_t idx=0; idx<3; idx++) {
+;piano.c:368: for (idx_t idx=0; idx<3; idx++) {
 00143$:
 	ld	b, #0x00
 00130$:
 	ld	a, b
 	sub	a, #0x03
 	jp	NC, 00112$
-;piano.c:368: if ((songVol[idx]&0x0f) < 0x0f) {
+;piano.c:369: if ((songVol[idx]&0x0f) < 0x0f) {
 	ld	de, #_songVol+0
 	ld	l, b
 	ld	h, #0x00
@@ -1718,7 +1718,7 @@ _main::
 	rra
 	sbc	a, #0x80
 	jr	NC, 00110$
-;piano.c:369: unsigned int note=songNote[idx];		// note: mangled! 0x8312 == 0x0123
+;piano.c:370: unsigned int note=songNote[idx];		// note: mangled! 0x8312 == 0x0123
 	ld	de, #_songNote+0
 	ld	a, b
 	ld	h, #0x00
@@ -1728,7 +1728,7 @@ _main::
 	ld	a, (hl)
 	inc	hl
 	ld	e, (hl)
-;piano.c:370: note=((note&0xff)<<4)|((note&0x0f00)>>8);	// unmangle
+;piano.c:371: note=((note&0xff)<<4)|((note&0x0f00)>>8);	// unmangle
 	ld	l, a
 	ld	h, #0x00
 	add	hl, hl
@@ -1745,7 +1745,7 @@ _main::
 	ld	a, d
 	or	a, h
 	ld	d, a
-;piano.c:374: while (Freqs[k] > note) k++;
+;piano.c:375: while (Freqs[k] > note) k++;
 	ld	-1 (ix), #0
 00103$:
 	ld	l, -1 (ix)
@@ -1768,13 +1768,13 @@ _main::
 	jr	00103$
 00150$:
 	ld	d, -1 (ix)
-;piano.c:375: if (k > NUM_KEYS-1) k=NUM_KEYS-1;
+;piano.c:376: if (k > NUM_KEYS-1) k=NUM_KEYS-1;
 	ld	a, #0x44
 	sub	a, -1 (ix)
 	jr	NC, 00107$
 	ld	d, #0x44
 00107$:
-;piano.c:376: drawkey(idx, k);
+;piano.c:377: drawkey(idx, k);
 	push	bc
 	ld	e, b
 	push	de
@@ -1783,20 +1783,20 @@ _main::
 	pop	bc
 	jr	00131$
 00110$:
-;piano.c:378: idx_t spr=idx*5;
+;piano.c:379: idx_t spr=idx*5;
 	ld	a, b
 	ld	e, a
 	add	a, a
 	add	a, a
 	add	a, e
 	ld	e, a
-;piano.c:379: for (idx_t idx2=0; idx2<5; idx2++) {
+;piano.c:380: for (idx_t idx2=0; idx2<5; idx2++) {
 	ld	d, #0x00
 00127$:
 	ld	a, d
 	sub	a, #0x05
 	jr	NC, 00131$
-;piano.c:380: delsprite(spr+idx2);
+;piano.c:381: delsprite(spr+idx2);
 	ld	a, e
 	add	a, d
 	push	bc
@@ -1807,21 +1807,21 @@ _main::
 	inc	sp
 	pop	de
 	pop	bc
-;piano.c:379: for (idx_t idx2=0; idx2<5; idx2++) {
+;piano.c:380: for (idx_t idx2=0; idx2<5; idx2++) {
 	inc	d
 	jr	00127$
 00131$:
-;piano.c:367: for (idx_t idx=0; idx<3; idx++) {
+;piano.c:368: for (idx_t idx=0; idx<3; idx++) {
 	inc	b
 	jp	00130$
 00112$:
-;piano.c:387: idx_t nVol = songVol[3]&0x0f;
+;piano.c:388: idx_t nVol = songVol[3]&0x0f;
 	ld	a, (#(_songVol + 0x0003) + 0)
 	and	a, #0x0f
-;piano.c:388: if (nVol == 0x0f) {
+;piano.c:389: if (nVol == 0x0f) {
 	sub	a, #0x0f
 	jr	NZ, 00114$
-;piano.c:390: vdpchar(gSprite+15*4+3, 0x00);
+;piano.c:391: vdpchar(gSprite+15*4+3, 0x00);
 	ld	hl, (_gSprite)
 	ld	de, #0x003f
 	add	hl, de
@@ -1836,14 +1836,14 @@ _main::
 	pop	bc
 	jp	00116$
 00114$:
-;piano.c:393: idx_t note=(songNote[3]&0x0f00)>>8;
+;piano.c:394: idx_t note=(songNote[3]&0x0f00)>>8;
 	ld	hl, (#(_songNote + 0x0006) + 0)
 	ld	a, h
 	and	a, #0x0f
 	ld	b, #0x00
-;piano.c:394: note+=181;	// start at character '1', not 0 (which is 180)
+;piano.c:395: note+=181;	// start at character '1', not 0 (which is 180)
 	add	a, #0xb5
-;piano.c:395: sprite(15, note, COLOR_MEDRED, 32, 232);
+;piano.c:396: sprite(15, note, COLOR_MEDRED, 32, 232);
 	push	bc
 	ld	h, #0xe8
 	push	hl
@@ -1864,37 +1864,37 @@ _main::
 	pop	bc
 	jp	00116$
 00118$:
-;piano.c:401: SOUND=0x9F;
+;piano.c:402: SOUND=0x9F;
 	ld	a, #0x9f
 	out	(_SOUND), a
-;piano.c:402: SOUND=0xBF;
+;piano.c:403: SOUND=0xBF;
 	ld	a, #0xbf
 	out	(_SOUND), a
-;piano.c:403: SOUND=0xDF;
+;piano.c:404: SOUND=0xDF;
 	ld	a, #0xdf
 	out	(_SOUND), a
-;piano.c:404: SOUND=0xFF;
+;piano.c:405: SOUND=0xFF;
 	ld	a, #0xff
 	out	(_SOUND), a
-;piano.c:408: chain = (unsigned int *)(*((unsigned int*)(&flags[14])));
+;piano.c:409: chain = (unsigned int *)(*((volatile unsigned int*)(&flags[14])));
 	ld	bc, (#(_flags + 0x000e) + 0)
 	ld	l, c
-;piano.c:409: if (chain) {
+;piano.c:410: if (chain) {
 	ld	a,b
 	ld	h,a
 	or	a, c
 	jr	Z, 00124$
-;piano.c:411: unsigned int chained = *chain;
+;piano.c:412: unsigned int chained = *chain;
 	ld	e, (hl)
 	inc	hl
 	ld	d, (hl)
 	ld	c, e
-;piano.c:412: if (chained) {
+;piano.c:413: if (chained) {
 	ld	a,d
 	ld	b,a
 	or	a, e
 	jr	Z, 00124$
-;piano.c:421: memcpy((void*)0x7000, tramp, sizeof(tramp));   // this will trounce variables but we don't need them anymore
+;piano.c:422: memcpy((void*)0x7000, tramp, sizeof(tramp));   // this will trounce variables but we don't need them anymore
 	push	bc
 	ld	hl, #0x0006
 	push	hl
@@ -1907,20 +1907,20 @@ _main::
 	pop	af
 	pop	af
 	pop	bc
-;piano.c:422: *((unsigned int*)0x7001) = chained;     // patch the pointer, chained should be on the stack
+;piano.c:423: *((unsigned int*)0x7001) = chained;     // patch the pointer, chained should be on the stack
 	ld	(0x7001), bc
-;piano.c:423: ((void(*)())0x7000)();                  // call the function, never return
+;piano.c:424: ((void(*)())0x7000)();                  // call the function, never return
 	call	0x7000
 00124$:
-;piano.c:428: } while (*pLoop);
+;piano.c:429: } while (*pLoop);
 	ld	a, (#(_flags + 0x000d) + 0)
 	or	a, a
 	jp	NZ, 00123$
-;piano.c:439: __endasm;
+;piano.c:440: __endasm;
 	rst	0x00
-;piano.c:443: return 2;
+;piano.c:444: return 2;
 	ld	hl, #0x0002
-;piano.c:444: }
+;piano.c:445: }
 	inc	sp
 	pop	ix
 	ret

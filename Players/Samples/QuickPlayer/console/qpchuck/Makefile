@@ -16,7 +16,7 @@ EA5PLIT=/home/tursilion/gcc9900/bin/ea5split
 #
 # Locate the code (.text section) and the data (.data section)
 LDFLAGS_EA5=\
-  --section-start .text=2000 --section-start .data=3E80 -M
+  --section-start .text=2000 --section-start .data=3E88 -M
 
 C_FLAGSTI=\
   -O2 -std=c99 -s --save-temp -DBUILD_TI99

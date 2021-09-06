@@ -909,7 +909,7 @@ _main::
 	pop	af
 	jp	00121$
 00123$:
-;blinken.c:297: chain = (unsigned int *)(*((unsigned int*)(&flags[14])));
+;blinken.c:297: chain = (unsigned int *)(*((volatile unsigned int*)(&flags[14])));
 	ld	bc, (#(_flags + 0x000e) + 0)
 	ld	l, c
 ;blinken.c:298: if (chain) {

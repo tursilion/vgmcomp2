@@ -1,5 +1,5 @@
 //
-// Data file quickplayColeco.rom - Sep 02, 2021
+// Data file quickplayColeco.rom - Sep 06, 2021
 //
 
 const unsigned char quickplaycoleco[] = {
