@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <time.h>
 
 #include "..\QuickPlayer\quickplayColeco.c"
 #include "..\QuickPlayer\quickplayTI.c"
@@ -40,7 +41,9 @@ enum players {
 	BALLS,
 	BLINK,
 	CHUCK,
-	PIANO
+	PIANO,
+
+	FINALENTRY
 };
 
 // used for the build code
@@ -79,14 +82,14 @@ void DoTIFILES(FILE *fp, int nSize) {
 
 int main(int argc, char *argv[]) 
 {
-	printf("VGMComp2 Quickplayer Tool - v20210904\n\n");
+	printf("VGMComp2 Quickplayer Tool - v20210906\n\n");
 
     if (argc < 4) {
         printf("quickplayercmd (-ti|-coleco) [-viz <name>] [-loop] [-sn <sn music>] [-sid <sid music>] [-ay <ay music>] [-sidctl c1 c2 c3] [-text <textfile>] <output>\n");
         printf("Generates a playable music file for the target machine. Max 1 song, 24k of music.\n");
         printf("-ti - select TI output - this or -coleco MUST be specified\n");
         printf("-coleco - select ColecoVision output - this or -ti MUST be specified\n");
-		printf("-viz - select an alternate viz, either balls, chuck, blink or piano (leave out for default text screen)\n");
+		printf("-viz - select an alternate viz, either balls, chuck, blink, piano or random (leave out for default text screen)\n");
         printf("-loop - loop the music - if not specified the music will stop at the end\n");
         printf("-sn - specify file for SN chip - no SN is played if blank\n");
         printf("-sid - specify file for SID chip - no SID is played if blank. Valid on TI only. Requires sidctl.\n");
@@ -122,7 +125,17 @@ int main(int argc, char *argv[])
 			else if (0 == strcmp(argv[arg],"chuck")) playerNum = CHUCK;
 			else if (0 == strcmp(argv[arg],"blink")) playerNum = BLINK;
 			else if (0 == strcmp(argv[arg],"piano")) playerNum = PIANO;
-			else {
+			else if (0 == strcmp(argv[arg],"random")) {
+				int seed = (int)time(NULL);
+				for (int idx=0; idx<argc; ++idx) {
+					for (unsigned int i2=0; i2<strlen(argv[idx]); ++i2) {
+						seed += argv[idx][i2];
+					}
+				}
+				srand(seed);
+				playerNum = rand()%FINALENTRY; 
+				printf("Randomly selected viz %d\n", playerNum); 
+			} else {
 				printf("-viz must be balls, chuck, blink or piano.\n");
 				return 1;
 			}
@@ -512,8 +525,15 @@ int main(int argc, char *argv[])
 	p[14] = 0;
 	p[15] = 0;
 	// now dump it
-    printf("Writing %s...\n", argv[arg]);
-	fp=fopen(argv[arg], "wb");
+	char outName[2048];
+	strcpy(outName, argv[arg]);
+	if (isTIMode) {
+		// strip any extension
+		char *p = strchr(outName, '.');
+		if (NULL != p) *p='\0';
+	}
+    printf("Writing %s...\n", outName);
+	fp=fopen(outName, "wb");
 	if (NULL == fp) {
 		printf("Can't write output, code %d\n", errno);
 		return 1;
@@ -524,21 +544,11 @@ int main(int argc, char *argv[])
 		fclose(fp);
 
 		// increment last char of name and then write the song into that
-        // the song can be up to 3 files long
+        // the song can be up to 4 files long
         char tmpName[2048];
-        strcpy(tmpName, argv[arg]);
-
+        strcpy(tmpName, outName);
         for (unsigned int offset = 0; offset < songsize; offset+=8192-6) {
-            char *p = strchr(tmpName, '.');
-            if (NULL == p) {
-                p = strchr(tmpName, '\0')-1;
-            } else {
-                --p;
-                if (p < tmpName) {
-				    printf("Bad output filename.\n");
-				    return 1;
-			    }
-		    }
+            char *p = tmpName + strlen(tmpName)-1;
             *p = (*p)+1;
             printf("Writing %s...\n", tmpName);
             fp=fopen(tmpName, "wb");

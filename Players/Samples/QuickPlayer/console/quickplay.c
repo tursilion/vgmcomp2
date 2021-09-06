@@ -29,7 +29,7 @@ const unsigned char tramp[] = {
 #ifdef BUILD_COLECO
 // Coleco trampoline simply jumps to the root of the page
 const unsigned char tramp[] = {
-    0x3A, 0xFF, 0xFF,   //  LD   a,($ffff)   ; page select (hard code page here)
+    0x3A, 0xFF, 0xFF,   //  LD   a,($ffff)   ; page select (patched when copied to RAM)
     0xC3, 0x00, 0xC0    //  JP   $c000       ; execute it
 };
 #endif

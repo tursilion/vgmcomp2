@@ -172,5 +172,8 @@
     <Text Include="console\qpballs\readme.txt">
       <Filter>Console Source\balls</Filter>
     </Text>
+    <Text Include="readme.txt">
+      <Filter>Console Source</Filter>
+    </Text>
   </ItemGroup>
 </Project>
