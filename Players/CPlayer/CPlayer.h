@@ -36,7 +36,7 @@ typedef struct STRTYPE STREAM;
 struct STRTYPE {
     const uint8 *curPtr;       // where are are currently getting data from
     const uint8 *mainPtr;      // the main index in the decompression. If 0, we are done.
-    uint8 (*curType)(STREAM*, const uint8*);    // function pointer to get data for the type
+    uint8 (*curType)(STREAM*);    // function pointer to get data for the type
     uWordSize curBytes;   // current bytes left
     // post compression data
     uWordSize framesLeft; // number of frames left on the current RLE (not used for tone channels)
@@ -54,7 +54,7 @@ void StopSong();
 void SongLoop();
 
 // Don't call this, it's for use by the unpack codes
-uint8 getCompressedByte(STREAM *str, const uint8 *buf);
+uint8 getCompressedByte(STREAM *str);
 
 // this array contains the current volume of each voice (ignoring mutes)
 // Sound chip specific. Note that on the AY, the noise channel does not have a dedicated

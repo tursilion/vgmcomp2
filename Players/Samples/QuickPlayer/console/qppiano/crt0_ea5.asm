@@ -12,6 +12,8 @@ _start:
 # This will disable console reset via keyboard, music playback,
 # sprite automotion, etc. But will make the environment much simpler
 # to work in. Users can re-enable interrupts later if they wish.
+# note that the first byte of the argument is patched with the
+# size of the text area in rows, since it's not used by the 9900
   limi 0
 
 # Set initial workspace
@@ -54,6 +56,10 @@ bss_clear_end:
 # reset the console on return
   blwp @>0000
 
+# store the address of SongLoop for the patching code
+# after patch, it contains the address of the text data area
+# (size in rows is up in the LIMI instruction)
+  data SongLoop
 
 # Data initialization structure
 #

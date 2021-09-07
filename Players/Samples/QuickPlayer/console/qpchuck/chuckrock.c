@@ -123,13 +123,22 @@ const char filter[][33] = {
 };
 
 #ifdef BUILD_TI99
-uint8 __attribute__ ((noinline)) getCompressedByteWrap(STREAM *str, const uint8 *buf) {
+// writes the 8 bytes directly to VDPWD from compressed stream
+void __attribute__ ((noinline)) writeCompressedByte8(STREAM *str) {
+	// r8 is not touched by getCompressedByte, since it's expected to hold the
+	// address of the sound chip. So we can use that as a counter
+	// r10 is the stack pointer, so that's also safe
     __asm__(                                                        \
         "mov r1,r15\n\t"                                            \
         "dect r10\n\t"                                              \
         "mov r11,*r10\n\t"                                          \
         "li r6,>0100\n\t"                                           \
+		"li r8,8\n\t"												\
+		"\nlbl%=:\n\t"												\
         "bl @getCompressedByte\n\t"                                 \
+		"movb r1,@>8c00\n\t"										\
+		"dec r8\n\t"												\
+		"jne lbl%=\n\t"												\
         "mov *r10+,r11\n"                                           \
         : /* no outputs */                                          \
         : /* no arguments */                                        \
@@ -138,25 +147,25 @@ uint8 __attribute__ ((noinline)) getCompressedByteWrap(STREAM *str, const uint8 
 }
 #endif
 #ifdef BUILD_COLECO
-#define getCompressedByteWrap getCompressedByte
 #define COLECO_FONT (unsigned char*)0x15A3
 // coleco lib is a little behind the TI one... set_bitmap matches the new _raw
 #define set_bitmap_raw set_bitmap
+
+void writeCompressedByte8(STREAM *str) {
+	for (idx_t idx = 0; idx<8; ++idx) {
+		VDPWD = getCompressedByte(str);
+	}
+}
 #endif
 
 // pulls 8 bytes from each stream and loads as requested into VDP
 // assumes that there is no jumping around the compressed stream
 void unpackchar(int vdpOff) {
 	VDP_SET_ADDRESS_WRITE(gPattern+vdpOff);
-	for (idx_t idx=0; idx<8; ++idx) {
-		VDPWD = getCompressedByteWrap(&strDat[0], chuckpat);
-		VDP_SAFE_DELAY;
-	}
+	writeCompressedByte8(&strDat[0]);
+
 	VDP_SET_ADDRESS_WRITE(gColor+vdpOff);
-	for (idx_t idx=0; idx<8; ++idx) {
-		VDPWD = getCompressedByteWrap(&strDat[1], chuckcol);
-		VDP_SAFE_DELAY;
-	}
+	writeCompressedByte8(&strDat[1]);
 }
 
 void chuckinit() {

@@ -224,7 +224,7 @@ void SongLoop30() {
             if (x&0x80) {
                 // voice 1
                 if (strDat[0].mainPtr) {
-                    y = getCompressedByte(&strDat[0], workBufName);
+                    y = getCompressedByte(&strDat[0]);
                     if (strDat[0].mainPtr) {
                         // look up frequency table
                         songNote[0] = tonetable(y);
@@ -240,7 +240,7 @@ void SongLoop30() {
             if (x&0x20) {
                 // voice 3
                 if (strDat[2].mainPtr) {
-                    y = getCompressedByte(&strDat[2], workBufName);
+                    y = getCompressedByte(&strDat[2]);
                     if (strDat[2].mainPtr) {
                         // look up frequency table
                         songNote[2] = tonetable(y);
@@ -270,7 +270,7 @@ void SongLoop30() {
             if (x&0x10) {
                 // noise
                 if (strDat[3].mainPtr) {
-                    y = getCompressedByte(&strDat[3], workBufName);
+                    y = getCompressedByte(&strDat[3]);
                     if (strDat[3].mainPtr) {
 #ifdef USE_SN_PSG
                         // PSG - store command in frequency
@@ -303,7 +303,7 @@ void SongLoop30() {
                 // timestream data
                 // AY processes channels 2 and 3 so that 1 and noise can be done together
                 // SN and SID processes channels 1 and 2
-                x = oldTimeStream = getCompressedByte(&strDat[8], workBufName);
+                x = oldTimeStream = getCompressedByte(&strDat[8]);
                 if (strDat[8].mainPtr) {
                     outSongActive = true;
                     // song not over, x is valid
@@ -312,7 +312,7 @@ void SongLoop30() {
                     if (x&0x40) {
                         // voice 2
                         if (strDat[1].mainPtr) {
-                            y = getCompressedByte(&strDat[1], workBufName);
+                            y = getCompressedByte(&strDat[1]);
                             if (strDat[1].mainPtr) {
                                 // look up frequency table
                                 songNote[1] = tonetable(y);
@@ -347,7 +347,7 @@ void SongLoop30() {
                     if (x&0x20) {
                         // voice 3
                         if (strDat[2].mainPtr) {
-                            y = getCompressedByte(&strDat[2], workBufName);
+                            y = getCompressedByte(&strDat[2]);
                             if (strDat[2].mainPtr) {
                                 // look up frequency table
                                 songNote[2] = tonetable(y);
@@ -363,7 +363,7 @@ void SongLoop30() {
                     if (x&0x80) {
                         // voice 1
                         if (strDat[0].mainPtr) {
-                            y = getCompressedByte(&strDat[0], workBufName);
+                            y = getCompressedByte(&strDat[0]);
                             if (strDat[0].mainPtr) {
                                 // look up frequency table
                                 songNote[0] = tonetable(y);
@@ -418,7 +418,7 @@ void SongLoop30() {
                     --strDat[str].framesLeft;
                     outSongActive = true;
                 } else {
-                    x = getCompressedByte(&strDat[str], workBufName);
+                    x = getCompressedByte(&strDat[str]);
                     if (strDat[str].mainPtr) {
                         outSongActive = true;
                         strDat[str].framesLeft = x&0xf;
@@ -459,7 +459,7 @@ void SongLoop30() {
                 --strDat[7].framesLeft;
                 outSongActive = true;
             } else {
-                x = getCompressedByte(&strDat[7], workBufName);
+                x = getCompressedByte(&strDat[7]);
                 if (strDat[7].mainPtr) {
                     outSongActive = true;
                     strDat[7].framesLeft = x&0xf;
@@ -494,7 +494,7 @@ void SongLoop30() {
                     --strDat[str].framesLeft;
                     outSongActive = true;
                 } else {
-                    x = getCompressedByte(&strDat[str], workBufName);
+                    x = getCompressedByte(&strDat[str]);
                     if (strDat[str].mainPtr) {
                         outSongActive = true;
                         strDat[str].framesLeft = x&0xf;

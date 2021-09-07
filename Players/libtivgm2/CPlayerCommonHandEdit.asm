@@ -180,8 +180,8 @@ getDatRLE24
 * unpack a stream byte - offset and maxbytes are used to write a scaled
 * address for the heatmap to display later
 * cnt is row count, and maxbytes is used for scaling, max size of data
-* uint8 getCompressedByte(STREAM *str, uint8 *buf)
-* r15 = str (and curptr is offset 0), buf is unused and not provided
+* uint8 getCompressedByte(STREAM *str)
+* r15 = str (and curptr is offset 0)
 * r6 /must/ contain >0100 on entry
 * r2 will be zero if timestream was ended
 * mainptr is offset 2, curType is 4, curBytes is 6

@@ -11,76 +11,70 @@
 #define TYPEBACKREF 0xc0
 #define TYPEBACKREF2 0xe0
 
-// NOTE: "buf" is not used anywhere in this file, but it's provided
-// in case it is useful for visualizers or the like. If you need
-// to save space and your compiler doesn't optimize it out, feel
-// free to remove it.
-
 // extract a byte from the buffer, called for every byte
 // Normally inline, but if you need to split up your
 // output date (say, for banking or split memory), you
 // can do the work here.
 // (buf is passed in just in case it's useful to have the base)
-static inline uint8 getBufferByte(const uint8 *buf, const uint8 *adr) {
-    (void)buf;
+static inline uint8 getBufferByte(const uint8 *adr) {
     return *adr;
 }
 
-static uint8 getDatInline(STREAM *str, const uint8 *buf) {
+static uint8 getDatInline(STREAM *str) {
     // just pull a string of bytes
-    return getBufferByte(buf, str->curPtr++);
+    return getBufferByte(str->curPtr++);
 }
-static uint8 getDatRLE(STREAM *str, const uint8 *buf) {
+static uint8 getDatRLE(STREAM *str) {
     // pull the single byte - no increment
-    return getBufferByte(buf, str->curPtr);
+    return getBufferByte(str->curPtr);
 }
-static uint8 getDatRLE32(STREAM *str, const uint8 *buf) {
+static uint8 getDatRLE32(STREAM *str) {
     // pull the last four bytes over and over
     // mainPtr is assumed already incremented
     if (str->curPtr == str->mainPtr) {
         str->curPtr -= 4;
     }
-    return getBufferByte(buf, str->curPtr++);
+    return getBufferByte(str->curPtr++);
 }
-static uint8 getDatRLE16(STREAM *str, const uint8 *buf) {
+static uint8 getDatRLE16(STREAM *str) {
     // pull the last two bytes over and over
     // mainPtr is assumed already incremented
     if (str->curPtr == str->mainPtr) {
         str->curPtr -= 2;
     }
-    return getBufferByte(buf, str->curPtr++);
+    return getBufferByte(str->curPtr++);
 }
-static uint8 getDatRLE24(STREAM *str, const uint8 *buf) {
+static uint8 getDatRLE24(STREAM *str) {
     // pull the last three bytes over and over
     // mainPtr is assumed already incremented
     if (str->curPtr == str->mainPtr) {
         str->curPtr -= 3;
     }
-    return getBufferByte(buf, str->curPtr++);
+    return getBufferByte(str->curPtr++);
 }
 
 // unpack a stream byte - offset and maxbytes are used to write a scaled
 // address for the heatmap to display later
 // cnt is row count, and maxbytes is used for scaling, max size of data
-uint8 getCompressedByte(STREAM *str, const uint8 *buf) {
+uint8 getCompressedByte(STREAM *str) {
     unsigned char x,x1,x2;
 
     // bytes left in the current stream?
     if (str->curBytes > 0) {
         --str->curBytes;
-        return str->curType(str, buf);
+        return str->curType(str);
     }
 
     // start a new stream
-    x = getBufferByte(buf, str->mainPtr++);
+    x = getBufferByte(str->mainPtr++);
     switch (x&0xe0) {
     case TYPEBACKREF:  // long back reference
     case TYPEBACKREF2:
         {
             signed short temp;   // to ensure we get proper sign extension - 16 bit
             str->curType = getDatInline;
-            x1 = getBufferByte(buf, str->mainPtr);
-            x2 = getBufferByte(buf, str->mainPtr+1);
+            x1 = getBufferByte(str->mainPtr);
+            x2 = getBufferByte(str->mainPtr+1);
             temp = (short)(x1*256 + x2);
             // check for end of stream
             if (temp == 0) {
@@ -131,6 +125,6 @@ uint8 getCompressedByte(STREAM *str, const uint8 *buf) {
     }
 
     // recurse call to get the next byte of data
-    return getCompressedByte(str, buf);
+    return getCompressedByte(str);
 }
 

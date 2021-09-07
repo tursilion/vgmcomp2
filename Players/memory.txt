@@ -1,34 +1,34 @@
 Based on the Map files:
 
 TI SN:
-	732 bytes of code
+	730 bytes of code
 	88 bytes of data (+32 byte workspace)
 
 TI SN+SFX:
-	1166 bytes of code
+	1162 bytes of code
 	166 bytes of data (+32 byte workspace)
 	
 TI SID:
-	854 bytes of code
+	850 bytes of code
 	92 bytes of data (+32 byte workspace)
 	
 TI SID+SN:
-	1238 bytes of code
+	1234 bytes of code
 	180 bytes of data (+32 byte workspace)
 
 ColecoVision AY:
-	1972 bytes of code
-	96 bytes of data
+	1610 bytes of code
+	96 bytes of data (+stack)
 	
 ColecoVision SN:
-	1945 bytes of code
-	96 bytes of data
+	1718 bytes of code
+	96 bytes of data (+stack)
 	
 ColecoVision SN+AY:
-	3095 bytes of code
-	176 bytes of data
+	2752 bytes of code
+	176 bytes of data (+stack)
 	
 ColecoVision SN+SFX:
-	3144 bytes of code
-	177 bytes of data
+	2989 bytes of code
+	177 bytes of data (+stack)
 	

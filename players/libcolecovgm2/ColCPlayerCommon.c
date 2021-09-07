@@ -17,9 +17,7 @@
 volatile STREAM globalStr;
 
 // wrapper for external test code
-uint8 getCompressedByte(STREAM *str, const uint8 *buf) {
-    (void)buf;
-
+uint8 getCompressedByte(STREAM *str) {
     // manual unrolled LDIs doesn't work out faster in the end
     memcpy(&globalStr, str, sizeof(STREAM));
     uint8 x = getCompressedByteRaw();

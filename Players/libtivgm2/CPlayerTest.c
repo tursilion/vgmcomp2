@@ -9,12 +9,12 @@
 #include <vdp.h>
 #endif
 
-extern uint8 getCompressedByte(STREAM *str, const uint8 *buf);
+extern uint8 getCompressedByte(STREAM *str);
 STREAM test;
 
 // disable this if you are not using the TI hand-rolled assembly
 #ifdef BUILD_TI99
-uint8 __attribute__ ((noinline)) getCompressedByteWrap(STREAM *str, uint8 *buf) {
+uint8 __attribute__ ((noinline)) getCompressedByteWrap(STREAM *str) {
     __asm__(                                                        \
         "mov r1,r15\n\t"                                            \
         "dect r10\n\t"                                              \
@@ -74,7 +74,7 @@ void runTest(const char *name, const unsigned char *buf, const unsigned char *ts
 
     flag = 1;
     while (test.mainPtr) {
-        x = getCompressedByteWrap(&test, (uint8*)buf);
+        x = getCompressedByteWrap(&test);
         if (flag) {
             printf("%s\n%2d: ", name, test.curBytes+1);
             flag = 0;

@@ -44,7 +44,7 @@ void SongLoop30();
 uint8 getCompressedByteRaw();
 
 // This is a wrapper so that the test code works
-uint8 getCompressedByte(STREAM *str, const uint8 *buf);
+uint8 getCompressedByte(STREAM *str);
 
 // this array contains the current volume of each voice (ignoring mutes)
 // Sound chip specific. Note that on the AY, the noise channel does not have a dedicated
