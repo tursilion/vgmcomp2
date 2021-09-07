@@ -89,18 +89,18 @@ _nOldVoice::
 ; code
 ;--------------------------------------------------------
 	.area _CODE
-;chuckrock.c:154: void writeCompressedByte8(STREAM *str) {
+;chuckrock.c:159: void writeCompressedByte8(STREAM *str) {
 ;	---------------------------------
 ; Function writeCompressedByte8
 ; ---------------------------------
 _writeCompressedByte8::
-;chuckrock.c:155: for (idx_t idx = 0; idx<8; ++idx) {
+;chuckrock.c:160: for (idx_t idx = 0; idx<8; ++idx) {
 	ld	c, #0x00
 00103$:
 	ld	a, c
 	sub	a, #0x08
 	ret	NC
-;chuckrock.c:156: VDPWD = getCompressedByte(str);
+;chuckrock.c:161: VDPWD = getCompressedByte(str);
 	push	bc
 	ld	hl, #4
 	add	hl, sp
@@ -113,9 +113,9 @@ _writeCompressedByte8::
 	ld	a, l
 	pop	bc
 	out	(_VDPWD), a
-;chuckrock.c:155: for (idx_t idx = 0; idx<8; ++idx) {
+;chuckrock.c:160: for (idx_t idx = 0; idx<8; ++idx) {
 	inc	c
-;chuckrock.c:158: }
+;chuckrock.c:163: }
 	jr	00103$
 _chuckcol:
 	.db #0x45	; 69	'E'
@@ -3842,13 +3842,13 @@ _filter:
 	.db 0x00
 	.ascii "01111101111111111000011100001100"
 	.db 0x00
-;chuckrock.c:163: void unpackchar(int vdpOff) {
+;chuckrock.c:168: void unpackchar(int vdpOff) {
 ;	---------------------------------
 ; Function unpackchar
 ; ---------------------------------
 _unpackchar::
 	call	___sdcc_enter_ix
-;chuckrock.c:164: VDP_SET_ADDRESS_WRITE(gPattern+vdpOff);
+;chuckrock.c:169: VDP_SET_ADDRESS_WRITE(gPattern+vdpOff);
 	ld	c, 4 (ix)
 	ld	b, 5 (ix)
 	ld	hl, (_gPattern)
@@ -3860,14 +3860,14 @@ _unpackchar::
 	ld	a, d
 	or	a, #0x40
 	out	(_VDPWA), a
-;chuckrock.c:165: writeCompressedByte8(&strDat[0]);
+;chuckrock.c:170: writeCompressedByte8(&strDat[0]);
 	push	bc
 	ld	hl, #_strDat
 	push	hl
 	call	_writeCompressedByte8
 	pop	af
 	pop	bc
-;chuckrock.c:167: VDP_SET_ADDRESS_WRITE(gColor+vdpOff);
+;chuckrock.c:172: VDP_SET_ADDRESS_WRITE(gColor+vdpOff);
 	ld	hl, (_gColor)
 	add	hl, bc
 	ld	c, l
@@ -3878,15 +3878,15 @@ _unpackchar::
 	ld	a, b
 	or	a, #0x40
 	out	(_VDPWA), a
-;chuckrock.c:168: writeCompressedByte8(&strDat[1]);
+;chuckrock.c:173: writeCompressedByte8(&strDat[1]);
 	ld	hl, #(_strDat + 0x0008)
 	push	hl
 	call	_writeCompressedByte8
 	pop	af
-;chuckrock.c:169: }
+;chuckrock.c:174: }
 	pop	ix
 	ret
-;chuckrock.c:171: void chuckinit() {
+;chuckrock.c:176: void chuckinit() {
 ;	---------------------------------
 ; Function chuckinit
 ; ---------------------------------
@@ -3895,7 +3895,7 @@ _chuckinit::
 	ld	hl, #-9
 	add	hl, sp
 	ld	sp, hl
-;chuckrock.c:172: unsigned char x = set_bitmap_raw(VDP_SPR_8x8);		// set graphics mode
+;chuckrock.c:177: unsigned char x = set_bitmap_raw(VDP_SPR_8x8);		// set graphics mode
 	xor	a, a
 	push	af
 	inc	sp
@@ -3907,7 +3907,7 @@ _chuckinit::
 	out	(_VDPWA), a
 	ld	a, #0x87
 	out	(_VDPWA), a
-;chuckrock.c:177: vdpmemset(0, 0, 512);
+;chuckrock.c:182: vdpmemset(0, 0, 512);
 	ld	hl, #0x0200
 	push	hl
 	xor	a, a
@@ -3919,7 +3919,7 @@ _chuckinit::
 	pop	af
 	pop	af
 	inc	sp
-;chuckrock.c:180: vdpmemset(0+512, 32, 256);
+;chuckrock.c:185: vdpmemset(0+512, 32, 256);
 	ld	hl, #0x0100
 	push	hl
 	ld	a, #0x20
@@ -3931,7 +3931,7 @@ _chuckinit::
 	pop	af
 	pop	af
 	inc	sp
-;chuckrock.c:183: vdpmemcpy(gPattern+0x1300, TrueLowerCase, 216);
+;chuckrock.c:188: vdpmemcpy(gPattern+0x1300, TrueLowerCase, 216);
 	ld	bc, #_TrueLowerCase+0
 	ld	hl, (_gPattern)
 	ld	de, #0x1300
@@ -3944,7 +3944,7 @@ _chuckinit::
 	pop	af
 	pop	af
 	pop	af
-;chuckrock.c:189: vdpmemcpy(gPattern+0x1100, COLECO_FONT, 64*8);
+;chuckrock.c:194: vdpmemcpy(gPattern+0x1100, COLECO_FONT, 64*8);
 	ld	hl, (_gPattern)
 	ld	de, #0x1100
 	add	hl, de
@@ -3957,7 +3957,7 @@ _chuckinit::
 	pop	af
 	pop	af
 	pop	af
-;chuckrock.c:192: vdpmemset(gColor+0x1000, 0xf0, 0x800);
+;chuckrock.c:197: vdpmemset(gColor+0x1000, 0xf0, 0x800);
 	ld	hl, (_gColor)
 	ld	de, #0x1000
 	add	hl, de
@@ -3971,11 +3971,11 @@ _chuckinit::
 	pop	af
 	pop	af
 	inc	sp
-;chuckrock.c:197: unsigned char nChar=0;		// displayed char (will pre-increment)
+;chuckrock.c:202: unsigned char nChar=0;		// displayed char (will pre-increment)
 	ld	c, #0x00
-;chuckrock.c:198: int nVRAMOff=8;		// VRAM offset
+;chuckrock.c:203: int nVRAMOff=8;		// VRAM offset
 	ld	de, #0x0008
-;chuckrock.c:201: memset(strDat, 0, sizeof(strDat));
+;chuckrock.c:206: memset(strDat, 0, sizeof(strDat));
 	push	bc
 	push	de
 	ld	hl, #0x0010
@@ -3990,13 +3990,13 @@ _chuckinit::
 	pop	af
 	pop	de
 	pop	bc
-;chuckrock.c:202: strDat[0].mainPtr = (unsigned char*)chuckpat;
+;chuckrock.c:207: strDat[0].mainPtr = (unsigned char*)chuckpat;
 	ld	hl, #_chuckpat
 	ld	((_strDat + 0x0002)), hl
-;chuckrock.c:203: strDat[1].mainPtr = (unsigned char*)chuckcol;
+;chuckrock.c:208: strDat[1].mainPtr = (unsigned char*)chuckcol;
 	ld	hl, #_chuckcol
 	ld	((_strDat + 0x000a)), hl
-;chuckrock.c:206: unpackchar(0);
+;chuckrock.c:211: unpackchar(0);
 	push	bc
 	push	de
 	ld	hl, #0x0000
@@ -4005,13 +4005,13 @@ _chuckinit::
 	pop	af
 	pop	de
 	pop	bc
-;chuckrock.c:208: for (idx_t nFrame=0; nFrame<2; nFrame++) {
+;chuckrock.c:213: for (idx_t nFrame=0; nFrame<2; nFrame++) {
 	ld	-3 (ix), #0
 00123$:
 	ld	a, -3 (ix)
 	sub	a, #0x02
 	jp	NC, 00113$
-;chuckrock.c:209: for (idx_t idx=0; idx<10; idx++) {
+;chuckrock.c:214: for (idx_t idx=0; idx<10; idx++) {
 	ld	a, -3 (ix)
 	dec	a
 	ld	a, #0x01
@@ -4024,7 +4024,7 @@ _chuckinit::
 	ld	a, -2 (ix)
 	sub	a, #0x0a
 	jp	NC, 00112$
-;chuckrock.c:210: for (idx_t c=0; c<32; c++) {
+;chuckrock.c:215: for (idx_t c=0; c<32; c++) {
 	push	de
 	ld	e, -2 (ix)
 	ld	d, #0x00
@@ -4055,7 +4055,7 @@ _chuckinit::
 	ld	a, c
 	sub	a, #0x20
 	jr	NC, 00137$
-;chuckrock.c:211: if (((nFrame==0)&&(filter[idx][c] > '0')) || ((nFrame==1)&&(filter[idx][c]=='2'))) {
+;chuckrock.c:216: if (((nFrame==0)&&(filter[idx][c] > '0')) || ((nFrame==1)&&(filter[idx][c]=='2'))) {
 	ld	a, -3 (ix)
 	or	a, a
 	jr	NZ, 00105$
@@ -4082,9 +4082,9 @@ _chuckinit::
 	sub	a, #0x32
 	jr	NZ, 00118$
 00101$:
-;chuckrock.c:213: ++nChar;			// increment the character index
+;chuckrock.c:218: ++nChar;			// increment the character index
 	inc	-1 (ix)
-;chuckrock.c:214: unpackchar(nVRAMOff);		// extract the data
+;chuckrock.c:219: unpackchar(nVRAMOff);		// extract the data
 	push	bc
 	push	de
 	push	de
@@ -4092,7 +4092,7 @@ _chuckinit::
 	pop	af
 	pop	de
 	pop	bc
-;chuckrock.c:215: vdpscreenchar(((idx+3)<<5)+c,nChar);	// put the char on screen
+;chuckrock.c:220: vdpscreenchar(((idx+3)<<5)+c,nChar);	// put the char on screen
 	ld	l, -2 (ix)
 	ld	h, #0x00
 	inc	hl
@@ -4121,33 +4121,33 @@ _chuckinit::
 	inc	sp
 	pop	de
 	pop	bc
-;chuckrock.c:216: nVRAMOff+=8;
+;chuckrock.c:221: nVRAMOff+=8;
 	ld	hl, #0x0008
 	add	hl, de
 	ex	de, hl
 00118$:
-;chuckrock.c:210: for (idx_t c=0; c<32; c++) {
+;chuckrock.c:215: for (idx_t c=0; c<32; c++) {
 	inc	c
 	jr	00117$
 00137$:
 	ld	c, -1 (ix)
-;chuckrock.c:219: if (idx==4) {
+;chuckrock.c:224: if (idx==4) {
 	ld	a, -2 (ix)
 	sub	a, #0x04
 	jr	NZ, 00121$
-;chuckrock.c:220: if (nFrame) {
+;chuckrock.c:225: if (nFrame) {
 	ld	a, -3 (ix)
 	or	a, a
 	jr	Z, 00108$
-;chuckrock.c:221: nVRAMOff=0xB80;		// restart on the next character set
+;chuckrock.c:226: nVRAMOff=0xB80;		// restart on the next character set
 	ld	de, #0x0b80
-;chuckrock.c:222: nChar=111;
+;chuckrock.c:227: nChar=111;
 	ld	c, #0x6f
 	jr	00121$
 00108$:
-;chuckrock.c:224: nVRAMOff=0x808;		// restart on the next character set
+;chuckrock.c:229: nVRAMOff=0x808;		// restart on the next character set
 	ld	de, #0x0808
-;chuckrock.c:225: vdpmemset(gPattern+0x800, 0, 8);
+;chuckrock.c:230: vdpmemset(gPattern+0x800, 0, 8);
 	ld	hl, (_gPattern)
 	ld	bc, #0x0800
 	add	hl, bc
@@ -4163,7 +4163,7 @@ _chuckinit::
 	pop	af
 	inc	sp
 	pop	de
-;chuckrock.c:226: vdpmemset(gColor+0x800, 0, 8);
+;chuckrock.c:231: vdpmemset(gColor+0x800, 0, 8);
 	ld	hl, (_gColor)
 	ld	bc, #0x0800
 	add	hl, bc
@@ -4179,18 +4179,18 @@ _chuckinit::
 	pop	af
 	inc	sp
 	pop	de
-;chuckrock.c:227: nChar=0;
+;chuckrock.c:232: nChar=0;
 	ld	c, #0x00
 00121$:
-;chuckrock.c:209: for (idx_t idx=0; idx<10; idx++) {
+;chuckrock.c:214: for (idx_t idx=0; idx<10; idx++) {
 	inc	-2 (ix)
 	jp	00120$
 00112$:
-;chuckrock.c:233: nChar=86;			// displayed char (will pre-increment)
+;chuckrock.c:238: nChar=86;			// displayed char (will pre-increment)
 	ld	c, #0x56
-;chuckrock.c:234: nVRAMOff=0x2B8;		// VRAM offset
+;chuckrock.c:239: nVRAMOff=0x2B8;		// VRAM offset
 	ld	de, #0x02b8
-;chuckrock.c:208: for (idx_t nFrame=0; nFrame<2; nFrame++) {
+;chuckrock.c:213: for (idx_t nFrame=0; nFrame<2; nFrame++) {
 	inc	-3 (ix)
 	jp	00123$
 00113$:
@@ -4199,19 +4199,19 @@ _chuckinit::
 	out	(_VDPWA), a
 	ld	a, #0x81
 	out	(_VDPWA), a
-;chuckrock.c:237: VDP_SET_REGISTER(VDP_REG_MODE1,x);		// enable the display
-;chuckrock.c:238: }
+;chuckrock.c:242: VDP_SET_REGISTER(VDP_REG_MODE1,x);		// enable the display
+;chuckrock.c:243: }
 	ld	sp, ix
 	pop	ix
 	ret
-;chuckrock.c:243: void processList(const idx_t *pList) {
+;chuckrock.c:248: void processList(const idx_t *pList) {
 ;	---------------------------------
 ; Function processList
 ; ---------------------------------
 _processList::
 	call	___sdcc_enter_ix
 	push	af
-;chuckrock.c:250: while (*((const unsigned int*)pList)) {
+;chuckrock.c:255: while (*((const unsigned int*)pList)) {
 	ld	c, 4 (ix)
 	ld	b, 5 (ix)
 00101$:
@@ -4223,7 +4223,7 @@ _processList::
 	ld	a, d
 	or	a, e
 	jr	Z, 00104$
-;chuckrock.c:253: vdpwritescreeninc(*((const unsigned int*)pList), *(pList+2), *(pList+3));
+;chuckrock.c:258: vdpwritescreeninc(*((const unsigned int*)pList), *(pList+2), *(pList+3));
 	ld	l, c
 	ld	h, b
 	inc	hl
@@ -4249,38 +4249,38 @@ _processList::
 	pop	af
 	inc	sp
 	pop	bc
-;chuckrock.c:254: pList+=4;	// 4 bytes
+;chuckrock.c:259: pList+=4;	// 4 bytes
 	inc	bc
 	inc	bc
 	inc	bc
 	inc	bc
 	jr	00101$
 00104$:
-;chuckrock.c:257: }
+;chuckrock.c:262: }
 	pop	af
 	pop	ix
 	ret
-;chuckrock.c:381: int main() {
+;chuckrock.c:386: int main() {
 ;	---------------------------------
 ; Function main
 ; ---------------------------------
 _main::
 	call	___sdcc_enter_ix
 	dec	sp
-;chuckrock.c:383: chuckinit();
+;chuckrock.c:388: chuckinit();
 	call	_chuckinit
-;chuckrock.c:385: for (idx_t idx=0; idx<4; idx++) {
+;chuckrock.c:390: for (idx_t idx=0; idx<4; idx++) {
 	ld	c, #0x00
-00147$:
+00145$:
 	ld	a, c
 	sub	a, #0x04
 	jr	NC, 00101$
-;chuckrock.c:386: nOldVol[idx]=0xff;
+;chuckrock.c:391: nOldVol[idx]=0xff;
 	ld	hl, #_nOldVol
 	ld	b, #0x00
 	add	hl, bc
 	ld	(hl), #0xff
-;chuckrock.c:387: nOldVoice[idx]=0;
+;chuckrock.c:392: nOldVoice[idx]=0;
 	ld	a, c
 	ld	h, #0x00
 	ld	l, a
@@ -4291,16 +4291,16 @@ _main::
 	ld	(hl), a
 	inc	hl
 	ld	(hl), a
-;chuckrock.c:388: nState[idx]=0;
+;chuckrock.c:393: nState[idx]=0;
 	ld	hl, #_nState
 	ld	b, #0x00
 	add	hl, bc
 	ld	(hl), #0x00
-;chuckrock.c:385: for (idx_t idx=0; idx<4; idx++) {
+;chuckrock.c:390: for (idx_t idx=0; idx<4; idx++) {
 	inc	c
-	jr	00147$
+	jr	00145$
 00101$:
-;chuckrock.c:392: vdpmemcpy(gImage+(17*32+0), textout, 32*4);
+;chuckrock.c:397: vdpmemcpy(gImage+(17*32+0), textout, 32*4);
 	ld	bc, #_textout+0
 	ld	hl, (_gImage)
 	ld	de, #0x0220
@@ -4313,22 +4313,22 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;chuckrock.c:395: chucktune = *((unsigned int*)&flags[6]);
+;chuckrock.c:400: chucktune = *((unsigned int*)&flags[6]);
 	ld	hl, #(_flags + 0x0006)
 	ld	a, (hl)
 	ld	(_chucktune+0), a
 	inc	hl
 	ld	a, (hl)
 	ld	(_chucktune+1), a
-;chuckrock.c:399: volatile unsigned char *pLoop = (volatile unsigned char *)&flags[13];
-;chuckrock.c:401: do {
-00135$:
-;chuckrock.c:405: if (0 != chucktune) {
+;chuckrock.c:404: volatile unsigned char *pLoop = (volatile unsigned char *)&flags[13];
+;chuckrock.c:406: do {
+00133$:
+;chuckrock.c:410: if (0 != chucktune) {
 	ld	iy, #_chucktune
 	ld	a, 1 (iy)
 	or	a, 0 (iy)
 	jr	Z, 00103$
-;chuckrock.c:406: StartSong((unsigned char*)chucktune, 0);
+;chuckrock.c:411: StartSong((unsigned char*)chucktune, 0);
 	ld	hl, (_chucktune)
 	xor	a, a
 	push	af
@@ -4338,146 +4338,146 @@ _main::
 	pop	af
 	inc	sp
 00103$:
-;chuckrock.c:410: done = 0;
+;chuckrock.c:415: done = 0;
 	ld	-1 (ix), #0
-;chuckrock.c:411: while (!done) {
+;chuckrock.c:416: while (!done) {
 00128$:
 	ld	a, -1 (ix)
 	or	a, a
 	jp	NZ, 00130$
-;chuckrock.c:412: done = 1;
+;chuckrock.c:417: done = 1;
 	ld	-1 (ix), #0x01
-;chuckrock.c:413: vdpwaitvint();
+;chuckrock.c:418: vdpwaitvint();
 	call	_vdpwaitvint
-;chuckrock.c:414: if (0 != chucktune) {
+;chuckrock.c:419: if (0 != chucktune) {
 	ld	iy, #_chucktune
 	ld	a, 1 (iy)
 	or	a, 0 (iy)
 	jr	Z, 00107$
-;chuckrock.c:415: if (isSNPlaying) {
+;chuckrock.c:420: if (isSNPlaying) {
 	ld	hl, (#(_songNote + 0x0006) + 0)
 	bit	0, l
 	jr	Z, 00107$
-;chuckrock.c:416: CALL_PLAYER_SN;
+;chuckrock.c:421: CALL_PLAYER_SN;
 	call	_SongLoop
-;chuckrock.c:417: done = 0;
+;chuckrock.c:422: done = 0;
 	xor	a, a
 	ld	-1 (ix), a
 00107$:
-;chuckrock.c:421: if (songNote[0] != nOldVoice[0]) {
+;chuckrock.c:426: if (songNote[0] != nOldVoice[0]) {
 	ld	bc, (#_songNote + 0)
 	ld	hl, (#_nOldVoice + 0)
 	cp	a, a
 	sbc	hl, bc
 	jr	Z, 00112$
-;chuckrock.c:423: nOldVol[0]=songVol[0];
+;chuckrock.c:428: nOldVol[0]=songVol[0];
 	ld	a, (#_songVol + 0)
 	ld	hl, #_nOldVol
 	ld	(hl), a
-;chuckrock.c:424: nOldVoice[0]=songNote[0];
+;chuckrock.c:429: nOldVoice[0]=songNote[0];
 	ld	bc, (#_songNote + 0)
 	ld	(_nOldVoice), bc
-;chuckrock.c:425: nState[0]=!nState[0];
+;chuckrock.c:430: nState[0]=!nState[0];
 	ld	a, (#_nState + 0)
 	sub	a,#0x01
 	ld	a, #0x00
 	rla
 	ld	(#_nState),a
-;chuckrock.c:426: if (nState[0]) {
+;chuckrock.c:431: if (nState[0]) {
 	or	a, a
 	jr	Z, 00109$
-;chuckrock.c:374: processList(chuckf2dat);
+;chuckrock.c:379: processList(chuckf2dat);
 	ld	hl, #_chuckf2dat
 	push	hl
 	call	_processList
 	pop	af
-;chuckrock.c:427: chuckf2();
+;chuckrock.c:432: chuckf2();
 	jr	00112$
 00109$:
-;chuckrock.c:358: processList(chuckf1dat);
+;chuckrock.c:363: processList(chuckf1dat);
 	ld	hl, #_chuckf1dat
 	push	hl
 	call	_processList
 	pop	af
-;chuckrock.c:429: chuckf1();
+;chuckrock.c:434: chuckf1();
 00112$:
-;chuckrock.c:432: if (songNote[1] != nOldVoice[1]) {
+;chuckrock.c:437: if (songNote[1] != nOldVoice[1]) {
 	ld	bc, (#(_songNote + 0x0002) + 0)
 	ld	hl, (#(_nOldVoice + 0x0002) + 0)
 	cp	a, a
 	sbc	hl, bc
 	jr	Z, 00117$
-;chuckrock.c:434: nOldVol[1]=songVol[1];
+;chuckrock.c:439: nOldVol[1]=songVol[1];
 	ld	bc, #_nOldVol + 1
 	ld	a, (#(_songVol + 0x0001) + 0)
 	ld	(bc), a
-;chuckrock.c:435: nOldVoice[1]=songNote[1];
+;chuckrock.c:440: nOldVoice[1]=songNote[1];
 	ld	bc, (#(_songNote + 0x0002) + 0)
 	ld	((_nOldVoice + 0x0002)), bc
-;chuckrock.c:436: nState[1]=!nState[1];
+;chuckrock.c:441: nState[1]=!nState[1];
 	ld	bc, #_nState + 1
 	ld	a, (bc)
 	sub	a,#0x01
 	ld	a, #0x00
 	rla
 	ld	(bc), a
-;chuckrock.c:437: if (nState[1]) {
+;chuckrock.c:442: if (nState[1]) {
 	or	a, a
 	jr	Z, 00114$
-;chuckrock.c:281: processList(dinof2dat);
+;chuckrock.c:286: processList(dinof2dat);
 	ld	hl, #_dinof2dat
 	push	hl
 	call	_processList
 	pop	af
-;chuckrock.c:438: dinof2();
+;chuckrock.c:443: dinof2();
 	jr	00117$
 00114$:
-;chuckrock.c:269: processList(dinof1dat);
+;chuckrock.c:274: processList(dinof1dat);
 	ld	hl, #_dinof1dat
 	push	hl
 	call	_processList
 	pop	af
-;chuckrock.c:440: dinof1();
+;chuckrock.c:445: dinof1();
 00117$:
-;chuckrock.c:443: if (songNote[2] != nOldVoice[2]) {
+;chuckrock.c:448: if (songNote[2] != nOldVoice[2]) {
 	ld	bc, (#(_songNote + 0x0004) + 0)
 	ld	hl, (#(_nOldVoice + 0x0004) + 0)
 	cp	a, a
 	sbc	hl, bc
 	jr	Z, 00122$
-;chuckrock.c:445: nOldVol[2]=songVol[2];
+;chuckrock.c:450: nOldVol[2]=songVol[2];
 	ld	a, (#(_songVol + 0x0002) + 0)
 	ld	hl, #(_nOldVol + 0x0002)
 	ld	(hl), a
-;chuckrock.c:446: nOldVoice[2]=songNote[2];
+;chuckrock.c:451: nOldVoice[2]=songNote[2];
 	ld	bc, (#(_songNote + 0x0004) + 0)
 	ld	((_nOldVoice + 0x0004)), bc
-;chuckrock.c:447: nState[2]=!nState[2];
+;chuckrock.c:452: nState[2]=!nState[2];
 	ld	bc, #_nState + 2
 	ld	a, (bc)
 	sub	a,#0x01
 	ld	a, #0x00
 	rla
 	ld	(bc), a
-;chuckrock.c:448: if (nState[2]) {
+;chuckrock.c:453: if (nState[2]) {
 	or	a, a
 	jr	Z, 00119$
-;chuckrock.c:341: processList(opheliaf2dat);
+;chuckrock.c:346: processList(opheliaf2dat);
 	ld	hl, #_opheliaf2dat
 	push	hl
 	call	_processList
 	pop	af
-;chuckrock.c:449: opheliaf2();
+;chuckrock.c:454: opheliaf2();
 	jr	00122$
 00119$:
-;chuckrock.c:328: processList(opheliaf1dat);
+;chuckrock.c:333: processList(opheliaf1dat);
 	ld	hl, #_opheliaf1dat
 	push	hl
 	call	_processList
 	pop	af
-;chuckrock.c:451: opheliaf1();
+;chuckrock.c:456: opheliaf1();
 00122$:
-;chuckrock.c:454: if (songVol[3]+4 < nOldVol[3]) {
+;chuckrock.c:459: if (songVol[3]+4 < nOldVol[3]) {
 	ld	a, (#(_songVol + 0x0003) + 0)
 	ld	c, a
 	ld	b, #0x00
@@ -4492,74 +4492,64 @@ _main::
 	sub	a, e
 	ld	a, b
 	sbc	a, d
-	jp	PO, 00251$
+	jp	PO, 00244$
 	xor	a, #0x80
-00251$:
+00244$:
 	jp	P, 00127$
-;chuckrock.c:456: nOldVoice[3]=songNote[3];
+;chuckrock.c:461: nOldVoice[3]=songNote[3];
 	ld	bc, (#(_songNote + 0x0006) + 0)
 	ld	((_nOldVoice + 0x0006)), bc
-;chuckrock.c:457: nState[3]=!nState[3];
+;chuckrock.c:462: nState[3]=!nState[3];
 	ld	bc, #_nState + 3
 	ld	a, (bc)
 	sub	a,#0x01
 	ld	a, #0x00
 	rla
 	ld	(bc), a
-;chuckrock.c:458: if (nState[3]) {
+;chuckrock.c:463: if (nState[3]) {
 	or	a, a
 	jr	Z, 00124$
-;chuckrock.c:315: processList(garyf2dat);
+;chuckrock.c:320: processList(garyf2dat);
 	ld	hl, #_garyf2dat
 	push	hl
 	call	_processList
 	pop	af
-;chuckrock.c:459: garyf2();
+;chuckrock.c:464: garyf2();
 	jr	00127$
 00124$:
-;chuckrock.c:299: processList(garyf1dat);
+;chuckrock.c:304: processList(garyf1dat);
 	ld	hl, #_garyf1dat
 	push	hl
 	call	_processList
 	pop	af
-;chuckrock.c:461: garyf1();
+;chuckrock.c:466: garyf1();
 00127$:
-;chuckrock.c:464: nOldVol[3]=songVol[3];
+;chuckrock.c:469: nOldVol[3]=songVol[3];
 	ld	a, (#(_songVol + 0x0003) + 0)
 	ld	(#(_nOldVol + 0x0003)),a
 	jp	00128$
 00130$:
-;chuckrock.c:468: SOUND=0x9F;
+;chuckrock.c:473: SOUND=0x9F;
 	ld	a, #0x9f
 	out	(_SOUND), a
-;chuckrock.c:469: SOUND=0xBF;
+;chuckrock.c:474: SOUND=0xBF;
 	ld	a, #0xbf
 	out	(_SOUND), a
-;chuckrock.c:470: SOUND=0xDF;
+;chuckrock.c:475: SOUND=0xDF;
 	ld	a, #0xdf
 	out	(_SOUND), a
-;chuckrock.c:471: SOUND=0xFF;
+;chuckrock.c:476: SOUND=0xFF;
 	ld	a, #0xff
 	out	(_SOUND), a
-;chuckrock.c:475: chain = (unsigned int *)(*((volatile unsigned int*)(&flags[14])));
-	ld	bc, (#(_flags + 0x000e) + 0)
-	ld	l, c
-;chuckrock.c:476: if (chain) {
-	ld	a,b
-	ld	h,a
-	or	a, c
-	jr	Z, 00136$
-;chuckrock.c:478: unsigned int chained = *chain;
-	ld	e, (hl)
-	inc	hl
-	ld	d, (hl)
-	ld	c, e
-;chuckrock.c:479: if (chained) {
-	ld	a,d
+;chuckrock.c:480: chain = (unsigned int)(*((volatile unsigned int*)(&flags[14])));
+	ld	hl, (#(_flags + 0x000e) + 0)
+	ld	c, l
+;chuckrock.c:481: if (chain) {
+	ld	a,h
 	ld	b,a
-	or	a, e
-	jr	Z, 00136$
-;chuckrock.c:488: memcpy((void*)0x7000, tramp, sizeof(tramp));   // this will trounce variables but we don't need them anymore
+	or	a, l
+	jr	Z, 00134$
+;chuckrock.c:490: memcpy((void*)0x7000, tramp, sizeof(tramp));   // this will trounce variables but we don't need them anymore
 	push	bc
 	ld	hl, #0x0006
 	push	hl
@@ -4572,20 +4562,20 @@ _main::
 	pop	af
 	pop	af
 	pop	bc
-;chuckrock.c:489: *((unsigned int*)0x7001) = chained;     // patch the pointer, chained should be on the stack
+;chuckrock.c:491: *((unsigned int*)0x7001) = chain;     // patch the pointer, chained should be on the stack
 	ld	(0x7001), bc
-;chuckrock.c:490: ((void(*)())0x7000)();                  // call the function, never return
+;chuckrock.c:492: ((void(*)())0x7000)();                  // call the function, never return
 	call	0x7000
-00136$:
-;chuckrock.c:494: } while (*pLoop);
+00134$:
+;chuckrock.c:495: } while (*pLoop);
 	ld	a, (#(_flags + 0x000d) + 0)
 	or	a, a
-	jp	NZ, 00135$
-;chuckrock.c:505: __endasm;
+	jp	NZ, 00133$
+;chuckrock.c:506: __endasm;
 	rst	0x00
-;chuckrock.c:508: return 2;
+;chuckrock.c:509: return 2;
 	ld	hl, #0x0002
-;chuckrock.c:509: }
+;chuckrock.c:510: }
 	inc	sp
 	pop	ix
 	ret

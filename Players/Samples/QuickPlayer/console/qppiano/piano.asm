@@ -71,13 +71,13 @@ _firstSong::
 ; code
 ;--------------------------------------------------------
 	.area _CODE
-;piano.c:294: void pianoinit() {
+;piano.c:299: void pianoinit() {
 ;	---------------------------------
 ; Function pianoinit
 ; ---------------------------------
 _pianoinit::
 	dec	sp
-;piano.c:295: unsigned char x = set_graphics_raw(VDP_SPR_8x8);		// set graphics mode
+;piano.c:300: unsigned char x = set_graphics_raw(VDP_SPR_8x8);		// set graphics mode
 	xor	a, a
 	push	af
 	inc	sp
@@ -92,9 +92,9 @@ _pianoinit::
 	out	(_VDPWA), a
 	ld	a, #0x87
 	out	(_VDPWA), a
-;piano.c:297: charsetlc();								// load default character set with lowercase
+;piano.c:302: charsetlc();								// load default character set with lowercase
 	call	_charsetlc
-;piano.c:300: vdpmemset(gImage, 32, 768);
+;piano.c:305: vdpmemset(gImage, 32, 768);
 	ld	hl, #0x0300
 	push	hl
 	ld	a, #0x20
@@ -104,7 +104,7 @@ _pianoinit::
 	push	hl
 	call	_vdpmemset
 	pop	af
-;piano.c:303: vdpmemset(gColor, 0xf0, 32);
+;piano.c:308: vdpmemset(gColor, 0xf0, 32);
 	inc	sp
 	ld	hl,#0x0020
 	ex	(sp),hl
@@ -117,7 +117,7 @@ _pianoinit::
 	pop	af
 	pop	af
 	inc	sp
-;piano.c:304: vdpmemset(gColor+0x11, 0x1e, 9);
+;piano.c:309: vdpmemset(gColor+0x11, 0x1e, 9);
 	ld	hl, (_gColor)
 	ld	de, #0x0011
 	add	hl, de
@@ -131,7 +131,7 @@ _pianoinit::
 	pop	af
 	pop	af
 	inc	sp
-;piano.c:307: vdpmemcpy(gImage+0x60, Screen, 32*9);
+;piano.c:312: vdpmemcpy(gImage+0x60, Screen, 32*9);
 	ld	bc, #_Screen+0
 	ld	hl, (_gImage)
 	ld	de, #0x0060
@@ -143,7 +143,7 @@ _pianoinit::
 	call	_vdpmemcpy
 	pop	af
 	pop	af
-;piano.c:310: vdpmemset(gSprite, 0xd1, 16*4);
+;piano.c:315: vdpmemset(gSprite, 0xd1, 16*4);
 	ld	hl, #0x0040
 	ex	(sp),hl
 	ld	a, #0xd1
@@ -155,7 +155,7 @@ _pianoinit::
 	pop	af
 	pop	af
 	inc	sp
-;piano.c:311: vdpchar(gSprite+16*4, 0xd0);		// turn off the rest
+;piano.c:316: vdpchar(gSprite+16*4, 0xd0);		// turn off the rest
 	ld	hl, (_gSprite)
 	ld	de, #0x0040
 	add	hl, de
@@ -166,7 +166,7 @@ _pianoinit::
 	call	_vdpchar
 	pop	af
 	inc	sp
-;piano.c:316: vdpmemcpy(gPattern+0x440, Patterns, 560);
+;piano.c:321: vdpmemcpy(gPattern+0x440, Patterns, 560);
 	ld	bc, #_Patterns+0
 	ld	hl, (_gPattern)
 	ld	de, #0x0440
@@ -186,8 +186,8 @@ _pianoinit::
 	out	(_VDPWA), a
 	ld	a, #0x81
 	out	(_VDPWA), a
-;piano.c:318: VDP_SET_REGISTER(VDP_REG_MODE1,x);		// enable the display
-;piano.c:319: }
+;piano.c:323: VDP_SET_REGISTER(VDP_REG_MODE1,x);		// enable the display
+;piano.c:324: }
 	inc	sp
 	ret
 _tramp:
@@ -1407,7 +1407,7 @@ _Color:
 	.db #0x08	; 8
 	.db #0x02	; 2
 	.db #0x05	; 5
-;piano.c:321: void drawkey(idx_t voice, idx_t key) {
+;piano.c:326: void drawkey(idx_t voice, idx_t key) {
 ;	---------------------------------
 ; Function drawkey
 ; ---------------------------------
@@ -1417,7 +1417,7 @@ _drawkey::
 	push	af
 	push	af
 	dec	sp
-;piano.c:322: idx_t spr=voice*5;
+;piano.c:327: idx_t spr=voice*5;
 	ld	b, 4 (ix)
 	ld	a, b
 	ld	e, a
@@ -1425,21 +1425,21 @@ _drawkey::
 	add	a, a
 	add	a, e
 	ld	c, a
-;piano.c:323: idx_t type=KeyTypes[key];
+;piano.c:328: idx_t type=KeyTypes[key];
 	ld	de, #_KeyTypes+0
 	ld	l, 5 (ix)
 	ld	h, #0x00
 	add	hl, de
 	ld	a, (hl)
 	ld	-1 (ix), a
-;piano.c:324: idx_t cc=KeyPos[key];
+;piano.c:329: idx_t cc=KeyPos[key];
 	ld	de, #_KeyPos+0
 	ld	l, 5 (ix)
 	ld	h, #0x00
 	add	hl, de
 	ld	a, (hl)
 	ld	-7 (ix), a
-;piano.c:325: sprite(spr++, KeySprites[type][0]+169, Color[voice], 48, cc);		// sprite offset character is 169
+;piano.c:330: sprite(spr++, KeySprites[type][0]+169, Color[voice], 48, cc);		// sprite offset character is 169
 	ld	a, #<(_Color)
 	add	a, b
 	ld	-6 (ix), a
@@ -1490,7 +1490,7 @@ _drawkey::
 	inc	sp
 	pop	de
 	pop	bc
-;piano.c:326: sprite(spr++, KeySprites[type][1]+169, Color[voice], 56, cc);
+;piano.c:331: sprite(spr++, KeySprites[type][1]+169, Color[voice], 56, cc);
 	ld	l, -6 (ix)
 	ld	h, -5 (ix)
 	ld	b, (hl)
@@ -1523,7 +1523,7 @@ _drawkey::
 	inc	sp
 	pop	de
 	pop	bc
-;piano.c:327: sprite(spr++, KeySprites[type][2]+169, Color[voice], 64, cc);
+;piano.c:332: sprite(spr++, KeySprites[type][2]+169, Color[voice], 64, cc);
 	ld	l, -6 (ix)
 	ld	h, -5 (ix)
 	ld	b, (hl)
@@ -1550,14 +1550,14 @@ _drawkey::
 	pop	af
 	inc	sp
 	pop	bc
-;piano.c:325: sprite(spr++, KeySprites[type][0]+169, Color[voice], 48, cc);		// sprite offset character is 169
+;piano.c:330: sprite(spr++, KeySprites[type][0]+169, Color[voice], 48, cc);		// sprite offset character is 169
 	ld	e, c
 	inc	e
-;piano.c:328: if (type == 4) {
+;piano.c:333: if (type == 4) {
 	ld	a, -1 (ix)
 	sub	a, #0x04
 	jr	NZ, 00102$
-;piano.c:329: delsprite(spr++);
+;piano.c:334: delsprite(spr++);
 	ld	a, c
 	push	de
 	push	af
@@ -1565,14 +1565,14 @@ _drawkey::
 	call	_delsprite
 	inc	sp
 	pop	de
-;piano.c:330: delsprite(spr++);
+;piano.c:335: delsprite(spr++);
 	ld	a, e
 	push	af
 	inc	sp
 	call	_delsprite
 	jr	00104$
 00102$:
-;piano.c:332: sprite(spr++, KeySprites[type][3]+169, Color[voice], 72, cc);
+;piano.c:337: sprite(spr++, KeySprites[type][3]+169, Color[voice], 72, cc);
 	ld	l, -6 (ix)
 	ld	h, -5 (ix)
 	ld	b, (hl)
@@ -1603,7 +1603,7 @@ _drawkey::
 	pop	af
 	inc	sp
 	pop	de
-;piano.c:333: sprite(spr++, KeySprites[type][4]+169, Color[voice], 80, cc);
+;piano.c:338: sprite(spr++, KeySprites[type][4]+169, Color[voice], 80, cc);
 	ld	l, -6 (ix)
 	ld	h, -5 (ix)
 	ld	c, (hl)
@@ -1630,20 +1630,20 @@ _drawkey::
 	pop	af
 	pop	af
 00104$:
-;piano.c:335: }
+;piano.c:340: }
 	ld	sp, ix
 	pop	ix
 	ret
-;piano.c:337: int main() {
+;piano.c:342: int main() {
 ;	---------------------------------
 ; Function main
 ; ---------------------------------
 _main::
 	call	___sdcc_enter_ix
 	dec	sp
-;piano.c:341: pianoinit();
+;piano.c:346: pianoinit();
 	call	_pianoinit
-;piano.c:344: vdpmemcpy(17*32, textout, 32*4);
+;piano.c:349: vdpmemcpy(17*32, textout, 32*4);
 	ld	hl, #0x0080
 	push	hl
 	ld	hl, #_textout
@@ -1654,17 +1654,17 @@ _main::
 	pop	af
 	pop	af
 	pop	af
-;piano.c:347: firstSong = *((unsigned int*)&flags[6]);
+;piano.c:352: firstSong = *((unsigned int*)&flags[6]);
 	ld	hl, #(_flags + 0x0006)
 	ld	a, (hl)
 	ld	(_firstSong+0), a
 	inc	hl
 	ld	a, (hl)
 	ld	(_firstSong+1), a
-;piano.c:351: volatile unsigned char *pLoop = (volatile unsigned char *)&flags[13];
-;piano.c:353: do {
-00123$:
-;piano.c:354: StartSong((unsigned char*)firstSong,0);
+;piano.c:356: volatile unsigned char *pLoop = (volatile unsigned char *)&flags[13];
+;piano.c:358: do {
+00121$:
+;piano.c:359: StartSong((unsigned char*)firstSong,0);
 	ld	hl, (_firstSong)
 	xor	a, a
 	push	af
@@ -1673,35 +1673,35 @@ _main::
 	call	_StartSong
 	pop	af
 	inc	sp
-;piano.c:357: done = 0;
+;piano.c:362: done = 0;
 	ld	c, #0x00
-;piano.c:358: while (!done) {
+;piano.c:363: while (!done) {
 00116$:
 	ld	a, c
 	or	a, a
 	jp	NZ, 00118$
-;piano.c:359: done = 1;
+;piano.c:364: done = 1;
 	ld	c, #0x01
-;piano.c:360: vdpwaitvint();
+;piano.c:365: vdpwaitvint();
 	push	bc
 	call	_vdpwaitvint
 	pop	bc
-;piano.c:362: if (isSNPlaying) {
+;piano.c:367: if (isSNPlaying) {
 	ld	hl, (#(_songNote + 0x0006) + 0)
 	bit	0, l
-	jr	Z, 00143$
-;piano.c:363: CALL_PLAYER_SN;
+	jr	Z, 00141$
+;piano.c:368: CALL_PLAYER_SN;
 	call	_SongLoop
-;piano.c:364: done = 0;
+;piano.c:369: done = 0;
 	ld	c, #0x00
-;piano.c:368: for (idx_t idx=0; idx<3; idx++) {
-00143$:
+;piano.c:373: for (idx_t idx=0; idx<3; idx++) {
+00141$:
 	ld	b, #0x00
-00130$:
+00128$:
 	ld	a, b
 	sub	a, #0x03
 	jp	NC, 00112$
-;piano.c:369: if ((songVol[idx]&0x0f) < 0x0f) {
+;piano.c:374: if ((songVol[idx]&0x0f) < 0x0f) {
 	ld	de, #_songVol+0
 	ld	l, b
 	ld	h, #0x00
@@ -1718,7 +1718,7 @@ _main::
 	rra
 	sbc	a, #0x80
 	jr	NC, 00110$
-;piano.c:370: unsigned int note=songNote[idx];		// note: mangled! 0x8312 == 0x0123
+;piano.c:375: unsigned int note=songNote[idx];		// note: mangled! 0x8312 == 0x0123
 	ld	de, #_songNote+0
 	ld	a, b
 	ld	h, #0x00
@@ -1728,7 +1728,7 @@ _main::
 	ld	a, (hl)
 	inc	hl
 	ld	e, (hl)
-;piano.c:371: note=((note&0xff)<<4)|((note&0x0f00)>>8);	// unmangle
+;piano.c:376: note=((note&0xff)<<4)|((note&0x0f00)>>8);	// unmangle
 	ld	l, a
 	ld	h, #0x00
 	add	hl, hl
@@ -1745,7 +1745,7 @@ _main::
 	ld	a, d
 	or	a, h
 	ld	d, a
-;piano.c:375: while (Freqs[k] > note) k++;
+;piano.c:380: while (Freqs[k] > note) k++;
 	ld	-1 (ix), #0
 00103$:
 	ld	l, -1 (ix)
@@ -1763,40 +1763,40 @@ _main::
 	sub	a, l
 	ld	a, d
 	sbc	a, h
-	jr	NC, 00150$
+	jr	NC, 00147$
 	inc	-1 (ix)
 	jr	00103$
-00150$:
+00147$:
 	ld	d, -1 (ix)
-;piano.c:376: if (k > NUM_KEYS-1) k=NUM_KEYS-1;
+;piano.c:381: if (k > NUM_KEYS-1) k=NUM_KEYS-1;
 	ld	a, #0x44
 	sub	a, -1 (ix)
 	jr	NC, 00107$
 	ld	d, #0x44
 00107$:
-;piano.c:377: drawkey(idx, k);
+;piano.c:382: drawkey(idx, k);
 	push	bc
 	ld	e, b
 	push	de
 	call	_drawkey
 	pop	af
 	pop	bc
-	jr	00131$
+	jr	00129$
 00110$:
-;piano.c:379: idx_t spr=idx*5;
+;piano.c:384: idx_t spr=idx*5;
 	ld	a, b
 	ld	e, a
 	add	a, a
 	add	a, a
 	add	a, e
 	ld	e, a
-;piano.c:380: for (idx_t idx2=0; idx2<5; idx2++) {
+;piano.c:385: for (idx_t idx2=0; idx2<5; idx2++) {
 	ld	d, #0x00
-00127$:
+00125$:
 	ld	a, d
 	sub	a, #0x05
-	jr	NC, 00131$
-;piano.c:381: delsprite(spr+idx2);
+	jr	NC, 00129$
+;piano.c:386: delsprite(spr+idx2);
 	ld	a, e
 	add	a, d
 	push	bc
@@ -1807,21 +1807,21 @@ _main::
 	inc	sp
 	pop	de
 	pop	bc
-;piano.c:380: for (idx_t idx2=0; idx2<5; idx2++) {
+;piano.c:385: for (idx_t idx2=0; idx2<5; idx2++) {
 	inc	d
-	jr	00127$
-00131$:
-;piano.c:368: for (idx_t idx=0; idx<3; idx++) {
+	jr	00125$
+00129$:
+;piano.c:373: for (idx_t idx=0; idx<3; idx++) {
 	inc	b
-	jp	00130$
+	jp	00128$
 00112$:
-;piano.c:388: idx_t nVol = songVol[3]&0x0f;
+;piano.c:393: idx_t nVol = songVol[3]&0x0f;
 	ld	a, (#(_songVol + 0x0003) + 0)
 	and	a, #0x0f
-;piano.c:389: if (nVol == 0x0f) {
+;piano.c:394: if (nVol == 0x0f) {
 	sub	a, #0x0f
 	jr	NZ, 00114$
-;piano.c:391: vdpchar(gSprite+15*4+3, 0x00);
+;piano.c:396: vdpchar(gSprite+15*4+3, 0x00);
 	ld	hl, (_gSprite)
 	ld	de, #0x003f
 	add	hl, de
@@ -1836,14 +1836,14 @@ _main::
 	pop	bc
 	jp	00116$
 00114$:
-;piano.c:394: idx_t note=(songNote[3]&0x0f00)>>8;
+;piano.c:399: idx_t note=(songNote[3]&0x0f00)>>8;
 	ld	hl, (#(_songNote + 0x0006) + 0)
 	ld	a, h
 	and	a, #0x0f
 	ld	b, #0x00
-;piano.c:395: note+=181;	// start at character '1', not 0 (which is 180)
+;piano.c:400: note+=181;	// start at character '1', not 0 (which is 180)
 	add	a, #0xb5
-;piano.c:396: sprite(15, note, COLOR_MEDRED, 32, 232);
+;piano.c:401: sprite(15, note, COLOR_MEDRED, 32, 232);
 	push	bc
 	ld	h, #0xe8
 	push	hl
@@ -1864,37 +1864,27 @@ _main::
 	pop	bc
 	jp	00116$
 00118$:
-;piano.c:402: SOUND=0x9F;
+;piano.c:407: SOUND=0x9F;
 	ld	a, #0x9f
 	out	(_SOUND), a
-;piano.c:403: SOUND=0xBF;
+;piano.c:408: SOUND=0xBF;
 	ld	a, #0xbf
 	out	(_SOUND), a
-;piano.c:404: SOUND=0xDF;
+;piano.c:409: SOUND=0xDF;
 	ld	a, #0xdf
 	out	(_SOUND), a
-;piano.c:405: SOUND=0xFF;
+;piano.c:410: SOUND=0xFF;
 	ld	a, #0xff
 	out	(_SOUND), a
-;piano.c:409: chain = (unsigned int *)(*((volatile unsigned int*)(&flags[14])));
-	ld	bc, (#(_flags + 0x000e) + 0)
-	ld	l, c
-;piano.c:410: if (chain) {
-	ld	a,b
-	ld	h,a
-	or	a, c
-	jr	Z, 00124$
-;piano.c:412: unsigned int chained = *chain;
-	ld	e, (hl)
-	inc	hl
-	ld	d, (hl)
-	ld	c, e
-;piano.c:413: if (chained) {
-	ld	a,d
+;piano.c:414: chain = (unsigned int)(*((volatile unsigned int*)(&flags[14])));
+	ld	hl, (#(_flags + 0x000e) + 0)
+	ld	c, l
+;piano.c:416: if (chain) {
+	ld	a,h
 	ld	b,a
-	or	a, e
-	jr	Z, 00124$
-;piano.c:422: memcpy((void*)0x7000, tramp, sizeof(tramp));   // this will trounce variables but we don't need them anymore
+	or	a, l
+	jr	Z, 00122$
+;piano.c:425: memcpy((void*)0x7000, tramp, sizeof(tramp));   // this will trounce variables but we don't need them anymore
 	push	bc
 	ld	hl, #0x0006
 	push	hl
@@ -1907,20 +1897,20 @@ _main::
 	pop	af
 	pop	af
 	pop	bc
-;piano.c:423: *((unsigned int*)0x7001) = chained;     // patch the pointer, chained should be on the stack
+;piano.c:426: *((unsigned int*)0x7001) = chain;     // patch the pointer, chained should be on the stack
 	ld	(0x7001), bc
-;piano.c:424: ((void(*)())0x7000)();                  // call the function, never return
+;piano.c:427: ((void(*)())0x7000)();                  // call the function, never return
 	call	0x7000
-00124$:
-;piano.c:429: } while (*pLoop);
+00122$:
+;piano.c:431: } while (*pLoop);
 	ld	a, (#(_flags + 0x000d) + 0)
 	or	a, a
-	jp	NZ, 00123$
-;piano.c:440: __endasm;
+	jp	NZ, 00121$
+;piano.c:442: __endasm;
 	rst	0x00
-;piano.c:444: return 2;
+;piano.c:446: return 2;
 	ld	hl, #0x0002
-;piano.c:445: }
+;piano.c:447: }
 	inc	sp
 	pop	ix
 	ret

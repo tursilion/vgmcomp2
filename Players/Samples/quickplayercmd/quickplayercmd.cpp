@@ -36,6 +36,12 @@ int sidctl[3] = { 0x40, 0x40, 0x40 };   // SID control bytes for TI player
 char text[24][33];                      // lines of text for centering
 char rawtext[768+2*32+1];               // room for line endings, regardless of type
 
+// remember the text block info so we can fill it in at the end
+unsigned int text_offset;
+unsigned int text_rows;
+unsigned int song_loop_offset;
+unsigned int row_byte_offset;
+
 enum players {
 	QUICKPLAYER,
 	BALLS,
@@ -95,13 +101,15 @@ int main(int argc, char *argv[])
         printf("-sid - specify file for SID chip - no SID is played if blank. Valid on TI only. Requires sidctl.\n");
         printf("-ay - specify file for AY chip - no AY is played if blank. Valid on Coleco only.\n");
         printf("-sidctl - set SID control registers - 0x80 for noise, 0x40 for pulse, 0x20 for sawtooth, 0x10 for triangle. All three voices will be pulse if not specified. Other values may cause unintended effects.\n");
-        printf("-text - text file to display - maximum line length is 32 characters, and maximum 24 lines. Blank screen is displayed if absent.\n");
+        printf("-text - text file to display - maximum line length is 32 characters, line count varies per viz.\n");
+        printf("-filename - use the filename as the text entry.\n");
         return 1;
     }
 
     // check arguments
     int arg = 1;
 	int playerNum = QUICKPLAYER;
+	const char *filenameTxt = NULL;
     while (argv[arg][0] == '-') {
         if (0 == strcmp(argv[arg], "-ti")) {
             isTIMode = true;
@@ -141,6 +149,8 @@ int main(int argc, char *argv[])
 			}
         } else if (0 == strcmp(argv[arg], "-loop")) {
             loop = true;
+        } else if (0 == strcmp(argv[arg], "-filename")) {
+            filenameTxt = argv[arg];
         } else if (0 == strcmp(argv[arg], "-sn")) {
             ++arg;
             if (arg+1>=argc) {
@@ -203,6 +213,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+	// if we have -filename, replace it with the correct data
+	if (NULL != filenameTxt) {
+		filenameTxt = argv[arg];
+	}
+
     // much of the rest of this is a straight port of the Windows version...
 
     // offset inside of song[]
@@ -230,6 +245,21 @@ int main(int argc, char *argv[])
 	    if (songsize&1) songsize++;		// pad to word size (can't overflow cause odd->even)
         offset = songsize;
     }
+
+	// set up the offsets before we start patching
+	if (isTIMode) {
+		// The TI build stuffs the address of SongLoop at offset 0xb8 (after all headers).
+		song_loop_offset = 0xb8;
+		// offset of a single byte to patch for number of rows of text
+		// this is part of the LIMI instruction data on the TI Build!!
+		row_byte_offset = 0x02+128+6;	// TIFILES and EA5 headers
+	} else {
+		// The Coleco build stuffs the address of SongLoop at offset 0x28.
+		song_loop_offset = 0x28;
+		// offset of a single byte to patch for number of rows of text
+		// first byte of the unused version data on Coleco
+		row_byte_offset = 0x24;
+	}
 
 	// check limitations and load pointer to program
 	// rather than rely on removing the const, we'll just copy
@@ -260,7 +290,7 @@ int main(int argc, char *argv[])
 				// The TI build stuffs the address of SongLoop at offset 0xb8.
 				// From there, search the first 50 words for 0x8400, and
 				// change it to 0x0000 to mute the player library (only one instance)
-				int pSrch = program[0xb8]*256+program[0xb9];	// big endian
+				int pSrch = program[song_loop_offset]*256+program[song_loop_offset+1];	// big endian
 				pSrch -= 0x2000;						// from address to offset
 				while ((pSrch < 0x8191)&&((program[pSrch] != 0x84)||(program[pSrch+1]!=0x00))) pSrch+=2;	// must be even!
 				if (pSrch < 8191) {
@@ -278,7 +308,7 @@ int main(int argc, char *argv[])
 				// The Coleco build stuffs the address of SongLoop at offset 0x28.
 				// From there, search and change the first 8 instances of 0xD3,0xFF
 				// to 00,00 to mute the player library.
-				int pSrch = program[0x28]+program[0x29]*256;	// little endian
+				int pSrch = program[song_loop_offset]+program[song_loop_offset+1]*256;	// little endian
 				pSrch -= 0x8000;						// from address to offset
 				int cnt = 0;
 				for (int idx=0; idx<8; idx++) {
@@ -388,11 +418,17 @@ int main(int argc, char *argv[])
     }
 
     memset(text, 0, sizeof(text));
-    if (NULL != textPath) {
+    if ((NULL != textPath)||(NULL != filenameTxt)) {
         memset(rawtext, '\0', sizeof(rawtext));
-        fp = fopen(textPath, "r");
-        fread(rawtext, 1, sizeof(rawtext)-1, fp);
-        fclose(fp);
+
+		if (NULL != textPath) {
+	        fp = fopen(textPath, "r");
+		    fread(rawtext, 1, sizeof(rawtext)-1, fp);
+			fclose(fp);
+		} else {
+			strcpy(rawtext, filenameTxt);
+			strcat(rawtext, "\n");
+		}
 	
         // this code will limit to 24 lines and 32 chars per line without warning
         char *pwork = rawtext;
@@ -428,6 +464,8 @@ int main(int argc, char *argv[])
 		if (0 == memcmp(p, "~~~~DATAHERE~~~~", 12)) break;
 		p++;
 	}
+	text_offset = p-program-128-6;	// we need the offset without any headers
+
 	if (idx>=progsize) {
 		printf("Internal error - can't find text buffer. Failing.\n");
 		return 1;
@@ -435,6 +473,7 @@ int main(int argc, char *argv[])
     if (maxrows == 0) {
         maxrows = atoi((char*)p+16);
         if (maxrows > 24) maxrows = 24;
+		text_rows = maxrows;
     }
 
     for (int idx=0; idx<maxrows; idx++) {
@@ -490,7 +529,7 @@ int main(int argc, char *argv[])
     offset+=0xa000;
 
     if (isTIMode) {
-        if (snPath != NULL) {
+        if (sidPath != NULL) {
             // big endian 9900
             p[8] = offset/256;
             p[9] = offset%256;
@@ -524,6 +563,19 @@ int main(int argc, char *argv[])
 	// chain address is never set here - that's for external programs to set
 	p[14] = 0;
 	p[15] = 0;
+
+	// now patch in the text information
+	if (isTIMode) {
+		// big endian
+		program[song_loop_offset] = text_offset>>8;
+		program[song_loop_offset+1] = text_offset&0xff;
+	} else {
+		// little endian
+		program[song_loop_offset] = text_offset&0xff;
+		program[song_loop_offset+1] = text_offset>>8;
+	}
+	program[row_byte_offset] = text_rows;
+
 	// now dump it
 	char outName[2048];
 	strcpy(outName, argv[arg]);

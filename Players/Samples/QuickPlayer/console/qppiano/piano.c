@@ -63,7 +63,12 @@ const unsigned char tramp[] = {
 // This structure is the same in all player programs.
 // This one doesn't need to be volatile because we make
 // no decisions based on its contents
+#ifdef BUILD_TI99
+const unsigned char __attribute__((aligned (2))) textout[4*32] = {
+#endif
+#ifdef BUILD_COLECO
 const unsigned char textout[4*32] = {
+#endif
     "~~~~DATAHERE~~~~4\0"		// allow only 4 lines of text
 };
 
@@ -72,7 +77,7 @@ const unsigned char textout[4*32] = {
 // 08: two bytes for SID or AY music (can be 0)
 // 0A: three bytes of SID flags
 // 0D: one byte of loop
-// 0E: two bytes of pointer to a memory address for chaining
+// 0E: two bytes of pointer to a cartridge page for chaining
 // This struct must exist in all player programs
 // The older player doesn't have a ~~FLAG section, it's part of ~~~~DATAHERE~~~~,
 // so if you can't find ~~FLAG then you don't have chaining.
@@ -336,7 +341,7 @@ void drawkey(idx_t voice, idx_t key) {
 
 int main() {
     unsigned char done;
-    unsigned int *chain;
+    unsigned int chain;
 
 	pianoinit();
 
@@ -406,24 +411,21 @@ int main() {
 
         // loop, chain, or reset if it is finished
         // chain is normally set by a loader and takes priority
-        chain = (unsigned int *)(*((volatile unsigned int*)(&flags[14])));
+        chain = (unsigned int)(*((volatile unsigned int*)(&flags[14])));
+        // look up the value to chain to
         if (chain) {
-            // look up the value to chain to
-            unsigned int chained = *chain;
-            if (chained) {
-                // need to trampoline to the specified cartridge page
-                // TI and Coleco each have different code and targets
-    #ifdef BUILD_TI99
-                memcpy((void*)0x8320, tramp, sizeof(tramp));   // 0x8320 so we don't overwrite the C registers
-                *((unsigned int*)0x8322) = chained;     // patch the pointer
-                ((void(*)())0x8320)();                  // call the function, never return
-    #endif
-    #ifdef BUILD_COLECO
-                memcpy((void*)0x7000, tramp, sizeof(tramp));   // this will trounce variables but we don't need them anymore
-                *((unsigned int*)0x7001) = chained;     // patch the pointer, chained should be on the stack
-                ((void(*)())0x7000)();                  // call the function, never return
-    #endif
-            }
+            // need to trampoline to the specified cartridge page
+            // TI and Coleco each have different code and targets
+#ifdef BUILD_TI99
+            memcpy((void*)0x8320, tramp, sizeof(tramp));   // 0x8320 so we don't overwrite the C registers
+            *((unsigned int*)0x8322) = chain;     // patch the pointer
+            ((void(*)())0x8320)();                  // call the function, never return
+#endif
+#ifdef BUILD_COLECO
+            memcpy((void*)0x7000, tramp, sizeof(tramp));   // this will trounce variables but we don't need them anymore
+            *((unsigned int*)0x7001) = chain;     // patch the pointer, chained should be on the stack
+            ((void(*)())0x7000)();                  // call the function, never return
+#endif
         }
 
     } while (*pLoop);

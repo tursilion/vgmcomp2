@@ -24,6 +24,11 @@
 
 // used for the build code
 char song[24*1024];
+// remember the text block info so we can fill it in at the end
+unsigned int text_offset;
+unsigned int text_rows;
+unsigned int song_loop_offset;
+unsigned int row_byte_offset;
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -271,6 +276,21 @@ void CQuickPlayerDlg::OnBnClickedButton2()
         offset = songsize;
     }
 
+	// set up the offsets before we start patching
+	if (isTIMode) {
+		// The TI build stuffs the address of SongLoop at offset 0xb8.
+		song_loop_offset = 0xb8;
+		// offset of a single byte to patch for number of rows of text
+		// this is part of the LIMI instruction data on the TI Build!!
+		row_byte_offset = 0x02;
+	} else {
+		// The Coleco build stuffs the address of SongLoop at offset 0x28.
+		song_loop_offset = 0x28;
+		// offset of a single byte to patch for number of rows of text
+		// first byte of the unused version data on Coleco
+		row_byte_offset = 0x24;
+	}
+
 	playerNum = SendDlgItemMessage(IDC_COMBO1, CB_GETCURSEL, 0, 0);
 	if (playerNum < 0) {
 		AfxMessageBox("Please select a player");
@@ -305,7 +325,7 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 				// The TI build stuffs the address of SongLoop at offset 0xb8.
 				// From there, search the first 50 words for 0x8400, and
 				// change it to 0x0000 to mute the player library (only one instance)
-				int pSrch = program[0xb8]*256+program[0xb9];	// big endian
+				int pSrch = program[song_loop_offset]*256+program[song_loop_offset+1];	// big endian
 				pSrch -= 0x2000;						// from address to offset
 				while ((pSrch < 0x8191)&&((program[pSrch] != 0x84)||(program[pSrch+1]!=0x00))) pSrch+=2;	// must be even!
 				if (pSrch < 8191) {
@@ -323,7 +343,7 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 				// The Coleco build stuffs the address of SongLoop at offset 0x28.
 				// From there, search and change the first 8 instances of 0xD3,0xFF
 				// to 00,00 to mute the player library.
-				int pSrch = program[0x28]+program[0x29]*256;	// little endian
+				int pSrch = program[song_loop_offset]+program[song_loop_offset+1]*256;	// little endian
 				pSrch -= 0x8000;						// from address to offset
 				int cnt = 0;
 				for (int idx=0; idx<8; idx++) {
@@ -438,7 +458,7 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 		return;
 	}
 	pTxt->GetWindowText(rawtext);
-	
+
 	for (idx=0; idx<24; idx++) {
 		int pos=rawtext.Find("\r\n");
 		if (-1 == pos) break;
@@ -474,6 +494,8 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 		if (0 == memcmp(p, "~~~~DATAHERE~~~~", 12)) break;
 		p++;
 	}
+	text_offset = p-program-128-6;	// we need the offset without any headers
+
 	if (idx>=progsize) {
 		AfxMessageBox("Internal error - can't find text buffer. Failing.");
 		return;
@@ -481,6 +503,7 @@ void CQuickPlayerDlg::OnBnClickedButton2()
     if (maxrows == 0) {
         maxrows = atoi((char*)p+16);
         if (maxrows > 24) maxrows = 24;
+		text_rows = maxrows;
     }
 	
 	for (idx=0; idx<maxrows; idx++) {
@@ -567,6 +590,18 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 	// chain address is never set here - that's for external programs to set
 	p[14] = 0;
 	p[15] = 0;
+
+	// now patch in the text information
+	if (isTIMode) {
+		// big endian
+		program[song_loop_offset] = text_offset>>8;
+		program[song_loop_offset+1] = text_offset&0xff;
+	} else {
+		// little endian
+		program[song_loop_offset] = text_offset&0xff;
+		program[song_loop_offset+1] = text_offset>>8;
+	}
+	program[row_byte_offset] = text_rows;
 
 	CFileDialog dlg(FALSE);
 	if (IDOK == dlg.DoModal()) {
