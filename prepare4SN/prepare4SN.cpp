@@ -32,7 +32,7 @@ inline int ABS(int x) {
     else return x;
 }
 
-// input: 8 bit unsigned audio (centers on 128)
+// input: 8 bit unsigned audio (0-mute, 255-max)
 // output: 15 (silent) to 0 (max)
 int mapVolume(int nTmp) {
 	int nBest = -1;

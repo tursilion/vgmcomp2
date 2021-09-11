@@ -312,6 +312,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sample", "sample", "{C4B08B
 		Players\ti_xb\XBSample\xbload.txt = Players\ti_xb\XBSample\xbload.txt
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "psg2soundlist", "psg2soundlist\psg2soundlist.vcxproj", "{6EDEE156-D771-4243-811C-83DF6C109F0C}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "soundlist2psg", "soundlist2psg\soundlist2psg.vcxproj", "{D8027363-83DB-4042-80EB-9407CD094B99}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -676,6 +680,22 @@ Global
 		{32AFABAE-221F-4204-B2AC-8C30FEF8BA3A}.Release|Win32.Build.0 = Release|Win32
 		{32AFABAE-221F-4204-B2AC-8C30FEF8BA3A}.Release|x64.ActiveCfg = Release|x64
 		{32AFABAE-221F-4204-B2AC-8C30FEF8BA3A}.Release|x64.Build.0 = Release|x64
+		{6EDEE156-D771-4243-811C-83DF6C109F0C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{6EDEE156-D771-4243-811C-83DF6C109F0C}.Debug|Win32.Build.0 = Debug|Win32
+		{6EDEE156-D771-4243-811C-83DF6C109F0C}.Debug|x64.ActiveCfg = Debug|x64
+		{6EDEE156-D771-4243-811C-83DF6C109F0C}.Debug|x64.Build.0 = Debug|x64
+		{6EDEE156-D771-4243-811C-83DF6C109F0C}.Release|Win32.ActiveCfg = Release|Win32
+		{6EDEE156-D771-4243-811C-83DF6C109F0C}.Release|Win32.Build.0 = Release|Win32
+		{6EDEE156-D771-4243-811C-83DF6C109F0C}.Release|x64.ActiveCfg = Release|x64
+		{6EDEE156-D771-4243-811C-83DF6C109F0C}.Release|x64.Build.0 = Release|x64
+		{D8027363-83DB-4042-80EB-9407CD094B99}.Debug|Win32.ActiveCfg = Debug|Win32
+		{D8027363-83DB-4042-80EB-9407CD094B99}.Debug|Win32.Build.0 = Debug|Win32
+		{D8027363-83DB-4042-80EB-9407CD094B99}.Debug|x64.ActiveCfg = Debug|x64
+		{D8027363-83DB-4042-80EB-9407CD094B99}.Debug|x64.Build.0 = Debug|x64
+		{D8027363-83DB-4042-80EB-9407CD094B99}.Release|Win32.ActiveCfg = Release|Win32
+		{D8027363-83DB-4042-80EB-9407CD094B99}.Release|Win32.Build.0 = Release|Win32
+		{D8027363-83DB-4042-80EB-9407CD094B99}.Release|x64.ActiveCfg = Release|x64
+		{D8027363-83DB-4042-80EB-9407CD094B99}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -741,6 +761,8 @@ Global
 		{7A95369F-E8EF-425C-A008-8D8F7D2CB3FB} = {2A023C95-5B26-4C4C-838E-77468DD1C9D4}
 		{BE728A16-4E04-47DE-9878-FFBF84EA3756} = {B7957B0D-3AB6-4B22-A224-45ECD0E4C2C3}
 		{C4B08B58-3BFA-4E0A-AEFF-D677A60069CC} = {7A95369F-E8EF-425C-A008-8D8F7D2CB3FB}
+		{6EDEE156-D771-4243-811C-83DF6C109F0C} = {C61D286B-17D5-4238-AB62-DF4DF9865169}
+		{D8027363-83DB-4042-80EB-9407CD094B99} = {C61D286B-17D5-4238-AB62-DF4DF9865169}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

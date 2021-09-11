@@ -1,5 +1,6 @@
-// psg2vgm.cpp : This program reads in the PSG data files and writes out a VGM
-// so you can hear what it currently sounds like.
+// psg2soundlist.cpp : This program reads in the PSG data files and writes out a
+// binary sound list for the TI player ROM.
+// There's no good reason for this save perhaps comparing filesize.
 
 // we take all the same inputs as testPlayer, but you must have no more
 // than 3 tone channels and 1 noise channel.
@@ -21,14 +22,14 @@ int VGMVOL[MAXCHANNELS][MAXTICKS];
 bool isNoise[MAXCHANNELS];
 
 char NoteTable[4096][4];                    // note names - we'll just lookup the whole range
-bool testay = false;
-bool testpsg = false;
 
 #define NOISE_MASK     0x00FFF
 #define NOISE_TRIGGER  0x10000
 #define NOISE_PERIODIC 0x20000
 
-// lookup table to map PSG volume to linear 8-bit. AY is assumed close enough.
+bool verbose = false;
+
+// lookup table to map PSG volume to linear 8-bit. 
 // mapVolume assumes the order of this table for mute suppression
 unsigned char volumeTable[16] = {
 	254,202,160,128,100,80,64,
@@ -54,7 +55,13 @@ struct STREAM {
 #define TYPEINLINE 0x00
 #define TYPEINLINE2 0x20
 
-// input: 8 bit unsigned audio (centers on 128)
+// return absolute value
+inline int ABS(int x) {
+    if (x<0) return -x;
+    else return x;
+}
+
+// input: 8 bit unsigned audio (0-mute, 255-max)
 // output: 15 (silent) to 0 (max)
 int mapVolume(int nTmp) {
 	int nBest = -1;
@@ -75,6 +82,17 @@ int mapVolume(int nTmp) {
 	// return the index of the best match
 	return nBest;
 }
+
+// return true if the channel is muted (by frequency or by volume)
+// We cut off at a frequency count of 7, which is roughly 16khz.
+// The volume table at this point has been adjusted to the TI volume values
+bool muted(int ch, int row) {
+    if ((VGMDAT[ch][row] <= 7) || (VGMVOL[ch][row] == 0xf)) {
+        return true;
+    }
+    return false;
+}
+
 
 // pass in file pointer (will be reset), channel index, last row count, first input column (from 0), and true if noise
 // set scalevol to true to scale PSG volumes back to 8-bit linear
@@ -105,12 +123,7 @@ bool loadDataCSV(FILE *fp, int &chan, int &cnt, int column, bool noise, bool sca
             }
             VGMDAT[chan][cnt] = in[column];
             if (scalevol) {
-                if (testay) {
-                    // ay volume levels are inverted from sn
-                    VGMVOL[chan][cnt] = volumeTable[15-(in[column+1]&0x0f)];
-                } else {
-                    VGMVOL[chan][cnt] = volumeTable[in[column+1]&0x0f]; 
-                }
+                VGMVOL[chan][cnt] = volumeTable[in[column+1]&0x0f]; 
             } else {
                 VGMVOL[chan][cnt] = in[column+1];
             }
@@ -119,34 +132,17 @@ bool loadDataCSV(FILE *fp, int &chan, int &cnt, int column, bool noise, bool sca
                 VGMDAT[chan][cnt] &= NOISE_MASK|NOISE_TRIGGER|NOISE_PERIODIC;    // limit input
                 VGMVOL[chan][cnt] &= 0xff;
                 if (scalevol) {
-                    if (!testay) {
-                        // the noise needs to be converted back to a shift rate too
-                        int mask = VGMDAT[chan][cnt] & NOISE_TRIGGER;
-                        int periodic = (VGMDAT[chan][cnt] & 0x4) == 0;
-                        int type = VGMDAT[chan][cnt] & 3;
-                        switch (type) {
-                            case 0: type = 0x10; break;
-                            case 1: type = 0x20; break;
-                            case 2: type = 0x40; break;
-                            case 3: if (chan > 0) {type = VGMDAT[chan-1][cnt]&0x3ff;} break;  // works if you aren't being weird
-                        }
-                        VGMDAT[chan][cnt] = mask | (periodic?NOISE_PERIODIC:0) | type;
-                    } else {
-                        // shift rate is fine, but the volume needs to be converted
-                        // this relies on noise being loaded last, and it may alter
-                        // the channel before it... but I think it should be safe
-                        int mute = in[column+1]&0x0f;
-                        VGMVOL[chan][cnt] = 0;
-                        if (chan >= 3) {
-                            if ((mute&0x08)==0) VGMVOL[chan][cnt] = VGMVOL[chan-1][cnt];    // channel C
-                            if ((mute&0x04)==0) VGMVOL[chan][cnt] = VGMVOL[chan-2][cnt];    // channel B
-                            if ((mute&0x02)==0) VGMVOL[chan][cnt] = VGMVOL[chan-3][cnt];    // channel A
-                            if (mute&0x01) VGMDAT[chan-1][cnt] = 1;                         // mute tone
-                        } else {
-                            printf("Noise channel in PSG file must be loaded after the three tone channels\n");
-                            return false;
-                        }
+                    // the noise needs to be converted back to a shift rate too
+                    int mask = VGMDAT[chan][cnt] & NOISE_TRIGGER;
+                    int periodic = (VGMDAT[chan][cnt] & 0x4) == 0;
+                    int type = VGMDAT[chan][cnt] & 3;
+                    switch (type) {
+                        case 0: type = 0x10; break;
+                        case 1: type = 0x20; break;
+                        case 2: type = 0x40; break;
+                        case 3: if (chan > 0) {type = VGMDAT[chan-1][cnt]&0x3ff;} break;  // works if you aren't being weird
                     }
+                    VGMDAT[chan][cnt] = mask | (periodic?NOISE_PERIODIC:0) | type;
                 }
             } else {
                 VGMDAT[chan][cnt] &= NOISE_MASK;    // limit input
@@ -288,12 +284,7 @@ int getCompressedByte(STREAM *str, unsigned char *buf, int cnt, int maxbytes) {
 }
 
 int tonetable(unsigned char *buf, int toneoffset, int y) {
-    if (testay) {
-        return buf[toneoffset+y*2] + (buf[toneoffset+y*2+1]&0xf)*256;
-    } else {
-        // must be PSG
-        return (buf[toneoffset+y*2]&0xf) + buf[toneoffset+y*2+1]*16;
-    }
+    return (buf[toneoffset+y*2]&0xf) + buf[toneoffset+y*2+1]*16;
 }
 
 
@@ -419,21 +410,16 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
                         if (strDat[3].mainPtr) {
                             int y = getCompressedByte(&strDat[3], buf, cnt, maxbytes);
                             if (strDat[3].mainPtr) {
-                                if (testay) {
-                                    // AY - frequency is frequency
-                                    curFreq[3] = y;
-                                } else {
-                                    // PSG - map command to frequency
-                                    customNoise = false;
-                                    switch (y&0x03) {
-                                    case 0: curFreq[3]=0x10; break;
-                                    case 1: curFreq[3]=0x20; break;
-                                    case 2: curFreq[3]=0x40; break;
-                                    case 3: curFreq[3]=curFreq[2]; customNoise = true; break;
-                                    }
-                                    if (0==(y&0x04)) curFreq[3] |= NOISE_PERIODIC;
-                                    curFreq[3] |= NOISE_TRIGGER;
+                                // PSG - map command to frequency
+                                customNoise = false;
+                                switch (y&0x03) {
+                                case 0: curFreq[3]=0x10; break;
+                                case 1: curFreq[3]=0x20; break;
+                                case 2: curFreq[3]=0x40; break;
+                                case 3: curFreq[3]=curFreq[2]; customNoise = true; break;
                                 }
+                                if (0==(y&0x04)) curFreq[3] |= NOISE_PERIODIC;
+                                curFreq[3] |= NOISE_TRIGGER;
                             }
                         }
                     }
@@ -484,164 +470,139 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
     return true;
 }
 
-void updateVolume(int chan, int cnt) {
-    // verifying the volume while it's 8-bit linear is a bit much, so instead
-    // we'll reproduce the mapping step that prepare would do, and so lock
-    // the volume into it's final values for better playback
-    // We'll only output if we make any changes
-    bool debug = false;
+// at this point, assume 4 channels, and prepare for SN output
+void devolveData(int row, int chanLookup[3], int noiseLookup) {
+    // pass through each imported row. We have three tasks to do:
+    // 1) resample the volume to the appropriate logarithmic value
+    // 2) Clip any bass notes with a greater shift than 0x3ff
+    // 3) handle the noise channel - setting either a fixed shift rate or adapting with voice 3, if free
+    int customNoises = 0;
+    int noisesMapped = 0;
+    int tonesMoved = 0;
+    int tonesClipped = 0;
 
-    for (int row=0; row<cnt; ++row) {
-        for (int ch=0; ch<chan; ++ch) {
-            int mappedvol = mapVolume(VGMVOL[ch][row]);
-            int newvol = volumeTable[mappedvol];
-            if (newvol != VGMVOL[ch][row]) {
-                if (!debug) {
-                    debug=true;
-                    printf("Mapping volume to chip's range...\n");
+    // to improve compression, pre-process the channel, and any volume muted channels,
+    // make sure they are the same frequency as the channel above them
+    int mutemaps = 0;
+    for (int idx=1; idx<row; ++idx) {   // start at 1
+        for (int chi=0; chi<4; ++chi) {
+            int ch;
+            if (chi==3) ch = noiseLookup; else ch = chanLookup[chi];
+            if (VGMVOL[ch][idx] == 0) {   // NOT converted yet
+                if (VGMDAT[ch][idx-1] != VGMDAT[ch][idx]) {
+                    ++mutemaps;
+                    VGMDAT[ch][idx] = VGMDAT[ch][idx-1];
                 }
-                VGMVOL[ch][row] = newvol;
             }
         }
     }
-}
 
-bool testAYData(int chan, int cnt) {
-    // must be 4 channels or less, must be only 1 noise channel,
-    // must be within frequency ranges and noise volume must
-    // exactly match one of the tone channels
-    if (chan > 4) {
-        printf("Too many channels for AY8910 (%d channels found)\n", chan);
-        return false;
-    }
+    for (int idx = 0; idx<row; ++idx) {
+        // the volume is easy
+        for (int chi = 0; chi < 4; ++chi) {
+            int ch;
+            if (chi==3) ch = noiseLookup; else ch = chanLookup[chi];
+            VGMVOL[ch][idx] = mapVolume(VGMVOL[ch][idx]);
+        }
 
-    int x = 0;
-    for (int idx=0; idx<chan; ++idx) {
-        if (!isNoise[idx]) ++x;
-    }
-    if (x > 3) {
-        printf("Too many tone channels for AY8910 (%d tone channels found)\n", x);
-        return false;
-    }
+        // the clipping is simple enough too - we also clip the noise channel
+        for (int chi = 0; chi < 4; ++chi) {
+            int ch;
+            if (chi==3) ch = noiseLookup; else ch = chanLookup[chi];
+            if ((VGMDAT[ch][idx]&NOISE_MASK) > 0x3ff) {
+                VGMDAT[ch][idx] = (VGMDAT[ch][idx] & (~NOISE_MASK)) | 0x3ff;
+                ++tonesClipped;
+            }
+        }
 
-    x = 0;
-    for (int idx=0; idx<chan; ++idx) {
-        if (isNoise[idx]) ++x;
-    }
-    if (x > 1) {
-        printf("Too many noise channels for AY8910 (%d noise channels found)\n", x);
-        return false;
-    }
+        // now we try to map the noise. Three phases:
+        // 1) Shift rate matches fixed value - just map directly
+        // 2) Channel 3 is free (or can be moved) - apply to channel 3
+        // 3) Map to nearest fixed shift rate
+        // Remember to watch for the periodic flag and keep the trigger flag
+        int noiseShift = VGMDAT[3][idx] & NOISE_MASK;
+        bool bPeriodic = (VGMDAT[3][idx] & NOISE_PERIODIC) ? true : false;
+        bool bTrigger = (VGMDAT[3][idx] & NOISE_TRIGGER) ? true : false;
+        int out = -1;
 
-    // test the song itself
-    for (int row=0; row<cnt; ++row) {
-        for (int ch=0; ch<chan; ++ch) {
-            if (isNoise[ch]) {
-                // noise frequency must be 0x00-0x1f and volume must match a tone channel's
-                if ((VGMDAT[ch][row] < 0) || ((VGMDAT[ch][row]&NOISE_MASK) > 0x1f)) {
-                    printf("Noise frequency out of range for AY on row %d - got 0x%02X\n", row, VGMDAT[ch][row]);
-                    return false;
-                }
-                bool match = false;
-                if (VGMVOL[ch][row] == 0) {
-                    // mute is always okay
-                    match = true;
-                } else {
-                    for (int c2=0; c2<chan; ++c2) {
-                        if (c2 == ch) continue;
-                        if (VGMVOL[c2][row] == VGMVOL[ch][row]) {
-                            match=true;
-                            break;
+        if (VGMVOL[noiseLookup][idx] == 0xf) {
+            // we're muted, nothing to be mapped - save last note
+            if (idx == 0) {
+                out = 1;    // match the tones for default output (this is shift rate 32)
+            } else {
+                out = VGMDAT[noiseLookup][idx-1]&0x03;    // take just the noise shift, we add trigger and periodic below
+            }
+        } else {
+            // check for a fixed shift rate
+            if (noiseShift == 16) {
+                out = 0;
+            } else if (noiseShift == 32) {
+                out = 1;
+            } else if (noiseShift == 64) {
+                out = 2;
+            }
+
+            if (-1 == out) {
+                // it wasn't fixed, so can we just copy it over into channel 2?
+                if ((muted(chanLookup[2], idx))||(muted(chanLookup[1], idx))||(muted(chanLookup[0], idx))) {
+                    // at least one of them are muted
+                    if (!muted(chanLookup[2],idx)) {
+                        // we need to move channel 2
+                        if (muted(chanLookup[1],idx)) {
+                            VGMDAT[chanLookup[1]][idx] = VGMDAT[chanLookup[2]][idx];    // move 2->1
+                            VGMVOL[chanLookup[1]][idx] = VGMVOL[chanLookup[2]][idx];
+                            ++tonesMoved;
+                        } else if (muted(chanLookup[0],idx)) {
+                            // this must be true, otherwise something weird happened
+                            VGMDAT[chanLookup[0]][idx] = VGMDAT[chanLookup[2]][idx];    // move 2->0
+                            VGMVOL[chanLookup[0]][idx] = VGMVOL[chanLookup[2]][idx];
+                            ++tonesMoved;
+                        } else {
+                            printf("Internal consistency error at row %d\n", idx);
+                            return;
                         }
+                    } else {
+                        ++customNoises;
                     }
-                }
-                if (!match) {
-                    printf("Noise volume has no matching channel for AY on row %d. Noise volume 0x%X, Tones", row, VGMVOL[ch][row]);
-                    for (int c2=0; c2<chan; ++c2) {
-                        if (c2 == ch) continue;
-                        printf(" 0x%X", VGMVOL[c2][row]);
-                    }
-                    printf("\n");
-                    return false;
-                }
-            } else {
-                // tone frequency must be 0x000-0xFFF. We don't do any volume tests, as at this step the full 8-bit range is legal.
-                if ((VGMDAT[ch][row] < 0) || (VGMDAT[ch][row] > 0xfff)) {
-                    printf("Tone frequency out of range for AY (0-0xfff) on row %d - got 0x%03X\n", row, VGMDAT[ch][row]);
-                    return false;
+                    // channel 2 is ready to use, overwrite it
+                    VGMDAT[chanLookup[2]][idx] = VGMDAT[noiseLookup][idx]&NOISE_MASK;    // take the custom shift rate
+                    VGMVOL[chanLookup[2]][idx] = 0xf;   // keep it muted though
+                    out = 3;                            // custom shift mode
                 }
             }
-        }
-    }
 
-    updateVolume(chan, cnt);
+            if (-1 == out) {
+                // we still don't have one, so map to the closest shift
+                int diff16 = ABS(16 - (VGMDAT[3][idx]&NOISE_MASK));
+                int diff32 = ABS(32 - (VGMDAT[3][idx]&NOISE_MASK));
+                int diff64 = ABS(64 - (VGMDAT[3][idx]&NOISE_MASK));
+                if ((diff16 <= diff32) && (diff16 <= diff64)) {
+                    out = 0;    // use 16
+                } else if ((diff32 <= diff16) && (diff32 <= diff64)) {
+                    out = 1;    // use 32
+                } else {
+                    out = 2;    // use 64
+                }
+                ++noisesMapped;
+            }
 
-    return true;
-}
-bool testPSGData(int chan, int cnt) {
-    // must be 4 channels or less, must be only 1 noise channel,
-    // must be within frequency ranges and noise frequency must
-    // match either a fixed rate or literally channel 2 (0-based)
-    if (chan > 4) {
-        printf("Too many channels for PSG (%d channels found)\n", chan);
-        return false;
-    }
-
-    int x = 0;
-    for (int idx=0; idx<chan; ++idx) {
-        if (!isNoise[idx]) ++x;
-    }
-    if (x > 3) {
-        printf("Too many tone channels for PSG (%d tone channels found)\n", x);
-        return false;
-    }
-
-    x = 0;
-    for (int idx=0; idx<chan; ++idx) {
-        if (isNoise[idx]) ++x;
-    }
-    if (x > 1) {
-        printf("Too many noise channels for PSG (%d noise channels found)\n", x);
-        return false;
-    }
-
-    // test the song itself
-    for (int row=0; row<cnt; ++row) {
-        for (int ch=0; ch<chan; ++ch) {
-            if (isNoise[ch]) {
-                // noise frequency must be 0x000-0x3ff, and exactly match either a fixed
-                // rate or literally channel 2. Volume is unrestricted
-                if ((VGMDAT[ch][row] < 0) || ((VGMDAT[ch][row]&NOISE_MASK) > 0x3ff)) {
-                    printf("Noise frequency out of range for PSG on row %d - got 0x%02X\n", row, VGMDAT[ch][row]);
-                    return false;
-                }
-                bool match = false;
-                switch (VGMDAT[ch][row]&NOISE_MASK) {
-                    case 16:
-                    case 32:
-                    case 64:
-                        match = true;
-                }
-                if ((VGMDAT[ch][row]&NOISE_MASK) == VGMDAT[2][row]) {
-                    match=true;
-                }
-                if (!match) {
-                    printf("Noise volume has no matching frequency for PSG on row %d. Got 0x%03X, must match 0x010, 0x020, 0x040 or chan 2 0x%03X\n", row, VGMDAT[ch][row], VGMDAT[2][row]);
-                    return false;
-                }
-            } else {
-                // tone frequency must be 0x000-0x3FF. Volume is unrestricted
-                if ((VGMDAT[ch][row] < 0) || (VGMDAT[ch][row] > 0x3ff)) {
-                    printf("Tone frequency out of range for PSG (0-0x3ff) on row %d - got 0x%03X\n", row, VGMDAT[ch][row]);
-                    return false;
-                }
+            if (-1 == out) {
+                // not possible...
+                printf("Second internal consistency error at row %d\n", idx);
+                return;
             }
         }
+
+        if (!bPeriodic) out += 4;               // make it white noise
+        if (bTrigger) out |= NOISE_TRIGGER;     // save the trigger flag
+        VGMDAT[noiseLookup][idx] = out;         // record the translated noise
     }
 
-    updateVolume(chan, cnt);
-
-    return true;
+    printf("%d custom noises (non-lossy)\n", customNoises);
+    printf("%d tones moved   (non-lossy)\n", tonesMoved);
+    printf("%d mutes mapped  (non-lossy)\n", mutemaps);
+    printf("%d tones clipped (lossy)\n", tonesClipped);
+    printf("%d noises mapped (lossy)\n", noisesMapped);
 }
 
 int main(int argc, char *argv[])
@@ -652,16 +613,15 @@ int main(int argc, char *argv[])
     int delay = 16;
     int sbfsong = 0;
 
-	printf("VGMComp VGM Test Output - v20200602\n");
+	printf("VGMComp VGM Test Output - v20210911\n");
 
 	if (argc < 3) {
-		printf("psg2vgm [-ay|-sn] [-sbfsong x] (<file prefix> | <file.sbf> | <track1> <track2> ...) <outputfile.vgm>\n");
-        printf(" -ay - write as AY data (else will be SN)\n");
-        printf(" -sn - write as SN data (default)\n");
+		printf("psg2playlist [-v] [-sbfsong x] (<file prefix> | <file.sbf> | <track1> <track2> ...) <outputfile.bin>\n");
+        printf(" -v - verbose output\n");
         printf(" -sbfsong x - import SBF song 'x' instead of song 0\n");
-		printf(" <file prefix> - PSG file prefix (usually the name of the original VGM).\n");
+		printf(" <file prefix> - PSG file prefix or full psg file\n");
         printf(" <track1> etc - instead of a prefix, you may explicitly list the files to play\n");
-        printf(" <outputfile.vgm> - VGM output to write\n");
+        printf(" <outputfile.bin> - data file to write\n");
         printf("Prefix will search for 60hz, 50hz, 30hz, and 25hz in that order.\n");
         printf("Non-prefix can be a list of track files, or a single PSG file.\n");
 		return -1;
@@ -669,18 +629,8 @@ int main(int argc, char *argv[])
 
 	int arg=1;
 	while ((arg < argc-2) && (argv[arg][0]=='-')) {
-        if (0 == strcmp(argv[arg], "-ay")) {
-            testay=true;
-            if (testpsg) {
-                printf("\rInvalid to specify both AY and SN restrictions\n");
-                return 1;
-            }
-        } else if (0 == strcmp(argv[arg], "-sn")) {
-            testpsg=true;
-            if (testay) {
-                printf("\rInvalid to specify both AY and SN restrictions\n");
-                return 1;
-            }
+        if (0 == strcmp(argv[arg], "-v")) {
+            verbose = true;
         } else if (0 == strcmp(argv[arg], "-sbfsong")) {
             ++arg;
             if (arg >= argc-1) {
@@ -738,11 +688,7 @@ int main(int argc, char *argv[])
             printf("SBF import %s...\n", namebuf);
 
             // this is probably an SBF file
-            if ((testay==false)&&(testpsg==false)) {
-                printf("SBF files must specify -ay or -sn to be imported!\n");
-                fclose(fp);
-                return 1;
-            }
+            printf("Warning: assuming SBF is an SN file, not AY or SID.\n");
             if (!importSBF(fp, chan, cnt, sbfsong)) {
                 fclose(fp);
                 return 1;
@@ -853,10 +799,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    // figure out if it can be written out to VGM
-    // maximum of 3 tone channels and 1 noise channels
-    // TODO: maybe support dual chip someday, but this is just a quick test app
-
     // to support random channel order, make a lookup table for channels
     // custom tone channel 3 must still be channel 3 though, for SN (we only warn)
     int chanLookup[3] = {-1,-1,-1};
@@ -875,9 +817,7 @@ int main(int argc, char *argv[])
                 chanLookup[1] = idx;
             } else if (chanLookup[2] == -1) {
                 if (idx != 2) {
-                    if (!testay) {
-                        printf("Warning: tone channel 3 is not index 3 - may affect user defined noise\n");
-                    }
+                    printf("Warning: tone channel 3 is not index 3 - may affect user defined noise\n");
                 }
                 chanLookup[2] = idx;
             } else {
@@ -887,140 +827,145 @@ int main(int argc, char *argv[])
         }
     }
 
-    // write out the VGM header
-    printf("Going to write VGM file '%s'\n", argv[arg]);
+    // figure out if it can be written out to a TI Playlist
+    // maximum of 3 tone channels and 1 noise channels
+    devolveData(cnt, chanLookup, noiseLookup);
+
+    // TI Sound list format is very simple:
+    // <number of bytes to load> <1-n sound bytes> <number of frames to delay>
+    // A duration of 0 ends the sound list.
+
+    printf("Going to write TI Sound List format binary file '%s'\n", argv[arg]);
     FILE *fp = fopen(argv[arg], "wb");
     if (NULL == fp) {
         printf("Can't open output file '%s'\n", argv[arg]);
         return 1;
     }
 
-    // The format starts with a 256 byte header (1.70):
-	//
-	//      00  01  02  03   04  05  06  07   08  09  0A  0B  0C  0D  0E  0F
-	// 0x00 ["Vgm " ident   ][EoF offset     ][Version        ][SN76489 clock  ]
-	// 0x10 [YM2413 clock   ][GD3 offset     ][Total # samples][Loop offset    ]
-	// 0x20 [Loop # samples ][Rate           ][SN FB ][SNW][SF][YM2612 clock   ]
-	// 0x30 [YM2151 clock   ][VGM data offset][Sega PCM clock ][SPCM Interface ]
-	// 0x40 [RF5C68 clock   ][YM2203 clock   ][YM2608 clock   ][YM2610/B clock ]
-	// 0x50 [YM3812 clock   ][YM3526 clock   ][Y8950 clock    ][YMF262 clock   ]
-	// 0x60 [YMF278B clock  ][YMF271 clock   ][YMZ280B clock  ][RF5C164 clock  ]
-	// 0x70 [PWM clock      ][AY8910 clock   ][AYT][AY Flags  ][VM] *** [LB][LM]
-	// 0x80 [GB DMG clock   ][NES APU clock  ][MultiPCM clock ][uPD7759 clock  ]
-	// 0x90 [OKIM6258 clock ][OF][KF][CF] *** [OKIM6295 clock ][K051649 clock  ]
-	// 0xA0 [K054539 clock  ][HuC6280 clock  ][C140 clock     ][K053260 clock  ]
-	// 0xB0 [Pokey clock    ][QSound clock   ] *** *** *** *** [Extra Hdr ofs  ]
-    // 0xC0  *** *** *** ***  *** *** *** ***  *** *** *** ***  *** *** *** ***
-    // 0xD0  *** *** *** ***  *** *** *** ***  *** *** *** ***  *** *** *** ***
-    // 0xE0  *** *** *** ***  *** *** *** ***  *** *** *** ***  *** *** *** ***
-    // 0xF0  *** *** *** ***  *** *** *** ***  *** *** *** ***  *** *** *** ***	
-    
-    // the VGM header for PSG
-    unsigned char out[] = {
-		0x56,0x67,0x6D,0x20, 0x0B,0x1F,0x00,0x00, 0x70,0x01,0x00,0x00, 0x94,0x9E,0x36,0x00,
-		0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x91,0xD4,0x12,0x00, 0x40,0x02,0x00,0x00,
-		0x00,0x3A,0x11,0x00, 0x3C,0x00,0x00,0x00, 0x00,0x00,0x0f,0x00, 0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00, 0x00,0x01,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00
-	};
-	*((unsigned int*)&out[4])=cnt*22;		// set length (not actually correct!)
-	*((unsigned int*)&out[0x18])=cnt;		// set number of waits (this should be right!)
-    if (testay) {
-        // if it's not a PSG, then set it up for AY instead
-    	*((unsigned int*)&out[4])=cnt*33;	        // reset length (not actually correct, but it's bigger!)
-        *((unsigned int*)&out[0xc]) = 0;            // zero SN clock
-        *((unsigned int*)&out[0x74]) = 1789772;     // set AY clock
-    }
-    fwrite(out, 1, sizeof(out), fp);
+    // we assume all four channels are muted to start
+    int lastNote[4] = {-1,-1,-1,-1};
+    int lastVol[4] = {0x0f,0x0f,0x0f,0x0f};
+    int rowCnt = -1;
 
-    // now write out the song - we just write out every row. VGMs will
-    // be big but easy to create.
+    // now write out the song - we just write out changes
     // cnt better be the same on each channel ;)
     for (int row = 0 ; row < cnt; ++row) {
-        // process the command line from each channel
+        // first check if there are any audible differences on this row
+        bool hasChange = false;
+        bool changeVol[4] = {false, false, false, false};
+        bool changeTone[4] = {false, false, false, false};
         for (int idx=0; idx<4; ++idx) {
-            if (testay) {
-                // every sound byte command is 0xa0 aa dd - write value dd to register aa
-                // register value + 0x80 for second chip
-                if (idx < 3) {
-                    // tone
-                    int rch = chanLookup[idx];
-                    fputc(0xa0, fp);
-                    fputc(idx*2, fp);
-                    fputc(VGMDAT[rch][row]&0xff, fp);
-                    fputc(0xa0, fp);
-                    fputc(idx*2+1, fp);
-                    fputc((VGMDAT[rch][row]&0xf00)>>8, fp);
-                    // tone volume
-                    fputc(0xa0, fp);
-                    fputc(8+idx, fp);
-                    fputc(15-mapVolume(VGMVOL[rch][row]), fp);
-                } else {
-                    // noise
-                    // no trigger here
-                    fputc(0xa0, fp);
-                    fputc(6, fp);
-                    fputc(VGMDAT[noiseLookup][row]&0x1f, fp);
-                    // noise volume (mixer command)
-                    fputc(0xa0, fp);
-                    fputc(8+idx, fp);
-                    fputc((VGMVOL[noiseLookup][row]<<2)&0x3c, fp);
+            int rch;
+            if (idx < 3) {
+                // tone
+                rch = chanLookup[idx];
+            } else {
+                rch = noiseLookup;
+            }
+            if (VGMVOL[rch][row] != lastVol[idx]) {
+                hasChange = true;
+                changeVol[idx] = true;
+            } 
+            if (idx < 3) {
+                if ((!muted(rch, row)) && (VGMDAT[rch][row] != lastNote[idx])) {
+                    hasChange = true;
+                    changeTone[idx] = true;
                 }
             } else {
-                // every sound byte command is prefaced with 0x50
-                // Second sound chip would be 0x30
-                if (idx < 3) {
-                    // tone
-                    int rch = chanLookup[idx];
-                    fputc(0x50, fp);
-                    fputc((VGMDAT[rch][row]&0xf)+(0x80+(idx*0x20)), fp);
-                    fputc(0x50, fp);
-                    fputc((VGMDAT[rch][row]&0xff0)>>4, fp);
-                    // volume
-                    fputc(0x50, fp);
-                    fputc(mapVolume(VGMVOL[rch][row]) + (0x90+(idx*0x20)), fp);
-                } else {
-                    // noise
-                    if (VGMDAT[noiseLookup][row]&NOISE_TRIGGER) {
-                        // we need to convert it down
-                        int out = 0;
-                        switch (VGMDAT[noiseLookup][row]&NOISE_MASK) {
-                            case 0x10: out=0; break;
-                            case 0x20: out=1; break;
-                            case 0x40: out=2; break;
-                            default: out=3; break;  // custom noise, but we assume already set on c3
-                        }
-                        if ((VGMDAT[noiseLookup][row]&NOISE_PERIODIC)==0) {
-                            // make white noise
-                            out+=4;
-                        }
-                        fputc(0x50, fp);
-                        fputc(out+0xe0, fp);
-                    }
-                    // volume
-                    fputc(0x50, fp);
-                    fputc(mapVolume(VGMVOL[noiseLookup][row]) + 0xf0, fp);
+                // noise channel can't use muted() cause no frequency
+                if ((VGMVOL[rch][row] != 0xf) && (VGMDAT[rch][row] != lastNote[idx])) {
+                    hasChange = true;
+                    changeTone[idx] = true;
                 }
             }
+
+            if (verbose) printf("%02X %03X ", VGMVOL[rch][row], VGMDAT[rch][row]);
         }
 
-        // end frame
-        fputc(0x62, fp);
+        if (verbose) printf(" -> ");
+
+        if (!hasChange) {
+            if (rowCnt < 0) {
+                // we haven't found the first note yet, so just ignore this row
+            } else {
+                ++rowCnt;
+            }
+            if (verbose) printf("\n");
+        } else {
+            // we found a change, so first write out the last length
+            if (rowCnt > 0) {
+                // every time but the first
+                fputc(rowCnt, fp);
+            }
+            // start next count with this row
+            rowCnt = 1; 
+            
+            // then write out the new data
+            int bytes = 0;
+            for (int idx=0; idx<3; ++idx) {
+                if (changeVol[idx]) ++bytes;
+                if (changeTone[idx]) bytes+=2;
+            }
+            if (changeVol[3]) ++bytes;
+            if (changeTone[3]) ++bytes; // noise is just 1 byte
+
+            // number of bytes to load
+            if (verbose) printf("%02X ", bytes);
+            fputc(bytes, fp);
+
+            // now what are those bytes?
+            for (int idx=0; idx<3; ++idx) {
+                int rch = chanLookup[idx];
+
+                if (changeVol[idx]) {
+                    int outval = VGMVOL[rch][row]+0x20*idx+0x90;
+                    if (verbose) printf("%02X ", outval);
+                    fputc(outval, fp);
+                    lastVol[idx] = VGMVOL[rch][row];
+                } else {
+                    if (verbose) printf("   ");
+                }
+                if (changeTone[idx]) {
+                    int out1 = (VGMDAT[rch][row]&0x0f)+0x20*idx+0x80;
+                    int out2 = (VGMDAT[rch][row]&0xff0)>>4;
+                    if (verbose) printf("%02X %02X ", out1, out2);
+                    fputc(out1, fp);
+                    fputc(out2, fp);
+                    lastNote[idx] = VGMDAT[rch][row];
+                } else {
+                    if (verbose) printf("      ");
+                }
+            }
+            if (changeVol[3]) {
+                int outval = VGMVOL[noiseLookup][row]+0xf0;
+                if (verbose) printf("%02X ", outval);
+                fputc(outval, fp);
+                lastVol[3] = VGMVOL[noiseLookup][row];
+            } else {
+                if (verbose) printf("   ");
+            }
+            if (changeTone[3]) {
+                int outval = (VGMDAT[noiseLookup][row]&0x0f)+0xe0;
+                if (verbose) printf("%02X ", outval);
+                fputc(outval, fp);
+                lastNote[3] = VGMDAT[noiseLookup][row]&0x0f;
+            } else {
+                if (verbose) printf("   ");
+            }
+
+            if (verbose) printf("\n");
+        }
     }
 
     // finish the file
-    fputc(0x66, fp);
+    if (rowCnt > 0) {
+        fputc(rowCnt, fp);
+    }
+    // mute all channels and end
+    fprintf(fp, "\x04\x9f\xbf\xdf\xff"); 
+    fputc(0x00, fp);    // need to terminate with a zero byte
+
+    printf("- Wrote %d bytes\n", ftell(fp));
     fclose(fp);
 
     printf("** DONE **\n");
