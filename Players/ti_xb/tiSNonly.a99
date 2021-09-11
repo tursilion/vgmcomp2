@@ -23,7 +23,7 @@ songActive EQU songNote+7
 
 * SONGGO must go here so we can find the data structures above
 SONGGO
-* find the MUSIC def
+* find the MUSIC def (might also be "music")
 	li r1,>3ff8		* first entry
 SGLP1
 	c r1,@>2004
@@ -38,6 +38,16 @@ SGLP1
 	c r0,@4(r1)
 	jeq sgok1		* full match!
 SGNX1
+	li r0,>6d75		* lowercase time
+	c r0,*r1
+	jne sgnx2		* not mu
+	li r0,>7369
+	c r0,@2(r1)
+	jne sgnx2		* not si
+	li r0,>6320
+	c r0,@4(r1)
+	jeq sgok1		* full match!
+SGNX2
 	ai r1,-8
 	jmp sglp1
 SGDN1
