@@ -48,17 +48,18 @@ extern volatile unsigned char sfxPriority;
 // If the SFX ends, we undo the mutes
 #define CALL_PLAYER_SFX30  \
 if (isSFXPlaying) {  \
-    unsigned char x = songNote[3]&0xff; /*lsb*/  \
     sfx_songNote[3] &= 0xff01;  \
     sfx_SongLoop();         \
     if (!isSFXPlaying) {    \
-        if (x&0x80) { SOUND=songNote[0]>>8; SOUND=songNote[0]&0xff; SOUND=songVol[0]; } \
-        if (x&0x40) { SOUND=songNote[1]>>8; SOUND=songNote[1]&0xff; SOUND=songVol[1]; } \
-        if (x&0x20) { SOUND=songNote[2]>>8; SOUND=songNote[2]&0xff; SOUND=songVol[2]; } \
-        if (x&0x10) { SOUND=songNote[3]; SOUND=songVol[3]; } \
-        songNote[3] = (songNote[3]&0xff00)|(songNote[3]&0x01); \
+		if (songNote[3]&0x01) {		\
+			SOUND=songNote[0]>>8; SOUND=songNote[0]&0xff; SOUND=songVol[0]; \
+			SOUND=songNote[1]>>8; SOUND=songNote[1]&0xff; SOUND=songVol[1]; \
+			SOUND=songNote[2]>>8; SOUND=songNote[2]&0xff; SOUND=songVol[2]; \
+			SOUND=songNote[3]>>8; SOUND=songVol[3]; \
+		}	\
+        songNote[3] = (songNote[3]&0xff01); \
     } else { \
-        songNote[3] = (songNote[3]&0xff00)|(sfx_songNote[3]&0xfe)|(songNote[3]&0x01); \
+        songNote[3] = (songNote[3]&0xff01)|(sfx_songNote[3]&0xfe); \
     }   \
 }
 

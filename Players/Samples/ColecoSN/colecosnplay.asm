@@ -1,6 +1,6 @@
 ;--------------------------------------------------------
 ; File Created by SDCC : free open source ANSI-C Compiler
-; Version 4.0.0 #11528 (MINGW64)
+; Version 4.1.0 #12072 (MINGW64)
 ;--------------------------------------------------------
 	.module colecosnplay
 	.optsdcc -mz80
@@ -64,7 +64,6 @@ _VDPWD	=	0x00be
 _main::
 	call	___sdcc_enter_ix
 	push	af
-	push	af
 ;colecosnplay.c:20: set_graphics(VDP_MODE1_SPRMAG);
 	ld	a, #0x01
 	push	af
@@ -97,7 +96,7 @@ _main::
 ;colecosnplay.c:29: if (KSCAN_KEY == JOY_FIRE) break;
 	ld	a,(#_KSCAN_KEY + 0)
 	sub	a, #0x12
-	jr	NZ,00121$
+	jr	NZ, 00121$
 ;colecosnplay.c:31: vdpmemset(gImage, ' ', 768);
 	ld	hl, #0x0300
 	push	hl
@@ -111,35 +110,33 @@ _main::
 	pop	af
 	inc	sp
 ;colecosnplay.c:35: for (unsigned char idx=0; idx<4; ++idx) {
-	ld	c, #0x00
+	ld	b, #0x00
 00124$:
 ;colecosnplay.c:36: sprite(idx, '1'+idx, COLOR_DKBLUE+idx, 21*8, idx*64+16);
-	ld	a,c
+	ld	a,b
 	cp	a,#0x04
-	jr	NC,00104$
+	jr	NC, 00104$
 	rrca
 	rrca
 	and	a, #0xc0
 	add	a, #0x10
 	ld	h, a
-	ld	d, c
+	ld	d, b
 	inc	d
 	inc	d
 	inc	d
 	inc	d
-	ld	a, c
+	ld	a, b
 	add	a, #0x31
-	ld	b, a
 	push	bc
 	push	hl
 	inc	sp
-	ld	a, #0xa8
+	ld	h, #0xa8
+	ld	l, d
+	push	hl
 	push	af
 	inc	sp
-	ld	e, b
-	push	de
-	ld	a, c
-	push	af
+	push	bc
 	inc	sp
 	call	_sprite
 	pop	af
@@ -147,7 +144,7 @@ _main::
 	inc	sp
 	pop	bc
 ;colecosnplay.c:35: for (unsigned char idx=0; idx<4; ++idx) {
-	inc	c
+	inc	b
 	jr	00124$
 00104$:
 ;colecosnplay.c:39: VDPWD = 0xd0;
@@ -187,31 +184,28 @@ _main::
 	or	a, #0x40
 	out	(_VDPWA), a
 ;colecosnplay.c:57: for (unsigned char idx=0; idx<4; ++idx) {
-	ld	bc, #_songVol+0
-	xor	a, a
-	ld	-1 (ix), a
+	ld	c, #0x00
 00127$:
-	ld	a, -1 (ix)
+	ld	a, c
 	sub	a, #0x04
-	jr	NC,00105$
+	jr	NC, 00105$
 ;colecosnplay.c:58: int row = songNote[idx];
-	ld	l, -1 (ix)
+	ld	de, #_songNote+0
+	ld	a, c
 	ld	h, #0x00
+	ld	l, a
 	add	hl, hl
-	ld	de, #_songNote
 	add	hl, de
 	ld	e, (hl)
 	inc	hl
 	ld	d, (hl)
 ;colecosnplay.c:14: faster_hexprint(x>>8);
-	ld	h, d
-	ld	a, h
-	rlc	a
-	sbc	a, a
-	ld	l, a
+	ld	b, d
+	ld	a, b
+	rlca
 	push	bc
 	push	de
-	push	hl
+	push	bc
 	inc	sp
 	call	_faster_hexprint
 	inc	sp
@@ -229,9 +223,10 @@ _main::
 	ld	a, #0x20
 	out	(_VDPWD), a
 ;colecosnplay.c:62: faster_hexprint(songVol[idx]);
-	ld	l, -1 (ix)
+	ld	de, #_songVol+0
+	ld	l, c
 	ld	h, #0x00
-	add	hl, bc
+	add	hl, de
 	ld	a, (hl)
 	push	bc
 	push	af
@@ -243,104 +238,97 @@ _main::
 	ld	a, #0x20
 	out	(_VDPWD), a
 ;colecosnplay.c:57: for (unsigned char idx=0; idx<4; ++idx) {
-	inc	-1 (ix)
+	inc	c
 	jr	00127$
 00105$:
 ;colecosnplay.c:67: for (unsigned char idx=0; idx<4; ++idx) {
-	ld	c, #0x00
+	ld	-1 (ix), #0
 00130$:
-	ld	a, c
+	ld	a, -1 (ix)
 	sub	a, #0x04
 	jp	NC, 00109$
 ;colecosnplay.c:68: int row = songNote[idx];
-	ld	-4 (ix), c
-	xor	a, a
-	ld	-3 (ix), a
-	pop	hl
-	push	hl
+	ld	bc, #_songNote+0
+	ld	e, -1 (ix)
+	ld	d, #0x00
+	ld	l, e
+	ld	h, d
 	add	hl, hl
-	ld	de, #_songNote
-	add	hl, de
+	add	hl, bc
 	ld	a, (hl)
-	ld	-2 (ix), a
 	inc	hl
-	ld	a, (hl)
+	ld	h, (hl)
+	ld	l, a
 ;colecosnplay.c:73: row = ((((row&0x0f00)>>8)|((row&0x00ff)<<4))*2) / 9;
-	ld	-1 (ix), a
+	ld	a, h
 	and	a, #0x0f
-	ld	e, a
-	rlc	a
+	ld	c, a
+	rlca
 	sbc	a, a
-	ld	d, a
+	ld	b, a
 ;colecosnplay.c:70: if (idx != 3) {
-	ld	a, c
+	ld	a, -1 (ix)
 	sub	a, #0x03
-	jr	Z,00107$
+	jr	Z, 00107$
 ;colecosnplay.c:73: row = ((((row&0x0f00)>>8)|((row&0x00ff)<<4))*2) / 9;
-	ld	l, -2 (ix)
 	ld	h, #0x00
 	add	hl, hl
 	add	hl, hl
 	add	hl, hl
 	add	hl, hl
 	ld	a, l
-	or	a, e
+	or	a, c
 	ld	l, a
 	ld	a, h
-	or	a, d
+	or	a, b
 	ld	h, a
 	add	hl, hl
-	push	bc
-	ld	de, #0x0009
 	push	de
+	ld	bc, #0x0009
+	push	bc
 	push	hl
 	call	__divsint
 	pop	af
 	pop	af
-	pop	bc
+	pop	de
 	jr	00108$
 00107$:
 ;colecosnplay.c:76: row = ((row&0x0f00)>>8)*11;
-	ld	l, e
-	ld	h, d
+	ld	l, c
+	ld	h, b
 	add	hl, hl
 	add	hl, hl
-	add	hl, de
+	add	hl, bc
 	add	hl, hl
-	add	hl, de
+	add	hl, bc
 00108$:
 ;colecosnplay.c:78: vdpchar(gSprite+(idx<<2), row);    // first value in each sprite is row
-	ld	b, l
-	pop	hl
-	push	hl
+	ld	-2 (ix), l
+	ex	de, hl
 	add	hl, hl
 	add	hl, hl
-	ex	de,hl
-	ld	iy, #_gSprite
-	ld	a, 0 (iy)
-	add	a, e
-	ld	e, a
-	ld	a, 1 (iy)
-	adc	a, d
-	ld	d, a
-	push	bc
-	push	bc
+	ex	de, hl
+	ld	hl, (_gSprite)
+	add	hl, de
+	ld	a, -2 (ix)
+	push	af
 	inc	sp
-	push	de
+	push	hl
 	call	_vdpchar
 	pop	af
 	inc	sp
-	pop	bc
 ;colecosnplay.c:81: row = songVol[idx]&0xf;
-	ld	hl, #_songVol
-	ld	b, #0x00
+	ld	bc, #_songVol+0
+	ld	l, -1 (ix)
+	ld	h, #0x00
 	add	hl, bc
 	ld	a, (hl)
+	ld	c, #0x00
 	and	a, #0x0f
 	ld	e, a
 	ld	d, #0x00
 ;colecosnplay.c:82: vchar(7, (idx<<3)+6, 32, row);
-	ld	a, c
+	ld	a, -1 (ix)
 	add	a, a
 	add	a, a
 	add	a, a
@@ -352,11 +340,8 @@ _main::
 	ld	a, #0x20
 	push	af
 	inc	sp
+	ld	c, #0x07
 	push	bc
-	inc	sp
-	ld	a, #0x07
-	push	af
-	inc	sp
 	call	_vchar
 	pop	af
 	pop	af
@@ -369,25 +354,22 @@ _main::
 	sbc	hl, de
 	ld	a, e
 	add	a, #0x07
-	ld	d, a
-	push	bc
 	push	hl
-	ld	a, #0x2b
+	ld	h, #0x2b
+	ld	l, b
+	push	hl
 	push	af
 	inc	sp
-	ld	c, d
-	push	bc
 	call	_vchar
 	pop	af
 	pop	af
 	inc	sp
-	pop	bc
 ;colecosnplay.c:67: for (unsigned char idx=0; idx<4; ++idx) {
-	inc	c
+	inc	-1 (ix)
 	jp	00130$
 00109$:
 ;colecosnplay.c:87: if (!isSNPlaying) {
-	ld	hl, (#_songNote + 6)
+	ld	hl, (#(_songNote + 0x0006) + 0)
 	bit	0, l
 	jp	NZ,00132$
 ;d:/work/coleco/libti99coleco/vdp.h:71: inline void VDP_SET_REGISTER(unsigned char r, unsigned char v)		{	VDPWA=(v); VDPWA=(0x80|(r)); }
@@ -420,9 +402,12 @@ _main::
 	ld	a, #0x87
 	out	(_VDPWA), a
 ;colecosnplay.c:92: VDP_SET_REGISTER(VDP_REG_COL,COLOR_MEDGREEN);
+	jp	00132$
 ;colecosnplay.c:97: return 0;
 ;colecosnplay.c:98: }
-	jp	00132$
+	pop	af
+	pop	ix
+	ret
 	.area _CODE
 	.area _INITIALIZER
 	.area _CABS (ABS)

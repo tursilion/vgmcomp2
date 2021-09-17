@@ -128,7 +128,7 @@ void StartSong(const unsigned char *buf, uWordSize sbfsong) {
 
     // default settings
     for (int idx=0; idx<4; ++idx) {
-        songNote[idx] = 1;
+        songNote[idx] = (0x8000+idx*0x2000)+1;	// important that this includes the note command
 #ifdef USE_SN_PSG
         songVol[idx] = (0x9F+idx*0x20);
 #else
@@ -161,7 +161,7 @@ void SongLoop() {
     if (!(songNote[3]&SONGACTIVEACTIVE)) return;
 
     // assume false unless something needs processing
-    outSongActive = false;
+    outSongActive = 0;
 
     // absolute references SDCC can already figure out, but we do need
     // to copy it over for the getCompressedByte call
@@ -169,14 +169,14 @@ void SongLoop() {
         // check the timestream
         if (strDat[8].framesLeft) {
             --strDat[8].framesLeft;
-            outSongActive = true;
+            outSongActive = 1;
         } else {
             // timestream data
             memcpy(&globalStr, &strDat[8], sizeof(STREAM));
             x = getCompressedByteRaw();
             memcpy(&strDat[8], &globalStr, sizeof(STREAM));
             if (strDat[8].mainPtr) {
-                outSongActive = true;
+                outSongActive = 1;
                 // song not over, x is valid
                 strDat[8].framesLeft = x & 0xf;
                 if (x&0x80) {
@@ -305,11 +305,9 @@ void SongLoop() {
             // check the RLE
             if (globalStr.framesLeft) {
                 --globalStr.framesLeft;
-                outSongActive = true;
             } else {
                 x = getCompressedByteRaw();
                 if (globalStr.mainPtr) {
-                    outSongActive = true;
                     globalStr.framesLeft = x&0xf;
                     x = ((x>>4)&0xf);
                 } else {
@@ -342,13 +340,11 @@ void SongLoop() {
         // check the RLE
         if (strDat[7].framesLeft) {
             --strDat[7].framesLeft;
-            outSongActive = true;
         } else {
             memcpy(&globalStr, &strDat[7], sizeof(STREAM));
             x = getCompressedByteRaw();
             memcpy(&strDat[7], &globalStr, sizeof(STREAM));
             if (strDat[7].mainPtr) {
-                outSongActive = true;
                 strDat[7].framesLeft = x&0xf;
                 x = ((x>>2)&0x3c);
             } else {
@@ -364,7 +360,7 @@ void SongLoop() {
     }
 #endif
 
-    if (!outSongActive) {
-        songNote[3] &= 0xff00;     // clear the active bit AND clear all mutes
-    }
+	if (!outSongActive) {
+		songNote[3] &= 0xff00;	// clear the active bit AND clear all mutes
+	}
 }
