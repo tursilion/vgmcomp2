@@ -1,7 +1,4 @@
-This depot is not guaranteed to build at any given time - it's my bleeding edge repository.
-
-VGMComp2 20210911
-=================
+20210911
 
 This is a tool suite for converting and editting music for the SN76489 and compatible sound chips. It does NOT include a tracker, but rather seeks to be able to adapt music from other trackers for use.
 
@@ -22,11 +19,3 @@ Here are some example videos:
 - NES source: [https://lbry.tv/@tursilion:1/2020-05-31-03-45-19:9](https://lbry.tv/@tursilion:1/2020-05-31-03-45-19:9)
 - MOD source: [https://lbry.tv/@tursilion:1/2020-07-21-02-06-47:e](https://lbry.tv/@tursilion:1/2020-07-21-02-06-47:e)
 - Genesis Source: [https://lbry.tv/@tursilion:1/VgmComp2---Sega-Genesis-to-SN-Example:f](https://lbry.tv/@tursilion:1/VgmComp2---Sega-Genesis-to-SN-Example:f)
-
-Review commit history here: [https://github.com/tursilion/vgmcomp2/commits/master](https://github.com/tursilion/vgmcomp2/commits/master)
-
-Want to donate?
----------------
-
-- Click here for [Ko-Fi](https://ko-fi.com/tursilion)...
-- Alternately, there's my [Amazon Wishlist](https://www.amazon.ca/gp/registry/wishlist/ref=cm_wl_your_lists)
