@@ -249,7 +249,7 @@ int main(int argc, char *argv[])
 	// set up the offsets before we start patching
 	if (isTIMode) {
 		// The TI build stuffs the address of SongLoop at offset 0xb8 (after all headers).
-		song_loop_offset = 0xb8;
+		song_loop_offset = 0x32+128+6; 	// TIFILES and EA5 headers
 		// offset of a single byte to patch for number of rows of text
 		// this is part of the LIMI instruction data on the TI Build!!
 		row_byte_offset = 0x02+128+6;	// TIFILES and EA5 headers

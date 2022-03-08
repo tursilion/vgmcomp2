@@ -279,10 +279,10 @@ void CQuickPlayerDlg::OnBnClickedButton2()
 	// set up the offsets before we start patching
 	if (isTIMode) {
 		// The TI build stuffs the address of SongLoop at offset 0xb8.
-		song_loop_offset = 0xb8;
+		song_loop_offset = 0x32+128+6; 	// TIFILES and EA5 headers
 		// offset of a single byte to patch for number of rows of text
 		// this is part of the LIMI instruction data on the TI Build!!
-		row_byte_offset = 0x02;
+		row_byte_offset = 0x02+128+6;	// TIFILES and EA5 headers
 	} else {
 		// The Coleco build stuffs the address of SongLoop at offset 0x28.
 		song_loop_offset = 0x28;
