@@ -8,12 +8,9 @@ Limited support for playing back the data on the AY-3-8910 and the Commodore SID
 
 Finally, a compression tool and playback library is provided for the final audio data. A PC reference library is provided, as well as optimized libraries for the TI-99/4A and ColecoVision.
 
-Full source code for all tools is provided. Where not prevented by GPL, all other code is Public Domain and free for your own use, completely unencumbered. See [PublicDomainMostly.txt](https://github.com/tursilion/vgmcomp2/raw/master/dist/PublicDomainMostly.txt). The code is written for Windows but is mostly command-line and may compile elsewhere.
+Full source code for all tools is provided. Where not prevented by GPL, all other code is Public Domain and free for your own use, completely unencumbered. See [PublicDomainMostly.txt](https://github.com/tursilion/vgmcomp2/raw/main/dist/PublicDomainMostly.txt). The code is written for Windows but is mostly command-line and may compile elsewhere.
 
-Download the latest release zip here:
-[https://github.com/tursilion/vgmcomp2/raw/master/dist/VGMComp2.zip](https://github.com/tursilion/vgmcomp2/raw/master/dist/VGMComp2.zip)
-
-You can also view the [Documentation](https://github.com/tursilion/vgmcomp2/raw/master/dist/VGMComp2.pdf)
+You can also view the [Documentation](https://github.com/tursilion/vgmcomp2/raw/main/dist/VGMComp2.pdf)
 
 Here are some example videos:
 - NES source: [https://lbry.tv/@tursilion:1/2020-05-31-03-45-19:9](https://lbry.tv/@tursilion:1/2020-05-31-03-45-19:9)
