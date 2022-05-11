@@ -145,6 +145,11 @@ void StartSong(const unsigned char *buf, uWordSize sbfsong) {
 void StopSong() {
     // also clears the mute bits
     songNote[3] &= 0xff00;
+    // make sure we mute our own channels
+    songVol[0] = 0x9f;
+    songVol[1] = 0xbf;
+    songVol[2] = 0xdf;
+    songVol[3] = 0xff;
 }
 
 // this needs to be called 60 times per second by your system
@@ -361,6 +366,6 @@ void SongLoop() {
 #endif
 
 	if (!outSongActive) {
-		songNote[3] &= 0xff00;	// clear the active bit AND clear all mutes
+		StopSong();
 	}
 }
