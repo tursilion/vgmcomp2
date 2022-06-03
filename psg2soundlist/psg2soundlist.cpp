@@ -840,7 +840,7 @@ int main(int argc, char *argv[])
     // TI Sound list format is very simple:
     // <number of bytes to load> <1-n sound bytes> <number of frames to delay>
     // A duration of 0 ends the sound list.
-
+    ++arg;
     printf("Going to write TI Sound List format binary file '%s'\n", argv[arg]);
     FILE *fp = fopen(argv[arg], "wb");
     if (NULL == fp) {
