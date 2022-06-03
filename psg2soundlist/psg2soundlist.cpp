@@ -471,6 +471,7 @@ bool importSBF(FILE *fp, int &chan, int &cnt, int sbfsong) {
 }
 
 // at this point, assume 4 channels, and prepare for SN output
+// We do need to check for less than 4...
 void devolveData(int row, int chanLookup[3], int noiseLookup) {
     // pass through each imported row. We have three tasks to do:
     // 1) resample the volume to the appropriate logarithmic value
@@ -488,6 +489,7 @@ void devolveData(int row, int chanLookup[3], int noiseLookup) {
         for (int chi=0; chi<4; ++chi) {
             int ch;
             if (chi==3) ch = noiseLookup; else ch = chanLookup[chi];
+            if (ch == -1) continue;
             if (VGMVOL[ch][idx] == 0) {   // NOT converted yet
                 if (VGMDAT[ch][idx-1] != VGMDAT[ch][idx]) {
                     ++mutemaps;
@@ -502,6 +504,7 @@ void devolveData(int row, int chanLookup[3], int noiseLookup) {
         for (int chi = 0; chi < 4; ++chi) {
             int ch;
             if (chi==3) ch = noiseLookup; else ch = chanLookup[chi];
+            if (ch == -1) continue;
             VGMVOL[ch][idx] = mapVolume(VGMVOL[ch][idx]);
         }
 
@@ -509,6 +512,7 @@ void devolveData(int row, int chanLookup[3], int noiseLookup) {
         for (int chi = 0; chi < 4; ++chi) {
             int ch;
             if (chi==3) ch = noiseLookup; else ch = chanLookup[chi];
+            if (ch == -1) continue;
             if ((VGMDAT[ch][idx]&NOISE_MASK) > 0x3ff) {
                 VGMDAT[ch][idx] = (VGMDAT[ch][idx] & (~NOISE_MASK)) | 0x3ff;
                 ++tonesClipped;
@@ -525,77 +529,79 @@ void devolveData(int row, int chanLookup[3], int noiseLookup) {
         bool bTrigger = (VGMDAT[3][idx] & NOISE_TRIGGER) ? true : false;
         int out = -1;
 
-        if (VGMVOL[noiseLookup][idx] == 0xf) {
-            // we're muted, nothing to be mapped - save last note
-            if (idx == 0) {
-                out = 1;    // match the tones for default output (this is shift rate 32)
-            } else {
-                out = VGMDAT[noiseLookup][idx-1]&0x03;    // take just the noise shift, we add trigger and periodic below
-            }
-        } else {
-            // check for a fixed shift rate
-            if (noiseShift == 16) {
-                out = 0;
-            } else if (noiseShift == 32) {
-                out = 1;
-            } else if (noiseShift == 64) {
-                out = 2;
-            }
-
-            if (-1 == out) {
-                // it wasn't fixed, so can we just copy it over into channel 2?
-                if ((muted(chanLookup[2], idx))||(muted(chanLookup[1], idx))||(muted(chanLookup[0], idx))) {
-                    // at least one of them are muted
-                    if (!muted(chanLookup[2],idx)) {
-                        // we need to move channel 2
-                        if (muted(chanLookup[1],idx)) {
-                            VGMDAT[chanLookup[1]][idx] = VGMDAT[chanLookup[2]][idx];    // move 2->1
-                            VGMVOL[chanLookup[1]][idx] = VGMVOL[chanLookup[2]][idx];
-                            ++tonesMoved;
-                        } else if (muted(chanLookup[0],idx)) {
-                            // this must be true, otherwise something weird happened
-                            VGMDAT[chanLookup[0]][idx] = VGMDAT[chanLookup[2]][idx];    // move 2->0
-                            VGMVOL[chanLookup[0]][idx] = VGMVOL[chanLookup[2]][idx];
-                            ++tonesMoved;
-                        } else {
-                            printf("Internal consistency error at row %d\n", idx);
-                            return;
-                        }
-                    } else {
-                        ++customNoises;
-                    }
-                    // channel 2 is ready to use, overwrite it
-                    VGMDAT[chanLookup[2]][idx] = VGMDAT[noiseLookup][idx]&NOISE_MASK;    // take the custom shift rate
-                    VGMVOL[chanLookup[2]][idx] = 0xf;   // keep it muted though
-                    out = 3;                            // custom shift mode
-                }
-            }
-
-            if (-1 == out) {
-                // we still don't have one, so map to the closest shift
-                int diff16 = ABS(16 - (VGMDAT[3][idx]&NOISE_MASK));
-                int diff32 = ABS(32 - (VGMDAT[3][idx]&NOISE_MASK));
-                int diff64 = ABS(64 - (VGMDAT[3][idx]&NOISE_MASK));
-                if ((diff16 <= diff32) && (diff16 <= diff64)) {
-                    out = 0;    // use 16
-                } else if ((diff32 <= diff16) && (diff32 <= diff64)) {
-                    out = 1;    // use 32
+        if (noiseLookup != -1) {
+            if (VGMVOL[noiseLookup][idx] == 0xf) {
+                // we're muted, nothing to be mapped - save last note
+                if (idx == 0) {
+                    out = 1;    // match the tones for default output (this is shift rate 32)
                 } else {
-                    out = 2;    // use 64
+                    out = VGMDAT[noiseLookup][idx-1]&0x03;    // take just the noise shift, we add trigger and periodic below
                 }
-                ++noisesMapped;
-            }
+            } else {
+                // check for a fixed shift rate
+                if (noiseShift == 16) {
+                    out = 0;
+                } else if (noiseShift == 32) {
+                    out = 1;
+                } else if (noiseShift == 64) {
+                    out = 2;
+                }
 
-            if (-1 == out) {
-                // not possible...
-                printf("Second internal consistency error at row %d\n", idx);
-                return;
+                if (-1 == out) {
+                    // it wasn't fixed, so can we just copy it over into channel 2?
+                    if ((muted(chanLookup[2], idx))||(muted(chanLookup[1], idx))||(muted(chanLookup[0], idx))) {
+                        // at least one of them are muted
+                        if (!muted(chanLookup[2],idx)) {
+                            // we need to move channel 2
+                            if (muted(chanLookup[1],idx)) {
+                                VGMDAT[chanLookup[1]][idx] = VGMDAT[chanLookup[2]][idx];    // move 2->1
+                                VGMVOL[chanLookup[1]][idx] = VGMVOL[chanLookup[2]][idx];
+                                ++tonesMoved;
+                            } else if (muted(chanLookup[0],idx)) {
+                                // this must be true, otherwise something weird happened
+                                VGMDAT[chanLookup[0]][idx] = VGMDAT[chanLookup[2]][idx];    // move 2->0
+                                VGMVOL[chanLookup[0]][idx] = VGMVOL[chanLookup[2]][idx];
+                                ++tonesMoved;
+                            } else {
+                                printf("Internal consistency error at row %d\n", idx);
+                                return;
+                            }
+                        } else {
+                            ++customNoises;
+                        }
+                        // channel 2 is ready to use, overwrite it
+                        VGMDAT[chanLookup[2]][idx] = VGMDAT[noiseLookup][idx]&NOISE_MASK;    // take the custom shift rate
+                        VGMVOL[chanLookup[2]][idx] = 0xf;   // keep it muted though
+                        out = 3;                            // custom shift mode
+                    }
+                }
+
+                if (-1 == out) {
+                    // we still don't have one, so map to the closest shift
+                    int diff16 = ABS(16 - (VGMDAT[3][idx]&NOISE_MASK));
+                    int diff32 = ABS(32 - (VGMDAT[3][idx]&NOISE_MASK));
+                    int diff64 = ABS(64 - (VGMDAT[3][idx]&NOISE_MASK));
+                    if ((diff16 <= diff32) && (diff16 <= diff64)) {
+                        out = 0;    // use 16
+                    } else if ((diff32 <= diff16) && (diff32 <= diff64)) {
+                        out = 1;    // use 32
+                    } else {
+                        out = 2;    // use 64
+                    }
+                    ++noisesMapped;
+                }
+
+                if (-1 == out) {
+                    // not possible...
+                    printf("Second internal consistency error at row %d\n", idx);
+                    return;
+                }
             }
+        
+            if (!bPeriodic) out += 4;               // make it white noise
+            if (bTrigger) out |= NOISE_TRIGGER;     // save the trigger flag
+            VGMDAT[noiseLookup][idx] = out;         // record the translated noise
         }
-
-        if (!bPeriodic) out += 4;               // make it white noise
-        if (bTrigger) out |= NOISE_TRIGGER;     // save the trigger flag
-        VGMDAT[noiseLookup][idx] = out;         // record the translated noise
     }
 
     printf("%d custom noises (non-lossy)\n", customNoises);
@@ -613,7 +619,7 @@ int main(int argc, char *argv[])
     int delay = 16;
     int sbfsong = 0;
 
-	printf("VGMComp VGM Test Output - v20210911\n");
+	printf("VGMComp VGM Test Output - v20220602\n");
 
 	if (argc < 3) {
 		printf("psg2playlist [-v] [-sbfsong x] (<file prefix> | <file.sbf> | <track1> <track2> ...) <outputfile.bin>\n");
@@ -862,6 +868,7 @@ int main(int argc, char *argv[])
             } else {
                 rch = noiseLookup;
             }
+            if (rch == -1) continue;
             if (VGMVOL[rch][row] != lastVol[idx]) {
                 hasChange = true;
                 changeVol[idx] = true;

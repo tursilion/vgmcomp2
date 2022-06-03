@@ -1,4 +1,4 @@
-20220703
+20220602
 
 This is a tool suite for converting and editting music for the SN76489 and compatible sound chips. It does NOT include a tracker, but rather seeks to be able to adapt music from other trackers for use.
 
