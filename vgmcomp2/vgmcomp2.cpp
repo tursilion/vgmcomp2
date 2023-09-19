@@ -22,6 +22,9 @@
 // rates are incompatible with the AY and SN. Channel 3 (normally noise) is expected to
 // be empty but not currently enforced.
 
+// TODO: does it make sense to auto-detect "forcechan 2" for the SN chip for the
+// case of channel 2 being muted but with valid data for the noise channel?
+
 // TODO: allow the command line to specify input type before every PSG file so
 // that multiple chip types can be mixed. (The tone table gets confusing here, but
 // we could take the format into account and just extend it...?)
