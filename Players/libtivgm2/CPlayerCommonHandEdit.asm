@@ -42,11 +42,6 @@ R3LSB EQU >8307
 * and r13-r15 are supposed to be preserved in case blwp was used (again, I dont
 * think GCC generates blwp sequences). Of course, if you are using from asm,
 * then you know what you need and what to do with.
-* As of 2023/12/12 a new patch moves the stack pointer from R10 to R15, and
-* the frame pointer from R9? to R14. To keep it compatible with both, currently
-* R10 remains untouched and R15 is saved/restored by songloop at a cost of 2 more bytes
-* It is not saved by getCompressedByte, you must do that yourself if you call
-* it directly. Eventually Ill standardize on the new compiler and swap to R15
 
 * TLDR: if you share one workspace, then you can assume everything gets used
 * when you call SongLoop. If you split the workspaces, here are the separate
@@ -55,23 +50,22 @@ R3LSB EQU >8307
 * register usage for interface functions (StartSong and StopSong)
 * R0 =                      R8 = 
 * R1 = arg1,scratch,return  R9 = 
-* R2 = arg2,scratch         R10= stack pointer old (if used from C, not touched)
+* R2 = arg2,scratch         R10= stack pointer (if used from C, not touched)
 * R3 = scratch              R11= return address
 * R4 = scratch              R12= 
 * R5 =                      R13= 
 * R6 =                      R14= 
-* R7 =                      R15= stack pointer new (not touched)
+* R7 =                      R15= 
 
 * register usage for SongLoop and getCompressedByte
 * R0 = SongLoop scratch     R8 = address of sound chip
 * R1 = scratch,return       R9 = SongLoop scratch 
-* R2 = scratch              R10= stack pointer old (if used from C, not touched)
+* R2 = scratch              R10= stack pointer (if used from C, not touched)
 * R3 = scratch              R11= return address
 * R4 = scratch              R12= SongLoop scratch
 * R5 = scratch              R13= address of getCompressedByte
 * R6 = contains >0100       R14= SongLoop scratch
-* R7 = SongLoop scratch     R15= stack pointer new (Saved/restored), 
-*                                getCompressedByte arg1, SongLoop scratch
+* R7 = SongLoop scratch     R15= getCompressedByte arg1, SongLoop scratch
 
 * TMS9900 GCC Register classification (up till 2023/12/12)
 * R0 - Volatile, Bit shift count
@@ -102,12 +96,12 @@ R3LSB EQU >8307
 * R7 - Volatile, Argument pointer
 * R8 - Volatile, general purpose
 * R9 - Volatile, general purpose
-* R10 - Volatile, general purpose
+* R10 (SP) - Stack pointer
 * R11 (LR) - Preserved across BL calls, Return address after BL
 * R12 (CB) - Volatile, CRU base
 * R13 - Volatile, general purpose
 * R14 - frame pointer
-* R15 (SP) - Stack pointer
+* R15 - general purpose?
 
 *****************************************************************************
 
