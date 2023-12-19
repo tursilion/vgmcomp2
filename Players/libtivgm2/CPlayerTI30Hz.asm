@@ -15,7 +15,7 @@ R3LSB EQU >8307
 
 * access the data
     ref strDat,songVol,songNote,workBuf,retSave
-	ref	getCompressedByte
+	ref	getCompressedByte,stackSave
 
 * SongActive is stored in the LSB of the noise channel
 songActive EQU songNote+7
@@ -52,6 +52,7 @@ SongLoop30
 
 * load some default values for the whole call
     mov  r11,@retSave       * save the return address
+    mov  r15,@stackSave     * save the new stack pointer
 	li   r13,getCompressedByte  * store address of getCompressedByte
     li   r8,>8400           * address of the sound chip (warning: don''t move too much, my sample code relies on this offset)
     li   r6,>0100           * 1 in a byte for byte math
@@ -152,6 +153,7 @@ VLOOPDONE
 
 RETHOME
     mov  @retSave,r11       * back to caller
+    mov  @stackSave,r15     * new stack pointer
 RETHOME2
 	b    *r11
 

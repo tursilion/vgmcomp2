@@ -45,8 +45,12 @@ bss_clear_top:
   jgt  bss_clear_top
 bss_clear_end:
 
-# Create the stack (R10)
-  li sp, >4000
+# Create the stack - note, old code used 'sp', but
+# there are two possible now depending on your compiler
+# version, so we manually init both. R10 was the old
+# one, and R15 is the new one.
+  li r15, >4000
+  mov r15,r10
 
 # Start running C code
   bl @main

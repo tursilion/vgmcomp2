@@ -30,7 +30,7 @@
 
     ref songNote,songVol,StopSfx
     ref sfxDat,sfxActive,sfxWorkBuf,sfxSave
-	ref	getCompressedByte
+	ref	getCompressedByte,sfxstackSave
 
 * we sometimes need to directly access the LSB of some registers - addresses here
 * Note this assumes a workspace of >8300 and that it can pretty much completely
@@ -80,6 +80,7 @@ SfxLoop30
 
 * load some default values for the whole call
     mov  r11,@sfxSave       * save the return address
+    mov  r15,@sfxstackSave  * new stack
 	li   r13,getCompressedByte  * store address of getCompressedByte
     li   r8,>8400           * address of the sound chip
     li   r6,>0100           * 1 in a byte for byte math
@@ -178,6 +179,7 @@ RETHOME
     movb @sfxActive,@songActive     * copy our active bits over to its mute bits
 
 RETHOME2
+    mov  @sfxstackSave,R15  * new stack
 	b    *r11
 
 * handle new timestream event

@@ -170,6 +170,11 @@ sidSave
     bss 2
 
     even
+    def sidstackSave
+sidstackSave
+    bss 2
+
+    even
     def SidCtrl1,SidCtrl2,SidCtrl3
 * defined in reverse order on purpose so the volume loop can count down
 SidCtrl3 bss 3

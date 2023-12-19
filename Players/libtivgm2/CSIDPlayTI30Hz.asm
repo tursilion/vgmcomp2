@@ -2,6 +2,9 @@
 * Hand edit of CPlayerTI.c assembly by Tursi, with SN mode
 * and mute enabled in songActive. Due to hard coded addresses,
 * you need a separate build for sfx (CPlayerCommon is shared)
+*
+* TODO: do we need separate return address and stack saves for SID?
+*
 * Public Domain
 
 * we sometimes need to directly access the LSB of some registers - addresses here
@@ -12,6 +15,7 @@ R2LSB EQU >8305
     ref getCompressedByte
     ref sidDat,sidVol,sidNote,workSID
     ref sidSave,SidCtrl1,SidCtrl2,SidCtrl3
+    ref sidstackSave
 
 * this data is in a special section so that you can relocate it at will
 * in the makefile (ie: to put it in scratchpad). If you do nothing,
@@ -54,6 +58,7 @@ SIDLoop30
     clr  r12                * prepare to write CRU
     sbo  >24                * write keyboard select - this maps in the SID Blaster
     mov  r11,@sidSave       * save the return address
+    mov  r15,@sidstackSave  * new stack
 	li   r13,getCompressedByte  * store address of getCompressedSid
     li   r6,>0100           * 1 in a byte for byte math
 
@@ -161,6 +166,7 @@ VLOOPDONE
 RETHOME
     mov  @sidSave,r11       * back to caller
 RETHOME2
+    mov  @sidstackSave,R15  * new stack
 	b    *r11
 
 * handle new timestream event

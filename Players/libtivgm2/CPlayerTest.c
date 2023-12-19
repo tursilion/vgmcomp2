@@ -13,15 +13,18 @@ extern uint8 getCompressedByte(STREAM *str);
 STREAM test;
 
 // disable this if you are not using the TI hand-rolled assembly
+// Note: new compiler as of 12/13/23 moved the stack from R10 to R15
 #ifdef BUILD_TI99
 uint8 __attribute__ ((noinline)) getCompressedByteWrap(STREAM *str) {
     __asm__(                                                        \
+        "mov r15,r10\n\t"                                           \
         "mov r1,r15\n\t"                                            \
         "dect r10\n\t"                                              \
         "mov r11,*r10\n\t"                                          \
         "li r6,>0100\n\t"                                           \
         "bl @getCompressedByte\n\t"                                 \
-        "mov *r10+,r11\n"                                           \
+        "mov *r10+,r11\n\t"                                         \
+        "mov r10,r15\n"                                             \
         : /* no outputs */                                          \
         : /* no arguments */                                        \
         : "r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r15","cc"   \

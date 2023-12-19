@@ -168,4 +168,9 @@ sfxWorkBuf
 sfxSave
     bss 2
 
+    even
+    def sfxstackSave
+sfxstackSave
+    bss 2
+
 	ref	getCompressedByte

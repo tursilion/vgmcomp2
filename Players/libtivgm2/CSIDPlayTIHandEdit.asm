@@ -21,6 +21,7 @@ songActive EQU sidNote+7
     ref getCompressedByte
     ref sidDat,sidVol,sidNote,workSID
     ref sidSave,SidCtrl1,SidCtrl2,SidCtrl3
+    ref sidstackSave
 
 * this needs to be called 60 times per second by your system
 * if this function can be interrupted, dont manipulate songActive
@@ -43,6 +44,7 @@ SIDLoop
     clr  r12                * prepare to write CRU
     sbo  >24                * write keyboard select - this maps in the SID Blaster
     mov  r11,@sidSave       * save the return address
+    mov  r15,@sidstackSave  * new stack
 	li   r13,getCompressedByte  * store address of getCompressedByte
     li   r6,>0100           * 1 in a byte for byte math
 
@@ -126,6 +128,7 @@ VLOOPDONE
 RETHOME
     mov  @sidSave,r11       * back to caller
 RETHOME2
+    mov  @sidstackSave,r15  * new stack
 	b    *r11
 
 * handle new timestream event
