@@ -1,4 +1,6 @@
-20230919
+20231219
+
+NOTE: Apologies if you have trouble pulling - I reverted and force pushed to undo a previous change, and this may cause issues if you pulled while that commit was up. Nothing important changed in the last 60 days, so just clone again.
 
 This is a tool suite for converting and editting music for the SN76489 and compatible sound chips. It does NOT include a tracker, but rather seeks to be able to adapt music from other trackers for use.
 
