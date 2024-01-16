@@ -44,7 +44,7 @@ SIDLoop
     clr  r12                * prepare to write CRU
     sbo  >24                * write keyboard select - this maps in the SID Blaster
     mov  r11,@sidSave       * save the return address
-    mov  r15,@sidstackSave  * new stack
+    mov  r10,@sidstackSave  * new stack
 	li   r13,getCompressedByte  * store address of getCompressedByte
     li   r6,>0100           * 1 in a byte for byte math
 
@@ -128,7 +128,7 @@ VLOOPDONE
 RETHOME
     mov  @sidSave,r11       * back to caller
 RETHOME2
-    mov  @sidstackSave,r15  * new stack
+    mov  @sidstackSave,r10  * new stack
 	b    *r11
 
 * handle new timestream event

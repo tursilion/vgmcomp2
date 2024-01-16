@@ -59,19 +59,20 @@ R3LSB EQU >8307
 * preserve or restore ANY registers on entry, we can do away with
 * the stack usage completely. (We do preserve R10, the C stack.)
 * As far as the mute bits go, we set them only based on volume output
-	def	SfxLoop
+	def	SfxLoop,Sfx2Lp
 	even
 
 SfxLoop
+    li   r8,>8400           * address of the sound chip
+Sfx2Lp
     movb @sfxActive,r1      * need to check if its active
     andi r1,>0100           * isolate the bit
 	jeq  RETHOME2           * if clear, back to caller (normal case drops through faster)
 
 * load some default values for the whole call
     mov  r11,@sfxSave       * save the return address
-    mov  r15,@sfxstackSave  * new stack
+    mov  r10,@sfxstackSave  * new stack
 	li   r13,getCompressedByte  * store address of getCompressedByte
-    li   r8,>8400           * address of the sound chip
     li   r6,>0100           * 1 in a byte for byte math
 
 	mov  @sfxDat+66,r1      * timestream mainPtr
@@ -147,7 +148,7 @@ RETHOME
     movb @sfxActive,@songNote+7     * copy our active bits over to its mute bits
 
 RETHOME2
-    mov  @sfxstackSave,r15  * new stack
+    mov  @sfxstackSave,r10  * new stack
 	b    *r11
 
 * handle new timestream event

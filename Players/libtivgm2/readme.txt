@@ -58,6 +58,7 @@ SongLoop()
     Asm?   : no input values.
              no return value.
              corrupts all registers but r10. Modifies all data structures.
+    Note   : Supports ForTI - load sound chip address in R8 and BL Song2Lp() instead
 
 SongLoop30()
     File:    CPlayerTI30Hz.asm
@@ -68,6 +69,7 @@ SongLoop30()
     Asm?   : no input values.
              no return value.
              corrupts all registers but r10. Modifies all data structures.
+    Note   : Supports ForTI - load sound chip address in R8 and BL Song2Lp30() instead
 
 isSNPlaying
     File:    TISNPlay.h
@@ -180,6 +182,7 @@ SfxLoop()
     Asm?   : no input values.
              no return value.
              corrupts all registers but r10. Modifies all data structures.
+    Note   : Supports ForTI - load sound chip address in R8 and BL Sfx2Lp() instead
 
 SfxLoop30()
     File:    CPlayerTISfx30hz.asm
@@ -191,6 +194,7 @@ SfxLoop30()
     Asm?   : no input values.
              no return value.
              corrupts all registers but r10. Modifies all data structures.
+    Note   : Supports ForTI - load sound chip address in R8 and BL Song2Lp30() instead
 
 isSFXPlaying
     File:    TISfxPlay.h

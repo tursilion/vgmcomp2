@@ -38,7 +38,7 @@ oldTS   bss 2    * saved timestream byte from first half of processing
 * the stack usage completely. (We do preserve R10, the C stack.)
 * Since this is the 30 hz player, only two channels are processed
 * per call (1/2, and 3/4)
-	def	SongLoop30
+	def	SongLoop30,Song2Lp30
 	even
 
 * bits for songActive - MSB assumed
@@ -46,15 +46,16 @@ BITS01 DATA >0100
 BITS02 DATA >0200
 
 SongLoop30
+    li   r8,>8400           * address of the sound chip
+Song2Lp30
     movb @songActive,r1     * need to check if its active
     coc @BITS01,r1          * isolate the bit
 	jne  RETHOME2           * if clear, back to caller (normal case drops through faster)
 
 * load some default values for the whole call
     mov  r11,@retSave       * save the return address
-    mov  r15,@stackSave     * save the new stack pointer
+    mov  r10,@stackSave     * save the new stack pointer
 	li   r13,getCompressedByte  * store address of getCompressedByte
-    li   r8,>8400           * address of the sound chip (warning: don''t move too much, my sample code relies on this offset)
     li   r6,>0100           * 1 in a byte for byte math
 
 	mov  @strDat+66,r2      * timestream mainPtr
@@ -153,7 +154,7 @@ VLOOPDONE
 
 RETHOME
     mov  @retSave,r11       * back to caller
-    mov  @stackSave,r15     * new stack pointer
+    mov  @stackSave,r10     * new stack pointer
 RETHOME2
 	b    *r11
 

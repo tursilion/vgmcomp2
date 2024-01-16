@@ -29,19 +29,20 @@ songActive EQU songNote+7
 * By replacing GCC regs 3-6 with 12,0,7,8, and knowing that we dont need to
 * preserve or restore ANY registers on entry, we can do away with
 * the stack usage completely. (We do preserve R10, the C stack.)
-	def	SongLoop
+	def	SongLoop,Song2Lp
 	even
 
 SongLoop
+    li   r8,>8400           * address of the sound chip
+Song2Lp
     movb @songActive,r1     * need to check if its active
     andi r1,>0100           * isolate the bit
 	jeq  RETHOME2           * if clear, back to caller (normal case drops through faster)
 
 * load some default values for the whole call
     mov  r11,@retSave       * save the return address
-    mov  r15,@stackSave     * stack pointer
+    mov  r10,@stackSave     * stack pointer
 	li   r13,getCompressedByte  * store address of getCompressedByte
-    li   r8,>8400           * address of the sound chip (warning: don''t move too much, my sample code relies on this offset)
     li   r6,>0100           * 1 in a byte for byte math
 
 	mov  @strDat+66,r1      * timestream mainPtr
@@ -114,7 +115,7 @@ VLOOPDONE
 
 RETHOME
     mov  @retSave,r11       * back to caller
-    mov  @stackSave,r15     * stack pointer
+    mov  @stackSave,r10     * stack pointer
 RETHOME2
 	b    *r11
 

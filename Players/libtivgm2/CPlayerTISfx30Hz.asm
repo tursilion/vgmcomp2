@@ -66,7 +66,7 @@ oldSfxTS   bss 2    * saved timestream byte from first half of processing
 * As far as the mute bits go, we set them only based on volume output
 * Since this is the 30 hz player, only two channels are processed
 * per call (1/2, and 3/4)
-    def	SfxLoop30
+    def	SfxLoop30,Sfx2Lp30
 	even
 
 * bits for sfxActive - MSB assumed
@@ -74,15 +74,16 @@ BITS01 DATA >0100
 BITS02 DATA >0200
 
 SfxLoop30
+    li   r8,>8400           * address of the sound chip
+Sfx2Lp30    
     movb @sfxActive,r1      * need to check if its active
     coc @BITS01,r1          * isolate the bit
 	jne  RETHOME2           * if clear, back to caller (normal case drops through faster)
 
 * load some default values for the whole call
     mov  r11,@sfxSave       * save the return address
-    mov  r15,@sfxstackSave  * new stack
+    mov  r10,@sfxstackSave  * new stack
 	li   r13,getCompressedByte  * store address of getCompressedByte
-    li   r8,>8400           * address of the sound chip
     li   r6,>0100           * 1 in a byte for byte math
 
 	mov  @sfxDat+66,r2      * timestream mainPtr
@@ -179,7 +180,7 @@ RETHOME
     movb @sfxActive,@songActive     * copy our active bits over to its mute bits
 
 RETHOME2
-    mov  @sfxstackSave,R15  * new stack
+    mov  @sfxstackSave,R10  * new stack
 	b    *r11
 
 * handle new timestream event
