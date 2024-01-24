@@ -84,7 +84,7 @@ extern volatile uint16 songNote[4];
 // it needs to preserve any registers. Make sure to call SFX before SN so it can
 // properly set the mutes.
 #define CALL_PLAYER_SN \
-    __asm__(                                                        \
+    __asm__ volatile (                                              \
         "bl @SongLoop"                                              \
         : /* no outputs */                                          \
         : /* no arguments */                                        \
@@ -93,7 +93,7 @@ extern volatile uint16 songNote[4];
 
 // Option 3: same as above, but for 30Hz player
 #define CALL_PLAYER_SN30 \
-    __asm__(                                                        \
+    __asm__ volatile (                                              \
         "bl @SongLoop30"                                            \
         : /* no outputs */                                          \
         : /* no arguments */                                        \

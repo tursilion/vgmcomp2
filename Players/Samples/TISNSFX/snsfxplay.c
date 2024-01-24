@@ -40,6 +40,8 @@ int main() {
 	VDP_SET_REGISTER(VDP_REG_MODE1,x);		// enable the display
 
 	// disable the music
+    StopSong();     // if we stop song first, stopSfx won't waste time restoring sound channels
+    StopSfx();
 	MUTE_SOUND();	// a good idea to also mute the sound registers
 
     // it's possible to use the interrupt routine, we'll run it manually
