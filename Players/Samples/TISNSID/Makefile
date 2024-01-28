@@ -30,7 +30,7 @@ LIBS=-ltivgm2 -lti99
 
 # here we define the SN PSH and TI99 targets for CPlayer
 C_FLAGS=\
-  -O2 -std=c99 -s --save-temp -DUSE_SID_PSG -DBUILD_TI99
+  -O2 -std=c99 -s --save-temp -fno-builtin -fno-function-cse -DUSE_SID_PSG -DBUILD_TI99
 
 # List of compiled objects used in executable
 OBJECT_LIST_EA5=\
