@@ -7,7 +7,7 @@ TMS9900_DIR?=/home/tursilion/gcc9900/bin
 ELF2EA5_DIR?=/home/tursilion/gcc9900/bin
 EA5_SPLIT_DIR?=/home/tursilion/gcc9900/bin
 CLASSIC99_DSK1?=/mnt/d/classic99/DSK1/
-LIBTI99TI?=/mnt/d/work/ti/libti99/
+LIBTI99TI?=/mnt/d/work/libti99ALL/
 CP=/bin/cp
 B2ITI=/mnt/d/tools/bin2inc.exe
 
@@ -26,11 +26,11 @@ LDFLAGS_EA5=\
   --section-start .text=2000 --section-start .data=3b00 -M
 
 INCPATHTI=-I$(LIBTI99TI) -I../../../../libtivgm2
-LIBPATHTI=-L$(LIBTI99TI) -L. -L../../../../libtivgm2
+LIBPATHTI=-L$(LIBTI99TI)/buildti -L. -L../../../../libtivgm2
 LIBSTI=-lti99 -ltivgm2
 
 C_FLAGSTI=\
-  -O2 -std=c99 -s --save-temp -DBUILD_TI99
+  -O2 -std=c99 -s --save-temp -DBUILD_TI99 -DTI99
 
 # Recipe to compile the executable
 ti99: crt0_ea5.asm main.c ani1.c

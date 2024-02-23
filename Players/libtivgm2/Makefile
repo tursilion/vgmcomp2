@@ -4,7 +4,7 @@ TMS9900_DIR?=/home/tursilion/newtms9900-gcc/newgcc9900/bin
 ELF2EA5_DIR?=/home/tursilion/gcc9900/bin
 EA5_SPLIT_DIR?=/home/tursilion/gcc9900/bin
 CLASSIC99_DSK1?=/mnt/d/classic99/DSK1/
-LIBTI99?=/mnt/d/work/ti/libti99/
+LIBTI99?=/mnt/d/work/libti99ALL/
 
 # Full paths to the executables used
 GAS=$(TMS9900_DIR)/tms9900-as
@@ -24,8 +24,8 @@ OBJECT_LIST_EA5=\
 # output file
 NAME=libtivgm2.a
 
-C_FLAGS=-O2 -std=c99 -s --save-temp -I./ -fno-builtin -DBUILD_TI99
-LIBPATH=-L$(LIBTI99) -L.
+C_FLAGS=-O2 -std=c99 -s --save-temp -I./ -fno-builtin -fno-function-cse -DBUILD_TI99 -DTI99
+LIBPATH=-L$(LIBTI99)/buildti -L.
 INCPATH=-I$(LIBTI99) -I../CPlayer
 
 # List of compiled objects used in executable

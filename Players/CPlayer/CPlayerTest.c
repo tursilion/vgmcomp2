@@ -14,6 +14,7 @@ STREAM test;
 
 // disable this if you are not using the TI hand-rolled assembly
 #ifdef BUILD_TI99
+// Regs: R10 and R11 are saved.
 uint8 __attribute__ ((noinline)) getCompressedByteWrap(STREAM *str) {
     __asm__(                                                        \
         "mov r1,r15\n\t"                                            \
@@ -24,7 +25,7 @@ uint8 __attribute__ ((noinline)) getCompressedByteWrap(STREAM *str) {
         "mov *r10+,r11\n\t"                                         \
         : /* no outputs */                                          \
         : /* no arguments */                                        \
-        : "r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r15","cc"   \
+        : "r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r12","r13","r14","r15","cc"   \
         );
 }
 #else

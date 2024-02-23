@@ -19,10 +19,10 @@ LDFLAGS_EA5=\
   --section-start .text=2100 --section-start .data=3800 -M
 
 C_FLAGSTI=\
-  -O2 -std=c99 -s --save-temp -DBUILD_TI99
+  -O2 -std=c99 -s --save-temp -DBUILD_TI99 -DTI99
 
-INCPATHTI=-I/mnt/d/work/ti/libti99 -I../../../libtivgm2
-LIBPATHTI=-L/mnt/d/work/ti/libti99 -L../../../libtivgm2
+INCPATHTI=-I/mnt/d/work/libti99ALL -I../../../libtivgm2
+LIBPATHTI=-L/mnt/d/work/libti99ALL/buildti -L../../../libtivgm2
 LIBSTI=-lti99 -ltivgm2
 
 # Recipe to compile the executable

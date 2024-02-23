@@ -4,7 +4,7 @@ TMS9900_DIR?=/home/tursilion/newtms9900-gcc/newgcc9900/bin
 ELF2EA5_DIR?=/home/tursilion/gcc9900/bin
 EA5_SPLIT_DIR?=/home/tursilion/gcc9900/bin
 CLASSIC99_DSK1?=/mnt/d/classic99/DSK1/
-LIBTI99?=/mnt/d/work/ti/libti99/
+LIBTI99?=/mnt/d/work/libti99ALL/
 
 # Full paths to the executables used
 GAS=$(TMS9900_DIR)/tms9900-as
@@ -24,14 +24,14 @@ EA5PLIT=~/gcc9900/bin/ea5split
 LDFLAGS_EA5=\
   --section-start .text=a000 --section-start .data=2080 -M
 
-INCPATH=-I/mnt/d/work/ti/libti99 -I../../libtivgm2
-LIBPATH=-L/mnt/d/work/ti/libti99 -L../../libtivgm2
+INCPATH=-I/mnt/d/work/libti99ALL -I../../libtivgm2
+LIBPATH=-L/mnt/d/work/libti99ALL/buildti -L../../libtivgm2
 LIBS=-ltivgm2 -lti99
 
 # here we define the SN PSH and TI99 targets for CPlayer
 # Note: no-function-cse prevents gcc from preferring registers for bl calls
 C_FLAGS=\
-  -O2 -std=c99 -s --save-temp -fno-builtin -fno-function-cse -DUSE_SID_PSG -DBUILD_TI99
+  -O2 -std=c99 -s --save-temp -fno-builtin -fno-function-cse -DUSE_SID_PSG -DBUILD_TI99 -DTI99
 
 # List of compiled objects used in executable
 OBJECT_LIST_EA5=\

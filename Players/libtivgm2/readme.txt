@@ -428,7 +428,7 @@ uint8 __attribute__ ((noinline)) getCompressedByteWrap(STREAM *str, const uint8 
         "mov *r10+,r11\n"                                           \
         : /* no outputs */                                          \
         : /* no arguments */                                        \
-        : "r1","r2","r3","r4","r5","r6","r7","r8","r9","r11","r15","cc"   \
+        : "r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r12","r13,","r14","r15","cc"   \
         );
 }
 
