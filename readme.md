@@ -1,6 +1,13 @@
 20240222
 
-NOTE: Apologies if you have trouble pulling - I reverted and force pushed to undo a previous change, and this may cause issues if you pulled while that commit was up. Nothing important changed in the last 60 days, so just clone again.
+** TI-99/4A **
+This code is intended to be used with the version 1.30 patches to GCC 4.4.0 as described in this thread on AtariAge:
+https://forums.atariage.com/topic/164295-gcc-for-the-ti/page/45/#comments
+And found at this repository:
+https://github.com/mburkley/tms9900-gcc
+
+** ColecoVision **
+This code is tested with SDCC dated 20230715
 
 This is a tool suite for converting and editting music for the SN76489 and compatible sound chips. It does NOT include a tracker, but rather seeks to be able to adapt music from other trackers for use.
 
