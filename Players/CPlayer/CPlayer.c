@@ -20,7 +20,7 @@
 // uses a little extra code, but on the TI and the Z80 both,
 // absolute data is far more efficient than data behind a
 // pointer variable.
-//#define SONG_PREFIX sfx_
+//#define SONG_PREFIX sfx_ 
 
 // enable exactly one of these three defines - affects the tone table and
 // the noise channel slightly
