@@ -17,7 +17,7 @@ CALL LINK("SONGGO")
 - the player will set the interrupt hook, so interrupts must be active. I think the compiler requires this as well, so any existing address is linked.
 - XB holds interrupts frequently, so expect music to play irregularly in regular XB, unless it's fairly simple
 
-CALL LINK("STOPSN")
+CALL LINK("STOPSN") 
 - will stop the music and unhook the interrupt
 - use STOPSN shortly after loading the player to initialize it
 
