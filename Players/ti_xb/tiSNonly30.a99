@@ -1,5 +1,5 @@
 ** XB VERSION
-** Manual edit - workspace moved to >8320, CALL LINKs added, made fully relocatable with 8 bit workspace
+** Manual edit - workspace moved to MYWP, CALL LINKs added, made fully relocatable with 8 bit workspace
 
 	DEF SONGGO,STOPSN
 
