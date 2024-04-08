@@ -1,7 +1,12 @@
 ** XB VERSION
 ** Manual edit - workspace moved to MYWP, CALL LINKs added, made fully relocatable with 8 bit workspace
 
-	DEF SONGGO,STOPSN
+	DEF SONGGO,STOPSN,ACTIVE
+
+* Utility Equates - XB mode
+NUMASG EQU >2008
+NUMREF EQU >200C
+FAC    EQU >834A
 
     even
 MYWP
@@ -23,7 +28,13 @@ songActive EQU songNote+7
 
 * SONGGO must go here so we can find the data structures above
 SONGGO
-* find the MUSIC def (might also be "music")
+* pull the numeric parameter for song index
+    clr r0          * not array
+    li r1,1         * parameter 1
+    blwp @NUMREF    * get float into FAC
+* Note, only values from 0-99 work with this trick ;)
+
+* find the MUSIC def
 	li r1,>3ff8		* first entry
 SGLP1
 	c r1,@>2004
@@ -38,16 +49,6 @@ SGLP1
 	c r0,@4(r1)
 	jeq sgok1		* full match!
 SGNX1
-	li r0,>6d75		* lowercase time
-	c r0,*r1
-	jne sgnx2		* not mu
-	li r0,>7369
-	c r0,@2(r1)
-	jne sgnx2		* not si
-	li r0,>6320
-	c r0,@4(r1)
-	jeq sgok1		* full match!
-SGNX2
 	ai r1,-8
 	jmp sglp1
 SGDN1
@@ -56,7 +57,7 @@ SGDN1
 SGOK1
 	mov r11,@retSave
 	mov @6(r1),r1	* address of soundbank
-	li r2,0			* song index (now its patchable!)
+	movb @FAC+1,r2  * song index from CALL LINK
 	bl @StartSong
 	
 * before patching the interrupt hook, make sure it's
@@ -73,11 +74,33 @@ NOPATCH
 	mov @retSave,r11
 	b *r11
 	
+* Check if the song is active - CALL LINK only
+* There is no Integer to Float function in XB, so we can just fake it
+ACTIVE
+    movb @songActive,r0  * get the value
+    clr @FAC             * clear out the FAC
+    clr @FAC+2
+    clr @FAC+4
+    clr @FAC+6
+    movb r0,@FAC+1       * write the single value (we are expecting 0 or 1 only)
+    jeq askip1
+    li r0,>4000          * exponent of 0
+    movb r0,@FAC
+askip1
+    clr r0               * not an array
+    li r1,1              * first argument
+    blwp @NUMASG         * assign it
+    b *r11
+	
 * stop the playing music and undo the hook
 STOPSN
 	mov r11,@retSave
 	bl @StopSong
-	mov @xbInt,@>83C4	* restore the hook
+	mov @xbInt,r0       * check if we have a saved hook
+	ci r0,>ffff
+	jeq skipre          * if it's >FFFF, we never saved it, so leave it alone
+	mov r0,@>83C4	    * restore the hook
+skipre	
 	li r0,>9fbf
 	movb r0,@>8400		* mute all channels
 	swpb r0
