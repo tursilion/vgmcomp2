@@ -16,7 +16,6 @@ const char *szFilename[MAXCHANNELS];
 bool isPeriodic = false;
 bool isWhite = false;
 
-#define NOISE_FLAGS    0x0F000
 #define NOISE_PERIODIC 0x20000
 #define NOISE_MASK     0x00FFF
 

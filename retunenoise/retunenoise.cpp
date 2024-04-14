@@ -1,4 +1,4 @@
-// underlaytones.cpp : Defines the entry point for the console application.
+// retunenoise.cpp : Defines the entry point for the console application.
 // merge a channel into another, but only when that channel is silent
 
 #include "stdafx.h"
@@ -12,12 +12,15 @@ int VGMDAT[MAXCHANNELS][MAXTICKS];
 int VGMVOL[MAXCHANNELS][MAXTICKS];
 FILE *fp[MAXCHANNELS];
 const char *szFilename[MAXCHANNELS];
+bool forcePeriodic = false;
+bool forceWhite = false;
 
-#define RENAME ".underlay.old"
+#define RENAME ".retunenoise.old"
 
-// codes for noise processing (if not periodic (types 0-3), it's white noise (types 4-7))
-// only NOISE_TRIGGER makes it to the output file
+// mask for data
+#define NOISE_FLAGS    0xF0000
 #define NOISE_TRIGGER  0x10000
+#define NOISE_PERIODIC 0x20000
 
 // return true if the channel is muted (by frequency or by volume)
 // We cut off at a frequency count of 7, which is roughly 16khz.
@@ -30,11 +33,14 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Underlay Tool - v20240414\n\n");
+	printf("VGMComp2 RetuneNoise Tool - v20240414\n\n");
 
     if (argc < 3) {
-        printf("underlaytones <chan1> <chan2>\n");
-        printf("Merges chan2 into chan1, but chan1 always gets priority.\n");
+        printf("retunenoise <noise_chan> <tone_chan> [P|W]\n");
+        printf("Merges tone_chan into noise_chan when not muted.\n");
+        printf("Noise volume is preserved, as are flags.\n");
+        printf("Optionally, add a 'P' or 'W' to force periodic or\n");
+        printf("white noise when overwriting. Usually will want P\n");
         printf("Original files are renamed to " RENAME "\n");
         return 1;
     }
@@ -53,6 +59,21 @@ int main(int argc, char *argv[])
             return 1;
         }
         printf("Opened channel %d: %s\n", idx, argv[arg]);
+        ++arg;
+    }
+    if (arg < argc) {
+        if (argv[arg][0]=='P') {
+            forcePeriodic = true;
+            printf("Will force periodic noise\n");
+        }
+        else if (argv[arg][0]=='W') {
+            forceWhite = true;
+            printf("Will force white noise\n");
+        }
+        else {
+            printf("Unknown argument '%s'\n", argv[arg]);
+            return 1;
+        }
         ++arg;
     }
 
@@ -108,27 +129,39 @@ int main(int argc, char *argv[])
     printf("Imported %d rows\n", row);
 
     // merge the second channel into the first one, then output that
-    // to the output file. First channel /always/ gets priority.
+    // to the output file. Second channel /always/ gets priority. Do not move volume,
+    // and do not overwrite noise flags.
     int movedNotes = 0;
     int lostNotes = 0;
+    int typeChanged = 0;
 
     for (int idx = 0; idx<row; ++idx) {
         if (!muted(1,idx)) {
-            if (muted(0,idx)) {
-                // go ahead and move it
-                ++movedNotes;
-                // copy channel 2 to channel 1
-                VGMVOL[0][idx] = VGMVOL[1][idx];
-                VGMDAT[0][idx] = VGMDAT[1][idx];
-            } else {
-                // can't move it, it's lost
+            if ((!muted(0,idx)) && ((VGMDAT[0][idx]&(~NOISE_FLAGS)) != (VGMDAT[1][idx] & (~NOISE_FLAGS)))) {
+                // we will overwrite an existing note
                 ++lostNotes;
+            }
+            // go ahead and move it
+            ++movedNotes;
+            // copy channel 2 to channel 1
+            VGMDAT[0][idx] = (VGMDAT[0][idx]&NOISE_FLAGS) | (VGMDAT[1][idx] & (~NOISE_FLAGS));
+            if (forcePeriodic) {
+                if ((VGMDAT[0][idx] & NOISE_PERIODIC) == 0) {
+                    VGMDAT[0][idx] |= NOISE_PERIODIC;
+                    ++typeChanged;
+                }
+            } else if (forceWhite) {
+                if (VGMDAT[0][idx] & NOISE_PERIODIC) {
+                    VGMDAT[0][idx] &= ~NOISE_PERIODIC;
+                    ++typeChanged;
+                }
             }
         }
     }
 
-    printf("%d tones moved   (non-lossy)\n", movedNotes);
-    printf("%d tones lost    (lossy)\n", lostNotes);
+    printf("%d tones moved        (non-lossy)\n", movedNotes);
+    printf("%d noise tones lost   (lossy)\n", lostNotes);
+    printf("%d noise type changed (lossy)\n", typeChanged);
 
     // now we just have to spit the data back out to a new file
     FILE *fout = fopen(szFilename[0], "w");

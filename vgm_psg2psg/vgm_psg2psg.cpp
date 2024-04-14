@@ -1134,6 +1134,7 @@ int main(int argc, char* argv[])
                         // But, we do need to preserve the trigger and periodic flags
   						VGMStream[6+chip][idx]=((int)(((VGMStream[6+chip][idx]&NOISE_MASK)/nNoiseRatio)+0.5)) |
                                                 (VGMStream[6+chip][idx]&(NOISE_PERIODIC|NOISE_TRIGGER));
+                        ++cnt;
 				    }
 			    }
             }

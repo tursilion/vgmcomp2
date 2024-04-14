@@ -316,6 +316,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "psg2soundlist", "psg2soundl
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "soundlist2psg", "soundlist2psg\soundlist2psg.vcxproj", "{D8027363-83DB-4042-80EB-9407CD094B99}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "retunenoise", "retunenoise\retunenoise.vcxproj", "{FA9D454C-2331-4795-B320-7BA21641624C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -696,6 +698,14 @@ Global
 		{D8027363-83DB-4042-80EB-9407CD094B99}.Release|Win32.Build.0 = Release|Win32
 		{D8027363-83DB-4042-80EB-9407CD094B99}.Release|x64.ActiveCfg = Release|x64
 		{D8027363-83DB-4042-80EB-9407CD094B99}.Release|x64.Build.0 = Release|x64
+		{FA9D454C-2331-4795-B320-7BA21641624C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{FA9D454C-2331-4795-B320-7BA21641624C}.Debug|Win32.Build.0 = Debug|Win32
+		{FA9D454C-2331-4795-B320-7BA21641624C}.Debug|x64.ActiveCfg = Debug|x64
+		{FA9D454C-2331-4795-B320-7BA21641624C}.Debug|x64.Build.0 = Debug|x64
+		{FA9D454C-2331-4795-B320-7BA21641624C}.Release|Win32.ActiveCfg = Release|Win32
+		{FA9D454C-2331-4795-B320-7BA21641624C}.Release|Win32.Build.0 = Release|Win32
+		{FA9D454C-2331-4795-B320-7BA21641624C}.Release|x64.ActiveCfg = Release|x64
+		{FA9D454C-2331-4795-B320-7BA21641624C}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -763,6 +773,7 @@ Global
 		{C4B08B58-3BFA-4E0A-AEFF-D677A60069CC} = {7A95369F-E8EF-425C-A008-8D8F7D2CB3FB}
 		{6EDEE156-D771-4243-811C-83DF6C109F0C} = {C61D286B-17D5-4238-AB62-DF4DF9865169}
 		{D8027363-83DB-4042-80EB-9407CD094B99} = {C61D286B-17D5-4238-AB62-DF4DF9865169}
+		{FA9D454C-2331-4795-B320-7BA21641624C} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

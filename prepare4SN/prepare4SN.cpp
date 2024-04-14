@@ -66,7 +66,7 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 PSG Prep Tool - v20201006\n\n");
+	printf("VGMComp2 PSG Prep Tool - v20240414\n\n");
 
     if (argc < 6) {
         printf("prepare4SN <tone1> <tone2> <tone3> <noise> <output>\n");
@@ -239,6 +239,33 @@ int main(int argc, char *argv[])
                     // channel 2 is ready to use, overwrite it
                     VGMDAT[2][idx] = VGMDAT[3][idx]&NOISE_MASK;    // take the custom shift rate
                     VGMVOL[2][idx] = 0xf;               // keep it muted though
+                    out = 3;                            // custom shift mode
+                }
+            }
+            if (-1 == out) {
+                // if one of the channels is the same frequency as what we want, just make sure
+                // that it is in channel 2
+                if ((VGMDAT[2][idx]==noiseShift)||(VGMDAT[1][idx]==noiseShift)||(VGMDAT[0][idx]==noiseShift)) {
+                    // at least one of them matches
+                    if (VGMDAT[2][idx]!=noiseShift) {
+                        // we need to move channel 2
+                        if (VGMDAT[1][idx]==noiseShift) {
+                            VGMDAT[1][idx] = VGMDAT[2][idx];    // move 2->1
+                            VGMVOL[1][idx] = VGMVOL[2][idx];
+                            ++tonesMoved;
+                        } else if (VGMDAT[0][idx] == noiseShift) {
+                            // this must be true, otherwise something weird happened
+                            VGMDAT[0][idx] = VGMDAT[2][idx];    // move 2->0
+                            VGMVOL[0][idx] = VGMVOL[2][idx];
+                            ++tonesMoved;
+                        } else {
+                            printf("Internal consistency error at row %d\n", idx);
+                            return 1;
+                        }
+                    } else {
+                        ++customNoises;
+                    }
+                    // don't change channel 2, now, just adopt it
                     out = 3;                            // custom shift mode
                 }
             }
