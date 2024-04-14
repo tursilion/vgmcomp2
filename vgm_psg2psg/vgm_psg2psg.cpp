@@ -267,7 +267,7 @@ bool outputData() {
 
 int main(int argc, char* argv[])
 {
-	printf("Import VGM PSG - v20201001\n");
+	printf("Import VGM PSG - v20240414\n");
 
 	if (argc < 2) {
 		printf("vgm_psg2psg [-q] [-d] [-o <n>] [-add <n>] [-notunenoise] [-noscalefreq] [-ignoreweird] <filename>\n");
