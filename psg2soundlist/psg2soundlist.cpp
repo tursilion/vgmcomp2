@@ -619,7 +619,7 @@ int main(int argc, char *argv[])
     int delay = 16;
     int sbfsong = 0;
 
-	printf("VGMComp VGM Test Output - v20220602\n");
+	printf("VGMComp VGM Test Output - v20240511\n");
 
 	if (argc < 3) {
 		printf("psg2playlist [-v] [-sbfsong x] (<file prefix> | <file.sbf> | <track1> <track2> ...) <outputfile.bin>\n");
