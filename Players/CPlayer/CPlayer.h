@@ -17,6 +17,12 @@ typedef int int16;              // must be 16 bit or larger, signed is okay
 typedef unsigned int uint16;    // must be 16 bit or larger, unsigned
 typedef unsigned char uint8;    // must be 8 bit unsigned
 typedef unsigned char uWordSize;// most efficient word size, 8 bits or more unsigned
+#elif defined(BUILD_GBA)
+// 16 bit data is more efficient as we usually are running in thumb mode
+typedef short int16;            // must be 16 bit or larger, signed is okay
+typedef unsigned short uint16;  // must be 16 bit or larger, unsigned
+typedef unsigned char uint8;    // must be 8 bit unsigned
+typedef unsigned char uWordSize;// most efficient word size, 8 bits or more unsigned
 #elif defined(BUILD_COLECO)
 typedef int int16;              // must be 16 bit or larger, signed is okay
 typedef unsigned int uint16;    // must be 16 bit or larger, unsigned
