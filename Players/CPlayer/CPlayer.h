@@ -68,13 +68,13 @@ uint8 getCompressedByte(STREAM *str);
 // do not modify these bytes if you are using the SFX player, they are
 // used to recover after an SFX. If you aren't using SFX, you can do
 // what you like.
-extern uint8 songVol[4];
+extern volatile uint8 songVol[4];
 
 // this array contains the current note on each voice (ignoring mutes)
 // do not modify these bytes if you are using the SFX player, they are
 // used to recover after an SFX. If you aren't using SFX, you can do
 // what you like.
-extern uint16 songNote[4];
+extern volatile uint16 songNote[4];
 
 // songActive is the LSB of songNote[3]
 #define songActive (songNote[3]&0xff)

@@ -77,13 +77,13 @@
 // volume. In that case, this entry contains the mixer command in the least
 // significant nibble. The most significant nibble, again, has a trigger
 // flag - 0xe0 to load, 0x00 to ignore.
-uint8 songVol[4];
+volatile uint8 songVol[4];
 
 // this array contains the current note on each voice
 // sound chip specific. Noise channel contains data
 // in the MSB, and the LSB is used for songActive
 // and mute flags.
-uint16 songNote[4];
+volatile uint16 songNote[4];
 
 // this holds onto the currently playing song pointer
 const uint8* workBufName;
