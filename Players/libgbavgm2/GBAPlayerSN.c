@@ -1,274 +1,356 @@
 // Wrapper for CPlayer.c that gives us the SN functions
 // this directly includes CPlayer.c
 
-#define SND1_VOL *((unsigned short*)(0x4000062))
-#define SND2_VOL *((unsigned short*)(0x4000068))
-// channel 3 has no useful volume - wave channel
-#define SND4_VOL *((unsigned short*)(0x4000078))
+// Okay, this is working on hardware (though Journey to Silius is not - bad convert?)
+// Looks like CPU load is on the order of a couple of scanlines, though I'm not sure I
+// am reading the output correctly - need to get a bit more working then I can just
+// print the number of scanlines it takes. 
 
-#define SND1_FREQ *((unsigned short*)(0x4000064))
-#define SND2_FREQ *((unsigned short*)(0x400006C))
-#define SND3_FREQ *((unsigned short*)(0x4000074))
-#define SND4_FREQ *((unsigned short*)(0x400007C))
+// This also includes a complete SN emulator adapted from Classic99,
+// because the GBC hardware isn't really up to the task (retriggers
+// needed for volume control corrupted the audio pretty badly).
 
-// some registers needed for init
-#define SND1_SWEEP *((unsigned short*)(0x4000060))
+// include GBA defines
+#include <string.h>
+#include "tursigb.h"
 
-#define SND3_WAVE  *((unsigned short*)(0x4000070))
-#define SND3_LEN   *((unsigned short*)(0x4000072))
-#define SND3_WRAM   ((unsigned short*)(0x4000090))
+// We are pretty free on buffersize, but we probably want 1/60th second or less
+// the GSM player in Cool Herders used 160 byte blocks (GSM requirement) and 11khz
+#define BUFFERSIZE 128
+#define BANK_COUNT 4
+signed char AudioBuf[BUFFERSIZE*BANK_COUNT] __attribute__ ((__aligned__(32)));    
+int nBank=0;                    // Bank number for snupdateaudio() (start offset so bank 0 is filled first)
 
-#define SNDCNT_L   *((unsigned short*)(0x4000080))
-#define SNDCNT_H   *((unsigned short*)(0x4000082))
-#define SNDCNT_X   *((unsigned short*)(0x4000084))
-
-// lookup table for SN frequency counts to GBA noise values - precalculated by brute force search in Blassic
-// these values include R and S, 15 bit width, no length and retrigger bit
-const unsigned short noiselookup[1024] = {
-32912,33015,33012,32997,33010,32995,32981,32981,33009,32967,32979,32979,32965,32965,32965,33008,
-33008,33008,32951,32951,32963,32963,32963,32963,32949,32949,32949,32949,32949,32992,32992,32992,
-32992,32992,32992,32935,32935,32935,32935,32935,32947,32947,32947,32947,32947,32947,32947,32933,
-32933,32933,32933,32933,32933,32933,32933,32933,32933,32933,32976,32976,32976,32976,32976,32976,
-32976,32976,32976,32976,32976,32919,32919,32919,32919,32919,32919,32919,32919,32919,32919,32919,
-32931,32931,32931,32931,32931,32931,32931,32931,32931,32931,32931,32931,32931,32931,32917,32917,
-32917,32917,32917,32917,32917,32917,32917,32917,32917,32917,32917,32917,32917,32917,32917,32917,
-32917,32917,32917,32917,32960,32960,32960,32960,32960,32960,32960,32960,32960,32960,32960,32960,
-32960,32960,32960,32960,32960,32960,32960,32960,32960,32960,32903,32903,32903,32903,32903,32903,
-32903,32903,32903,32903,32903,32903,32903,32903,32903,32903,32903,32903,32903,32903,32903,32915,
-32915,32915,32915,32915,32915,32915,32915,32915,32915,32915,32915,32915,32915,32915,32915,32915,
-32915,32915,32915,32915,32915,32915,32915,32915,32915,32915,32915,32915,32901,32901,32901,32901,
-32901,32901,32901,32901,32901,32901,32901,32901,32901,32901,32901,32901,32901,32901,32901,32901,
-32901,32901,32901,32901,32901,32901,32901,32901,32901,32901,32901,32901,32901,32901,32901,32901,
-32901,32901,32901,32901,32901,32901,32901,32944,32944,32944,32944,32944,32944,32944,32944,32944,
-32944,32944,32944,32944,32944,32944,32944,32944,32944,32944,32944,32944,32944,32944,32944,32944,
-32944,32944,32944,32944,32944,32944,32944,32944,32944,32944,32944,32944,32944,32944,32944,32944,
-32944,32944,32944,32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,
-32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,
-32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,32887,32899,32899,32899,
-32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,
-32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,
-32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,32899,
-32899,32899,32899,32899,32899,32899,32899,32899,32885,32885,32885,32885,32885,32885,32885,32885,
-32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,
-32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,
-32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,
-32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,
-32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32885,32928,32928,32928,
-32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,
-32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,
-32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,
-32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,
-32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,32928,
-32928,32928,32928,32928,32928,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,
-32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,
-32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,
-32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,
-32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,
-32871,32871,32871,32871,32871,32871,32871,32871,32871,32871,32883,32883,32883,32883,32883,32883,
-32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,
-32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,
-32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,
-32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,
-32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,
-32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,
-32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32883,32869,
-32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,
-32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,
-32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,
-32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,
-32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,
-32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,
-32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,
-32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,
-32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,
-32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,
-32869,32869,32869,32869,32869,32869,32869,32869,32869,32869,32912,32912,32912,32912,32912,32912,
-32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,
-32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,
-32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,
-32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,
-32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,
-32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912,32912
+// SN emulation
+int nCounter[4]= {0,0,0,1};				// 10 bit countdown timer
+int nNoisePos=1;						// whether noise is positive or negative (white noise only)
+unsigned short LFSR=0x4000;			// noise shifter (only 15 bit)
+int nRegister[4]={0,0,0,0};				// frequency registers
+int nVolume[4]={0,0,0,0};				// volume attenuation
+int nOutput[4]={1,1,1,1};       	    // output scale (positive or negative or zero)
+int nTappedBits=0x0003;
+int nVolumeTable[16]={
+   32767, 26028, 20675, 16422, 13045, 10362,  8231,  6538,
+    5193,  4125,  3277,  2603,  2067,  1642,  1304,     0
 };
 
-void fillsndram(unsigned char vol) {
-    static unsigned short cbank = 0x0040;   // current selected bank
-    unsigned short val;
-    
-    vol &= 0x0f;
-    val = (vol<<12)|(vol<<8)|(vol<<4)|vol;
-
-    // This square wave pattern should result in the same frequency codes as the first two channels
-    SND3_WRAM[0] = val;
-    SND3_WRAM[1] = val;
-    SND3_WRAM[2] = 0x0000;
-    SND3_WRAM[3] = 0x0000;
-    SND3_WRAM[4] = val;
-    SND3_WRAM[5] = val;
-    SND3_WRAM[6] = 0x0000;
-    SND3_WRAM[7] = 0x0000;
-
-    cbank = (cbank?0:0x0040);
-    SND3_WAVE = cbank|0x0080;   // start and swap banks
-}
-
 // sn chip sim init - make sure to call this early
-// NOTE: this turns off the DMA channels, so turn them on after calling this if needed
+// This enables DirectSound A using Timer 1 for frequency and Timer 2 for refill
+// Warning: overwrites REG_SOUNDCNT_X, REG_SOUNDCNT_L and REG_SOUNDCNT_H completely
 void gbasninit() {
-    SNDCNT_X   = 0x0080;    // enable sound registers
+    REG_SOUNDCNT_X = 0x0080;    // enable sound registers
 
-    // turn off channel 1 sweep
-    SND1_SWEEP = 0x0008;    // sweep 0, decrease (recommended), time 0
-    SND1_VOL   = 0x1840;    // len 0, duty 50%, no envelope, increase, mute
-    SND1_FREQ  = 0xC000;    // trigger, dur, freq 0, length off, off
+    // Empty the buffer
+    memset(AudioBuf, 0, sizeof(AudioBuf));
+    
+    // make sure Timers are off
+    REG_TM1CNT = 0;
+    REG_TM2CNT = 0;
+    // make sure DMA channel 1 is turned off
+    REG_DMA1CNT_H = 0;
 
-    // Channel 2 doesn't have sweep
-    SND2_VOL   = 0x1840;    // len 0, duty 50%, no envelope, increase, mute
-    SND2_FREQ  = 0xC000;    // trigger, dur, freq 0, length off, off
+    nBank=0;          // Bank number for snupdateaudio()
 
-    // Set up channel 3 with 32 4-bit samples representing a 50% square wave
-    // This channel doesn't have a proper volume register
-    SND3_WAVE  = 0x0040;    // one bank/32 digits, bank 1 selected, off
-    SND3_LEN   = 0x0000;    // len 0, volume 0, force off
-    SND3_FREQ  = 0xC000;    // trigger, dur, freq 0, length off, off
-    fillsndram(0);  // fill with mute
-    SND3_LEN   = 0x2000;    // len 0, 100% volume, force off
+    // enable and reset Direct Sound channel A, at full volume, using
+    // Timer 0 to determine frequency
+    // Player thus uses DSA, DMA1, TM1 and TM2. It sets interrupts on TM2 for empty buffer
+    // Note DSB is automatically set here for TM0, but needs to be enabled (50% by default)
+    REG_SOUNDCNT_L = 0;     // turn off GBC output
+    REG_SOUNDCNT_H = DSA_OUTPUT_RATIO_100 | // 100% direct sound A output
+                     DSA_OUTPUT_TO_BOTH |   // output Direct Sound A to both right and left speakers
+                     DSA_TIMER1 |           // use timer 1 to determine the playback frequency of Direct Sound A
+                     DSA_FIFO_RESET;        // reset the FIFO for Direct Sound A
 
-    SND4_VOL   = 0x1800;    // len 0, no envelope, increase, mute
-    SND4_FREQ  = 0xC000;    // trigger, len, ratio 0, counter 15 bit, shift clock 0, len 0, off
+    // Default to 11khz on timer 1
+    SetAudioFreq(FREQUENCY_11);
+    // timer 2 will cascade on timer 1 and enable it to trigger every time we finish a buffer
+    REG_TM2D   = (0xffff - (BUFFERSIZE - 1));   // (-1 cause it triggers on overflow, not at 0xffff)
+    // init the DMA transfer
+    REG_DMA1SAD = (u32)AudioBuf;
+    REG_DMA1DAD = (u32)REG_FIFO_A;
+    
+    // Enable both timers, timer 2 first
+    // Timer 2 throws an interrupt to indicate it's time to
+    // refill the buffer.
+    REG_TM2CNT = TIMER_CASCADE|TIMER_ENABLED|TIMER_INTERRUPT;
+    REG_TM1CNT = TIMER_ENABLED;
 
-    SNDCNT_L   = 0xFF77;    // all four channels left and right, maximum volume left and right
-    SNDCNT_H   = 0x0002;    // max volume for sound 1-4, DMA sound off
+    // go ahead and start loading audio (WORD_DMA, COUNT and DEST_REG_SAME are apparently ignored)
+    REG_DMA1CNT_H = ENABLE_DMA | START_ON_FIFO_EMPTY | WORD_DMA | DMA_REPEAT | DEST_REG_SAME;
 }
 
-// sn chip simulation
-void snsim(unsigned char x) {
-// For tone channels and wave channel:
-// Ratio of SN frequency to GBA frequency should be 1.1728 * SNTONE
-// Max SNTONE is 0x3FF, so multiply by 16 for fixed point:
-// 0x3FF.0. 1.1728 becomes approximately 0x0013 (actually 0x0012.C3C9EED)
-// If that sounds too far off, I can use a lookup table again. Not against 4k of data on the GBA scale.
-    static unsigned char last = 0x80;
-    static unsigned char regs[11] = { 0,0,0, 0,0,0, 0,0,0, 0,0 };
-    unsigned short val;
-    unsigned char chan = x&0xf0;
-    if ((x&0x80) == 0) {
-        chan = last+1;
-    } else {
-        last = chan;
-        x &= 0x0F;  // least significant nibble
-    }
+// change the frequency counter on a channel
+// chan - channel 0-3 (3 is noise)
+// freq - frequency counter (0-1023) or noise code (0-7)
+void setfreq(int chan, int freq) {
+	if ((chan < 0)||(chan > 3)) return;
 
-    // frequency doesn't need a retrigger, but volume does
+	if (chan==3) {
+		// limit noise 
+		freq&=0x07;
+		nRegister[3]=freq;
 
-    switch (chan) {
-        case 0x80:
-            regs[0] = x;                // update register
-            val = (regs[1]<<4)|x;       // calculate SN code
-            //val = ((val<<4)*0x13)>>4;   // scale up to GBA code
-            SND1_FREQ = ((2047-val)&0x7ff);       // load it
-            break;
+		// reset shift register
+		LFSR=0x4000;	//	(15 bit)
+		switch (nRegister[3]&0x03) {
+			// these values work but check the datasheet dividers
+			case 0: nCounter[3]=0x10; break;
+			case 1: nCounter[3]=0x20; break;
+			case 2: nCounter[3]=0x40; break;
+			// even when the count is zero, the noise shift still counts
+			// down, so counting down from 0 is the same as wrapping up to 0x400
+			case 3: nCounter[3]=(nRegister[2]?nRegister[2]:0x400); 
+					break;		// is never zero!
+		}
+	} else {
+		// limit freq
+		freq&=0x3ff;
+		nRegister[chan]=freq;
+		// don't update the counters, let them run out on their own
+	}
+}
 
-        case 0x81:
-            regs[1] = x;                // update register
-            val = ((unsigned int)x<<4)|regs[0];       // calculate SN code
-            //val = ((val<<4)*0x13)>>4;   // scale up to GBA code
-            SND1_FREQ = ((2047-val)&0x7ff);       // load it
-            break;
+// change the volume on a channel
+// chan - channel 0-3
+// vol - 0 (loudest) to 15 (silent)
+void setvol(int chan, int vol) {
+	if ((chan < 0)||(chan > 3)) return;
 
-        case 0x90:
-        case 0x91:
-            x &= 0x0f;
-            regs[2] = x;
-            x = 15 - x;                 // invert volume
-            SND1_VOL = ((unsigned int)x<<12)|0x0840;  // volume at 50% duty, increase
-            SND1_FREQ |= 0x8000;
-            break;
+	nVolume[chan]=vol&0xf;
+}
 
-        case 0xA0:
-            regs[3] = x;                // update register
-            val = (regs[4]<<4)|x;       // calculate SN code
-            //val = ((val<<4)*0x13)>>4;   // scale up to GBA code
-            SND2_FREQ = ((2047-val)&0x7ff);       // load it
-            break;
+// sn chip simulation - write data
+void snsim(unsigned char c) {
+    static unsigned short latch_byte = 0;
+	static unsigned short oldFreq[3]={0,0,0};   // tone generator frequencies
 
-        case 0xA1:
-            regs[4] = x;                // update register
-            val = ((unsigned int)x<<4)|regs[3];       // calculate SN code
-            //val = ((val<<4)*0x13)>>4;   // scale up to GBA code
-            SND2_FREQ = ((2047-val)&0x7ff);       // load it
-            break;
+	// 'c' contains the byte currently being written to the sound chip
+	// all functions are 1 or 2 bytes long, as follows					
+	//
+	// BYTE		BIT		PURPOSE											
+	//	1		0		always '1' (latch bit)							
+	//			1-3		Operation:	000 - tone 1 frequency				
+	//								001 - tone 1 volume					
+	//								010 - tone 2 frequency				
+	//								011 - tone 2 volume					
+	//								100 - tone 3 frequency				
+	//								101 - tone 3 volume					
+	//								110 - noise control					
+	//								111 - noise volume					
+	//			4-7		Least sig. frequency bits for tone, or volume	
+	//					setting (0-F), or type of noise.				
+	//					(volume F is off)								
+	//					Noise set:	4 - always 0						
+	//								5 - 0=periodic noise, 1=white noise 
+	//								6-7 - shift rate from table, or 11	
+	//									to get rate from voice 3.		
+	//	2		0-1		Always '0'. This byte only used for frequency	
+	//			2-7		Most sig. frequency bits						
+	//
+	// Commands are instantaneous
 
-        case 0xB0:
-        case 0xB1:
-            x &= 0x0f;
-            regs[5] = x;
-            x = 15 - x;                 // invert volume
-            SND2_VOL = ((unsigned int)x<<12)|0x0840;  // volume at 50% duty, increase
-            SND2_FREQ |= 0x8000;
-            break;
+	// Latch anytime the high bit is set
+	// This byte still immediately changes the channel
+	if (c&0x80) {
+		latch_byte=c;
+	}
 
-        case 0xC0:
-            regs[6] = x;                // update register
-            val = (regs[7]<<4)|x;       // calculate SN code
-            //val = ((val<<4)*0x13)>>4;   // scale up to GBA code
-            SND3_FREQ = ((2047-val)&0x7ff);       // load it
-            break;
+	switch (c&0xf0)										// check command
+	{	
+	case 0x90:											// Voice 1 vol
+	case 0xb0:											// Voice 2 vol
+	case 0xd0:											// Voice 3 vol
+	case 0xf0:											// Noise volume
+		setvol((c&0x60)>>5, c&0x0f);
+		break;
 
-        case 0xC1:
-            regs[7] = x;                // update register
-            val = ((unsigned int)x<<4)|regs[6];       // calculate SN code
-            //val = ((val<<4)*0x13)>>4;   // scale up to GBA code
-            SND3_FREQ = ((2047-val)&0x7ff);       // load it
-            break;
+	case 0xe0:
+		setfreq(3, c&0x07);                             // Noise - get type
+		break;
 
-        case 0xD0:
-        case 0xD1:
-            // this is a little different as we have to re-write the wave RAM
-            x &= 0x0f;
-            regs[8] = x;
-            x = 15 - x;                 // invert volume
-            fillsndram(x);
-            SND3_FREQ |= 0x8000;
-            break;
-
-        case 0xE0:
-        case 0xE1:
-            // TODO: we COULD emulate the noise channel on one of the DMA channels, though that feels like overkill
-            // we'll see how far off this is first
-            x &= 0x0f;
-            if (x != regs[9]) {
-                regs[9] = x;
-                // we don't have periodic, so accept only white noise, otherwise mute
-                if (x&0x04) {
-                    // figure out the TI shift rate
-                    switch (x&0x03) {
-                        case 0: val = 16;   break;
-                        case 1: val = 32;   break;
-                        case 2: val = 64;   break;
-                        case 3: 
-                            val = (regs[7]<<4)|regs[6]; // calculate SN code from channel 3
-                            break;
-                    }
-                    val &= 0x3ff;   // make sure it's in range before we look it up
-                    SND4_FREQ = noiselookup[1023-val];   // just use a table - it's only 2k
-                } else {
-                    // periodic noise disabled
-                    SND4_VOL = 0x0000;
-                    SND4_FREQ |= 0x8000;
-                }
+	case 0x80:											// Voice 1 frequency
+	case 0xa0:											// Voice 2 frequency
+	case 0xc0:											// Voice 3 frequency
+        {
+            int nChan=(latch_byte&0x60)>>5;     // was just set above
+            oldFreq[nChan]&=0xfff0;
+            oldFreq[nChan]|=c&0x0f;
+            setfreq(nChan, oldFreq[nChan]);
+        }
+		break;
+        
+	default:											// Any other byte (ie: 0x80 not set)
+        {
+            int nChan=(latch_byte&0x60)>>5;
+            // latch clear - data to whatever is latched
+            // TODO: re-verify this on hardware, it doesn't agree with the SMS Power doc
+            // as far as the volume and noise goes!
+            if (latch_byte&0x10) {
+                // volume register
+                setvol(nChan, c&0x0f);
+            } else if (nChan==3) {
+                // noise register
+                setfreq(3, c&0x07);
+            } else {
+                // tone generator - most significant bits
+                oldFreq[nChan]&=0xf;
+                oldFreq[nChan]|=(c&0x3f)<<4;
+                setfreq(nChan, oldFreq[nChan]);
             }
-            break;
+        }
+		break;
+	}
+}
 
-        case 0xF0:
-        case 0xF1:
-            x &= 0x0f;
-            regs[10] = x;
-            x = 15 - x;                 // invert volume
-            SND4_VOL = ((unsigned int)x<<12)|0x0800;  // volume (noise has no duty period), increase
-            SND4_FREQ |= 0x8000;
-            break;
+// return 1 or 0 depending on odd parity of set bits
+// function by Dave aka finaldave. Input value should
+// be no more than 16 bits.
+int parity(int val) {
+	val^=val>>8;
+	val^=val>>4;
+	val^=val>>2;
+	val^=val>>1;
+	return val&1;
+};
+
+// call this when it's time to fill the next audio buffer
+// we need 8 bit signed samples
+void snupdateaudio() {
+    // swap output banks
+	nBank += BUFFERSIZE;
+	if (nBank >= BUFFERSIZE*BANK_COUNT) {
+        nBank=0;
+    } else if (nBank == BUFFERSIZE) {  // play pointer should be 1 bank behind us
+		// You /must/ reset this to 0 before loading the count
+        REG_DMA1CNT_H = 0;
+        // Not necessary to rewrite this pointer so long as it hasn't been changed!
+        //REG_DMA1SAD = (u32)AudioBuf;    // reset to beginning of buffer
+        REG_DMA1CNT_H = ENABLE_DMA | START_ON_FIFO_EMPTY | WORD_DMA | DMA_REPEAT | DEST_REG_SAME;
     }
+
+    signed char *buf = &AudioBuf[nBank];
+
+	// nClock is the input clock frequency, which runs through a divide by 16 counter
+	// The frequency does not divide exactly by 16
+	// AudioSampleRate is the frequency at which we actually output bytes
+	// multiplying values by 1000 to improve accuracy of the final division (so ms instead of sec)
+	//const int AudioSampleRate = 11000;
+    //int nClock = 3579545;					// NTSC, PAL may be at 3546893? - this is divided by 16 to tick
+	//double nTimePerClock=1000.0/(nClock/16.0);
+	//double nTimePerSample=1000.0/(double)AudioSampleRate;
+	//int nClocksPerSample = (int)(nTimePerSample / nTimePerClock + 0.5);		// +0.5 to round up if needed
+	int nClocksPerSample = 20;  // at 11000Hz sample rate (20.33832386)
+	int nSamples = BUFFERSIZE;
+
+	while (nSamples) {
+		// tone channels
+		for (int idx=0; idx<3; idx++) {
+            // Further Testing with the chip that SMS Power's doc covers (SN76489)
+            // 0 outputs a 1024 count tone, just like the TI, but 1 DOES output a flat line.
+            // On the TI (SN76494, I think), 1 outputs the highest pitch (count of 1)
+            // However, my 99/4 pics show THAT machine with an SN76489! 
+            // My plank TI has an SN94624 (early name? TMS9919 -> SN94624 -> SN76494 -> SN76489)
+            // And my 2.2 QI console has an SN76494!
+            // So maybe we can't say with certainty which chip is in which machine?
+            // Myths and legends:
+            // - SN76489 grows volume from 2.5v down to 0 (matches my old scopes of the 494), but SN76489A grows volume from 0 up.
+            // - SN76496 is the same as the SN7689A but adds the Audio In pin (all TI used chips have this, even the older ones)
+            // So right now, I believe there are two main versions, differing largely by the behaviour of count 0x001:
+            // Original (high frequency): TMS9919, SN94624, SN76494?
+            // New (flat line): SN76489, SN76489A, SN76496
+			nCounter[idx]-=nClocksPerSample;
+			while (nCounter[idx] <= 0) {    
+                // IIRC divide is slow on this machine, so looping, rarely needed anyway, may be faster
+				nCounter[idx]+=(nRegister[idx]?nRegister[idx]:0x400);
+				nOutput[idx]*=-1;
+			}
+			// A little check to eliminate high frequency tones
+			// If the frequency is greater than 1/2 the sample rate,
+			// then mute it (have to use the nOutput)
+			// Noises can't get higher than audible frequencies (even with high user defined rates),
+			// so we don't need to worry about them.
+			if ((nRegister[idx] != 0) && (nRegister[idx] <= nClocksPerSample)) {    //(111860/(AudioSampleRate/2)))) {
+                // not supporting DAC in this player, so just mute this one
+				// The reason is that the high frequency ends up
+				// creating artifacts with the lower frequency output rate, and you don't
+				// get an inaudible tone but awful noise
+				nOutput[idx]=0;
+			} else if (nOutput[idx] == 0) {
+                // undo a previous mute
+                nOutput[idx] = 1;
+            }
+		}
+
+		// noise channel 
+		nCounter[3]-=nClocksPerSample;
+		while (nCounter[3] <= 0) {
+			switch (nRegister[3]&0x03) {
+				case 0: nCounter[3]+=0x10; break;
+				case 1: nCounter[3]+=0x20; break;
+				case 2: nCounter[3]+=0x40; break;
+				// even when the count is zero, the noise shift still counts
+				// down, so counting down from 0 is the same as wrapping up to 0x400
+				// same is with the tone above :)
+				case 3: nCounter[3]+=(nRegister[2]?nRegister[2]:0x400); break;		// is never zero!
+			}
+			nNoisePos*=-1;
+			// Shift register is only kicked when the 
+			// Noise output sign goes from negative to positive
+			if (nNoisePos > 0) {
+				int in=0;
+				if (nRegister[3]&0x4) {
+					// white noise - actual tapped bits uncertain?
+					// This doesn't currently look right.. need to
+					// sample a full sequence of TI white noise at
+					// a known rate and study the pattern.
+					if (parity(LFSR&nTappedBits)) in=0x4000;
+					if (LFSR&0x01) {
+						// the SMSPower documentation says it never goes negative,
+						// but (my very old) recordings say white noise does goes negative,
+						// and periodic noise doesn't. Need to sit down and record these
+						// noises properly and see what they really do. 
+						// For now I am going to swing negative to play nicely with
+						// the tone channels. 
+						// TODO: I need to verify noise vs tone on a clean system.
+						// need to test for 0 because periodic noise sets it
+						if (nOutput[3] == 0) {
+							nOutput[3] = 1;
+						} else {
+							nOutput[3]*=-1;
+						}
+					}
+				} else {
+					// periodic noise - tap bit 0 (again, BBC Micro)
+					// Compared against TI samples, this looks right
+					if (LFSR&0x0001) {
+						in=0x4000;	// (15 bit shift)
+						// TODO: verify periodic noise as well as white noise
+						// always positive
+						nOutput[3]=1;
+					} else {
+						nOutput[3]=0;
+					}
+                }
+				LFSR>>=1;
+				LFSR|=in;
+			}
+		}
+
+		// write sample
+		nSamples--;
+		
+		// with just 4 channels, I can shift instead of divide
+		// write out one sample. Note volume table is 16 bit
+		int output;
+		output = nOutput[0]*nVolumeTable[nVolume[0]] +
+			 	 nOutput[1]*nVolumeTable[nVolume[1]] +
+			 	 nOutput[2]*nVolumeTable[nVolume[2]] +
+			 	 nOutput[3]*nVolumeTable[nVolume[3]];
+		// output is now between 0 and 131068, may be positive or negative
+		// shift 2 bits to divide by 4, then 8 bits to make 8-bit range
+		output>>=2+8;    // you aren't supposed to do this when mixing. Sorry. :)
+		*(buf++)=output; 
+	}
 }
 
 // no prefix for SN player

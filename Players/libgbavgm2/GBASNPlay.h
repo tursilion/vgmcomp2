@@ -12,5 +12,7 @@
 
 // call this to set up the initial registers
 void gbasninit();
+// call this when the interrupt indicates audio data needed
+void snupdateaudio();
 
 #endif  // file include
