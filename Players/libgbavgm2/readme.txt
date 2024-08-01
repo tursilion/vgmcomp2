@@ -1,6 +1,8 @@
 This links together the GBA playback code into a single linkable library. Link with <<tbd>>
 
-There are two players involved. The SN player will standalone, but the SFX player will also bring in SN. All players will share the common decompression code. Since this player will leave the GBA's digital channels alone, more than likely you will only use the standalone SN player.
+There are two players involved. The SN player will standalone, but the SFX player will also bring in SN. All players will share the common decompression code.
+
+This player runs an emulation of the SN sound chip at 11khz on DirectSound A, using Timer 1 for frequency and Timer 2 for refill.
 
 -----------------------
 BASIC: getting it setup
@@ -12,6 +14,9 @@ FROM C:
  - include GBASNPlay.h to play back music (on the GB channels)
  - include GBASfxPlay.h to play back sound effects
     - this implies you are also playing music - if you are ONLY playing sound effects, just use GBASNPlay.h
+ - you MUST call gbasninit() to initialize the sound system, timers, and interrupts
+ - you MUST call snupdateaudio() when timer 2 expires to reload the audio buffers
+ 
  - calling syntax is detailed below
 
 FROM ASM:
@@ -23,6 +28,19 @@ INTERMEDIATE: available functions
 
 SN Playback: Header: GBASNPlay.h
 -------------------------------
+
+gbasninit()
+    File:    GBAPlayerSN.c
+    Return:  void
+    Inputs:  None
+    Purpose: Initialize the GBA audio and timer hardware for playback, as well as the SN emulation. Call once at startup.
+    
+snupdateaudio()
+    File:    GBAPlayerSN.c
+    Return:  void
+    Inputs:  None
+    Purpose: Fill the audio buffers with the next block of sound to play back. Call every time timer2 expires.
+
 StartSong(const unsigned char *pSbf, uWordSize songNum)
     File:    CPlayer.c
     Return:  void

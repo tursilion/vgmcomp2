@@ -365,3 +365,4 @@ players/libcolecovgm2/*.asm
 
 # coleco/TI stuff
 *.lk
+*.sav

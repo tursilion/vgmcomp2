@@ -10,7 +10,7 @@
 extern void snsim(unsigned char x);
 
 // build for SN
-#define USE_SN_PSG
+//#define USE_SN_PSG
 
 // current priority - you must manually clear this!
 volatile unsigned char sfxPriority;

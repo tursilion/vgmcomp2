@@ -357,7 +357,7 @@ void snupdateaudio() {
 //#define SONG_PREFIX sfx_
 
 // build for SN
-#define USE_SN_PSG
+//#define USE_SN_PSG
 
 // You must also provide "WRITE_BYTE_TO_SOUND_CHIP" as a macro. This takes
 // three arguments: songActive (for mutes), channel (for mutes), byte
