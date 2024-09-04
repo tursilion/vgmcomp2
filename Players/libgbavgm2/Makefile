@@ -33,7 +33,7 @@ C_FLAGS=\
 		-fsigned-char -DBUILD_GBA \
 		-DPRINTF_DISABLE_SUPPORT_FLOAT -DPRINTF_DISABLE_SUPPORT_EXPONENTIAL \
 		-DPRINTF_DISABLE_SUPPORT_LONG_LONG -DPRINTF_DISABLE_SUPPORT_PTRDIFF_T \
-		-DUSE_SN_PSG \
+		-DUSE_SN_PSG -DGBA\
 		-mthumb -mthumb-interwork
 
 LDFLAGS	= -g -mthumb -mthumb-interwork -Wl,-Map,$(notdir $*.map)

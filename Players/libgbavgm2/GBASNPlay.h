@@ -2,7 +2,7 @@
 #define INCLUDE_GBASNPLAY_H
 
 // As long as BUILD_GBA is set, we can just install this header directly
-#include "CPlayer.h"
+#include <CPlayer.h>
 
 #define CALL_PLAYER_SN \
     SongLoop();
@@ -14,5 +14,11 @@
 void gbasninit();
 // call this when the interrupt indicates audio data needed
 void snupdateaudio();
+
+// snsim sends SN byte commands to the emulated chip (optional)
+void snsim(unsigned char x);
+// snupdateaudio fills the audio buffers when needed by timer 1 interrupt (we have to call this)
+void snupdateaudio();
+
 
 #endif  // file include

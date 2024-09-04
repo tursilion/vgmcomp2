@@ -19,7 +19,7 @@
 #define BUFFERSIZE 128
 #define BANK_COUNT 4
 signed char AudioBuf[BUFFERSIZE*BANK_COUNT] __attribute__ ((__aligned__(32)));    
-int nBank=0;                    // Bank number for snupdateaudio() (start offset so bank 0 is filled first)
+static int nBank=0;                    // Bank number for snupdateaudio() (start offset so bank 0 is filled first)
 
 // SN emulation
 int nCounter[4]= {0,0,0,1};				// 10 bit countdown timer
