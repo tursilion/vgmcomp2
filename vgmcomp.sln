@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31313.79
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35312.102
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testPlayer", "testPlayer\testPlayPSG.vcxproj", "{D147FE48-6FCE-4D40-A4B7-2015F928603D}"
 EndProject
@@ -223,9 +223,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ColecoSNAY", "ColecoSNAY", 
 		Players\Samples\ColecoSNAY\readme.txt = Players\Samples\ColecoSNAY\readme.txt
 		Players\Samples\ColecoSNAY\wb.psgay = Players\Samples\ColecoSNAY\wb.psgay
 		Players\Samples\ColecoSNAY\wb.psgsn = Players\Samples\ColecoSNAY\wb.psgsn
-		Players\Samples\ColecoSNAY\wb_psg2.vgz = Players\Samples\ColecoSNAY\wb_psg2.vgz
 		Players\Samples\ColecoSNAY\wbay.c = Players\Samples\ColecoSNAY\wbay.c
 		Players\Samples\ColecoSNAY\wbsn.c = Players\Samples\ColecoSNAY\wbsn.c
+		Players\Samples\ColecoSNAY\wb_psg2.vgz = Players\Samples\ColecoSNAY\wb_psg2.vgz
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ColecoSNSFX", "ColecoSNSFX", "{4B994E02-3A1D-458C-8D1D-999524E76ADD}"
@@ -317,6 +317,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "soundlist2psg", "soundlist2psg\soundlist2psg.vcxproj", "{D8027363-83DB-4042-80EB-9407CD094B99}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "retunenoise", "retunenoise\retunenoise.vcxproj", "{FA9D454C-2331-4795-B320-7BA21641624C}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "splitter", "splitter\splitter.vcxproj", "{82D06D07-C6F5-492A-B012-B24A2B6BADD1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -706,6 +708,14 @@ Global
 		{FA9D454C-2331-4795-B320-7BA21641624C}.Release|Win32.Build.0 = Release|Win32
 		{FA9D454C-2331-4795-B320-7BA21641624C}.Release|x64.ActiveCfg = Release|x64
 		{FA9D454C-2331-4795-B320-7BA21641624C}.Release|x64.Build.0 = Release|x64
+		{82D06D07-C6F5-492A-B012-B24A2B6BADD1}.Debug|Win32.ActiveCfg = Debug|Win32
+		{82D06D07-C6F5-492A-B012-B24A2B6BADD1}.Debug|Win32.Build.0 = Debug|Win32
+		{82D06D07-C6F5-492A-B012-B24A2B6BADD1}.Debug|x64.ActiveCfg = Debug|x64
+		{82D06D07-C6F5-492A-B012-B24A2B6BADD1}.Debug|x64.Build.0 = Debug|x64
+		{82D06D07-C6F5-492A-B012-B24A2B6BADD1}.Release|Win32.ActiveCfg = Release|Win32
+		{82D06D07-C6F5-492A-B012-B24A2B6BADD1}.Release|Win32.Build.0 = Release|Win32
+		{82D06D07-C6F5-492A-B012-B24A2B6BADD1}.Release|x64.ActiveCfg = Release|x64
+		{82D06D07-C6F5-492A-B012-B24A2B6BADD1}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -774,6 +784,7 @@ Global
 		{6EDEE156-D771-4243-811C-83DF6C109F0C} = {C61D286B-17D5-4238-AB62-DF4DF9865169}
 		{D8027363-83DB-4042-80EB-9407CD094B99} = {C61D286B-17D5-4238-AB62-DF4DF9865169}
 		{FA9D454C-2331-4795-B320-7BA21641624C} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
+		{82D06D07-C6F5-492A-B012-B24A2B6BADD1} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

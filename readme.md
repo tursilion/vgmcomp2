@@ -17,8 +17,6 @@ Limited support for playing back the data on the AY-3-8910 and the Commodore SID
 
 Finally, a compression tool and playback library is provided for the final audio data. A PC reference library is provided, as well as optimized libraries for the TI-99/4A and ColecoVision.
 
-NOTE: for the TI, a new GCC patch was released December 13, 2023, which moves the stack register. The main branch tracks this update - you can use the old_ti_gcc branch if you want the previous behaviour (or just search for the R10/R15 code... right now all it does is copy the register from R15 to R10 and back. In the future I will patch the code to remove the extra instructions.)
-
 Full source code for all tools is provided. Where not prevented by GPL, all other code is Public Domain and free for your own use, completely unencumbered. See [PublicDomainMostly.txt](https://github.com/tursilion/vgmcomp2/raw/main/dist/PublicDomainMostly.txt). The code is written for Windows but is mostly command-line and may compile elsewhere.
 
 You can also view the [Documentation](https://github.com/tursilion/vgmcomp2/raw/main/dist/VGMComp2.pdf)
