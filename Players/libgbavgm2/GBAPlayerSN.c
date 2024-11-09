@@ -14,6 +14,8 @@
 #include <string.h>
 #include "tursigb.h"
 
+void setvol(int chan, int vol);
+
 // We are pretty free on buffersize, but we probably want 1/60th second or less
 // the GSM player in Cool Herders used 160 byte blocks (GSM requirement) and 11khz
 #define BUFFERSIZE 128
@@ -24,11 +26,11 @@ static int nBank=0;                    // Bank number for snupdateaudio() (start
 // SN emulation
 int nCounter[4]= {0,0,0,1};				// 10 bit countdown timer
 int nNoisePos=1;						// whether noise is positive or negative (white noise only)
-unsigned short LFSR=0x4000;			// noise shifter (only 15 bit)
+unsigned short LFSR=0x4000;			    // noise shifter (only 15 bit)
 int nRegister[4]={0,0,0,0};				// frequency registers
 int nVolume[4]={0,0,0,0};				// volume attenuation
 int nOutput[4]={1,1,1,1};       	    // output scale (positive or negative or zero)
-int nTappedBits=0x0003;
+//int nTappedBits=0x0003;               // not using this mask, checking 2 bits directly
 int nVolumeTable[16]={
    32767, 26028, 20675, 16422, 13045, 10362,  8231,  6538,
     5193,  4125,  3277,  2603,  2067,  1642,  1304,     0
@@ -42,7 +44,7 @@ void gbasninit() {
 
     // Empty the buffer
     memset(AudioBuf, 0, sizeof(AudioBuf));
-    
+        
     // make sure Timers are off
     REG_TM1CNT = 0;
     REG_TM2CNT = 0;
@@ -50,6 +52,10 @@ void gbasninit() {
     REG_DMA1CNT_H = 0;
 
     nBank=0;          // Bank number for snupdateaudio()
+    setvol(0,15);
+    setvol(1,15);
+    setvol(2,15);
+    setvol(3,15);   // mute the simulated generators
 
     // enable and reset Direct Sound channel A, at full volume, using
     // Timer 0 to determine frequency
@@ -202,6 +208,7 @@ void snsim(unsigned char c) {
 	}
 }
 
+#if 0
 // return 1 or 0 depending on odd parity of set bits
 // function by Dave aka finaldave. Input value should
 // be no more than 16 bits.
@@ -212,10 +219,13 @@ int parity(int val) {
 	val^=val>>1;
 	return val&1;
 };
+#endif
 
 // call this when it's time to fill the next audio buffer
-// we need 8 bit signed samples
-void snupdateaudio() {
+// we need 8 bit signed samples - note if not in iwram,
+// then in certain low pitched noise samples this can notably slow down
+// If we still have problems, we could use lookup tables instead of loops, ROM is not an issue.
+void CODE_IN_IWRAM snupdateaudio() {
     // swap output banks
 	nBank += BUFFERSIZE;
 	if (nBank >= BUFFERSIZE*BANK_COUNT) {
@@ -260,7 +270,7 @@ void snupdateaudio() {
             // New (flat line): SN76489, SN76489A, SN76496
 			nCounter[idx]-=nClocksPerSample;
 			while (nCounter[idx] <= 0) {    
-                // IIRC divide is slow on this machine, so looping, rarely needed anyway, may be faster
+                // I did a test with division, and it was worse!
 				nCounter[idx]+=(nRegister[idx]?nRegister[idx]:0x400);
 				nOutput[idx]*=-1;
 			}
@@ -303,7 +313,10 @@ void snupdateaudio() {
 					// This doesn't currently look right.. need to
 					// sample a full sequence of TI white noise at
 					// a known rate and study the pattern.
-					if (parity(LFSR&nTappedBits)) in=0x4000;
+
+                    // tapped bits = 0x0003 - if odd parity (ie: one or the other set), OR in 0x4000
+                    if (((LFSR&0x0002)>>1)^(LFSR&0x0001)) in = 0x4000;
+					//if (parity(LFSR&nTappedBits)) in=0x4000;
 					if (LFSR&0x01) {
 						// the SMSPower documentation says it never goes negative,
 						// but (my very old) recordings say white noise does goes negative,
