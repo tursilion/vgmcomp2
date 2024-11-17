@@ -1,7 +1,7 @@
 // Running the GBA player takes a little more work, as you need to service the
 // audio interrupt to feed the audio buffers with the SN emulation.
 
-// TODO: Journey to Silius is not working, I should implement more of libti99
+// TODO: Visuals not working, I need to link in libTI99All
 // so that the rest of the demo can be run.
 
 #include "tursigb.h"
@@ -27,14 +27,14 @@ extern unsigned int cntInline,cntRle,cntRle16,cntRle24,cntRle32,cntBack;
 
 // snsim sends SN byte commands to the emulated chip (optional)
 extern void snsim(unsigned char x);
-// snupdateaudio fills the audio buffers when needed by timer 1 interrupt (we have to call this)
+// snupdateaudio fills the audio buffers when needed by VCOUNT interrupt (we have to call this)
 extern void snupdateaudio();
+// also need the start function
+extern void gbastartaudio();
 
 volatile unsigned char KSCAN_KEY = 0xff;
 void vdpwaitvint() {
     WAITSYNC(1);
-//    vsync();
-//    while (VCOUNT == 160) { }
 }
 void kscan(int x) {
     (void)x;
@@ -52,6 +52,14 @@ void InterruptProcess(void)
 
     // disable interrupts
     REG_IME = 0;
+    
+    if (tmp & INT_VCOUNT) {
+        // update the audio buffers
+//        unsigned short oldbg = *(volatile unsigned short*)BG_PALETTE;
+//        *(volatile unsigned short*)BG_PALETTE = 0x03e0;  // green - working on SN emulation
+        snupdateaudio();
+//        *(volatile unsigned short*)BG_PALETTE = oldbg;
+    }
 
     if (tmp & INT_VBLANK) {
         myJiffies++;
@@ -61,26 +69,12 @@ void InterruptProcess(void)
     /* acknowledge to BIOS, for IntrWait() */
     *(volatile unsigned short *)0x3007FF8 |= tmp;
 
-    // clear *all* flagged ints except timer 2, which we check below (writing a 1 clears that bit)
+    // clear *all* flagged ints
     // When we clear the bits, those ints are allowed to trigger again   	
-    REG_IF = (~INT_TIMER2);
+    REG_IF = tmp;
 
     // Re-enable interrupts
     REG_IME = 1;
-
-    // Timer 2 handles the SN emulation
-    // This one can take a while - we'll allow other ints now
-	if (tmp & INT_TIMER2) {
-        unsigned short oldbg = *(volatile unsigned short*)BG_PALETTE;
-
-        *(volatile unsigned short*)BG_PALETTE = 0x03e0;  // green - working on SN emulation
-        snupdateaudio();
-        *(volatile unsigned short*)BG_PALETTE = oldbg;
-
-        // clear the interrupt only after we're done. If we were too slow,
-        // we may have missed interrupts!
-        REG_IF=INT_TIMER2;  // writing zeros is ignored
-    }
 }
 
 void waitkey() {
@@ -96,7 +90,7 @@ void gbainit() {
     INT_VECTOR = intrwrap; // assembly wrapper for interrupt handler
     myJiffies = 0;
     REG_DISPSTAT = VBLANK_IRQ;
-    REG_IE = INT_TIMER2 | INT_VBLANK;   // TIMER1 is used by the SN emulator
+    REG_IE = INT_VBLANK|INT_VCOUNT;
     
     // set up the GBA sound hardware
     gbasninit();
@@ -115,23 +109,15 @@ int main() {
     *(volatile unsigned short*)BG_PALETTE = 0x7c00;  // blue
 
 #if 0
-    // requires CPlayerCommonHandEdit.asm to be built with these counters
-    cntInline=cntRle=cntRle16=cntRle24=cntRle32=cntBack=0;
-#endif
-
-#if 0
-    // see what's broken
-    PlayerUnitTest();
-    for (;;) {
-        kscan(5);
-        if (KSCAN_KEY == 32) break;
-    }
     vdpmemset(gImage, ' ', 768);
 #endif
 
     // prepare the gameboy
     gbainit();
-    
+
+    // start the audio generators
+    gbastartaudio();
+
     // mute the sound chip
     snsim(0x9f);
     snsim(0xbf);
@@ -255,22 +241,6 @@ int main() {
 //                VDP_SET_REGISTER(VDP_REG_COL,COLOR_LTBLUE);
             }
         }
-
-#if 0
-        // requires CPlayerCommonHandEdit.asm to be built with these counters
-        VDP_SET_ADDRESS_WRITE(gImage);
-        faster_hexprint2(cntInline);
-        VDPWD=' ';
-        faster_hexprint2(cntRle);
-        VDPWD=' ';
-        faster_hexprint2(cntRle16);
-        VDPWD=' ';
-        faster_hexprint2(cntRle24);
-        VDPWD=' ';
-        faster_hexprint2(cntRle32);
-        VDPWD=' ';
-        faster_hexprint2(cntBack);
-#endif
 
     }
 

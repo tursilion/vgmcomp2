@@ -293,6 +293,8 @@ typedef     int                     bool;
 #define FREQUENCY_16 (0xFFFF - 1048)       // 16khz - works
 #define FREQUENCY_11 (0xFFFF - 1521)       // 11khz - works
 #define FREQUENCY_8  (0xFFFF - 2047)       // 8khz  - works
+// This one is selected to synchronized with vblank
+#define FREQUENCY_VBLANK (0xffff - 1671)   // ~10khZ, requires 168 byte buffers
 
 // flags
 #define SND_ENABLED           0x00000080

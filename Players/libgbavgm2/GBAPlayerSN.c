@@ -1,7 +1,7 @@
 // Wrapper for CPlayer.c that gives us the SN functions
 // this directly includes CPlayer.c
 
-// Okay, this is working on hardware (though Journey to Silius is not - bad convert?)
+// Okay, this is working on hardware
 // Looks like CPU load is on the order of a couple of scanlines, though I'm not sure I
 // am reading the output correctly - need to get a bit more working then I can just
 // print the number of scanlines it takes. 
@@ -9,6 +9,8 @@
 // This also includes a complete SN emulator adapted from Classic99,
 // because the GBC hardware isn't really up to the task (retriggers
 // needed for volume control corrupted the audio pretty badly).
+// NOTE: this player does NOT honor 0 as meaning 1024 and does not handle very low
+//       custom noise frequencies correctly, for performance reasons.
 
 // include GBA defines
 #include <string.h>
@@ -18,7 +20,9 @@ void setvol(int chan, int vol);
 
 // We are pretty free on buffersize, but we probably want 1/60th second or less
 // the GSM player in Cool Herders used 160 byte blocks (GSM requirement) and 11khz
-#define BUFFERSIZE 128
+// By using FREQUENCY_VBLANK and 168 byte buffers, we should play exactly one buffer
+// per frame, and so can update during vblank instead of on the timer cascade
+#define BUFFERSIZE 168
 #define BANK_COUNT 4
 signed char AudioBuf[BUFFERSIZE*BANK_COUNT] __attribute__ ((__aligned__(32)));    
 static int nBank=0;                    // Bank number for snupdateaudio() (start offset so bank 0 is filled first)
@@ -27,8 +31,8 @@ static int nBank=0;                    // Bank number for snupdateaudio() (start
 int nCounter[4]= {0,0,0,1};				// 10 bit countdown timer
 int nNoisePos=1;						// whether noise is positive or negative (white noise only)
 unsigned short LFSR=0x4000;			    // noise shifter (only 15 bit)
-int nRegister[4]={0,0,0,0};				// frequency registers
-int nVolume[4]={0,0,0,0};				// volume attenuation
+int nRegister[4]={1,1,1,1};				// frequency registers
+int nVolume[4]={15,15,15,15};				// volume attenuation
 int nOutput[4]={1,1,1,1};       	    // output scale (positive or negative or zero)
 //int nTappedBits=0x0003;               // not using this mask, checking 2 bits directly
 int nVolumeTable[16]={
@@ -36,18 +40,17 @@ int nVolumeTable[16]={
     5193,  4125,  3277,  2603,  2067,  1642,  1304,     0
 };
 
-// sn chip sim init - make sure to call this early
-// This enables DirectSound A using Timer 1 for frequency and Timer 2 for refill
+// sn chip sim init - make sure to call this early - YOU MUST CALL gbastartaudio for audio to play!
+// This enables DirectSound A using Timer 1 for frequency and VCOUNT match (user called!) for refill
 // Warning: overwrites REG_SOUNDCNT_X, REG_SOUNDCNT_L and REG_SOUNDCNT_H completely
 void gbasninit() {
     REG_SOUNDCNT_X = 0x0080;    // enable sound registers
 
-    // Empty the buffer
+    // Empty the buffer 
     memset(AudioBuf, 0, sizeof(AudioBuf));
         
     // make sure Timers are off
     REG_TM1CNT = 0;
-    REG_TM2CNT = 0;
     // make sure DMA channel 1 is turned off
     REG_DMA1CNT_H = 0;
 
@@ -58,8 +61,8 @@ void gbasninit() {
     setvol(3,15);   // mute the simulated generators
 
     // enable and reset Direct Sound channel A, at full volume, using
-    // Timer 0 to determine frequency
-    // Player thus uses DSA, DMA1, TM1 and TM2. It sets interrupts on TM2 for empty buffer
+    // Timer 1 to determine frequency
+    // Player thus uses DSA, DMA1, TM1 (and TM2. It sets interrupts on TM2 for empty buffer)
     // Note DSB is automatically set here for TM0, but needs to be enabled (50% by default)
     REG_SOUNDCNT_L = 0;     // turn off GBC output
     REG_SOUNDCNT_H = DSA_OUTPUT_RATIO_100 | // 100% direct sound A output
@@ -67,22 +70,35 @@ void gbasninit() {
                      DSA_TIMER1 |           // use timer 1 to determine the playback frequency of Direct Sound A
                      DSA_FIFO_RESET;        // reset the FIFO for Direct Sound A
 
-    // Default to 11khz on timer 1
-    SetAudioFreq(FREQUENCY_11);
-    // timer 2 will cascade on timer 1 and enable it to trigger every time we finish a buffer
-    REG_TM2D   = (0xffff - (BUFFERSIZE - 1));   // (-1 cause it triggers on overflow, not at 0xffff)
+    // Default to ~10khz on timer 1
+    SetAudioFreq(FREQUENCY_VBLANK);
     // init the DMA transfer
     REG_DMA1SAD = (u32)AudioBuf;
     REG_DMA1DAD = (u32)REG_FIFO_A;
-    
-    // Enable both timers, timer 2 first
-    // Timer 2 throws an interrupt to indicate it's time to
-    // refill the buffer.
-    REG_TM2CNT = TIMER_CASCADE|TIMER_ENABLED|TIMER_INTERRUPT;
-    REG_TM1CNT = TIMER_ENABLED;
 
+    // enabling the timer starts the frequency generator
+    REG_TM1CNT = TIMER_ENABLED;
+    
+    // we don't enable DMA until gbastartaudio() is called
+}
+
+// until you call this, the DMA is not transferring data to the audio registers
+// don't call this until your vertical blank interrupt is ready
+// Make sure you don't overwrite DISPSTAT - and if you do, you need to reload VCOUNT IRQ and set
+// the VCOUNT line to 160.
+void gbastartaudio() {
+    // set the VCOUNT interrupt
+    REG_DISPSTAT &= 0x00df;     // mask out vcount bits and the vcount IRQ
+    REG_DISPSTAT |= 0xa020;     // set line 160 and the vcount IRQ
     // go ahead and start loading audio (WORD_DMA, COUNT and DEST_REG_SAME are apparently ignored)
     REG_DMA1CNT_H = ENABLE_DMA | START_ON_FIFO_EMPTY | WORD_DMA | DMA_REPEAT | DEST_REG_SAME;
+}
+
+// in case you need to stop it
+void gbastopaudio() {
+    REG_DMA1CNT_H = 0;
+    // turn off the VCOUNT interrupt too
+    REG_DISPSTAT &= 0x00df;     // mask out vcount bits and the vcount IRQ
 }
 
 // change the frequency counter on a channel
@@ -98,19 +114,10 @@ void setfreq(int chan, int freq) {
 
 		// reset shift register
 		LFSR=0x4000;	//	(15 bit)
-		switch (nRegister[3]&0x03) {
-			// these values work but check the datasheet dividers
-			case 0: nCounter[3]=0x10; break;
-			case 1: nCounter[3]=0x20; break;
-			case 2: nCounter[3]=0x40; break;
-			// even when the count is zero, the noise shift still counts
-			// down, so counting down from 0 is the same as wrapping up to 0x400
-			case 3: nCounter[3]=(nRegister[2]?nRegister[2]:0x400); 
-					break;		// is never zero!
-		}
 	} else {
 		// limit freq
 		freq&=0x3ff;
+		if (freq == 0) freq=0x400;
 		nRegister[chan]=freq;
 		// don't update the counters, let them run out on their own
 	}
@@ -249,10 +256,29 @@ void CODE_IN_IWRAM snupdateaudio() {
 	//double nTimePerClock=1000.0/(nClock/16.0);
 	//double nTimePerSample=1000.0/(double)AudioSampleRate;
 	//int nClocksPerSample = (int)(nTimePerSample / nTimePerClock + 0.5);		// +0.5 to round up if needed
-	int nClocksPerSample = 20;  // at 11000Hz sample rate (20.33832386)
+	//int nClocksPerSample = 20;  // at 11000Hz sample rate (20.33832386) 
+	// For the new vblank based one, the frequency is 10035.88516746412hz
+	// So the clocks per sample result is 22.29216046
+	int nClocksPerSample = 22;
+	
+	// note: lookup tables are good for up to 30 clocks per sample
+	
 	int nSamples = BUFFERSIZE;
+    
+    // calculate this once outside the loop
+    int noiseCnt;
+    switch (nRegister[3]&0x03) {
+        case 0: noiseCnt=0x10; break;
+        case 1: noiseCnt=0x20; break;
+        case 2: noiseCnt=0x40; break;
+        // even when the count is zero, the noise shift still counts
+        // down, so counting down from 0 is the same as wrapping up to 0x400
+        // same is with the tone above :)
+        case 3: noiseCnt=(nRegister[2]?nRegister[2]:0x400); break;		// is never zero!
+    }
 
 	while (nSamples) {
+	
 		// tone channels
 		for (int idx=0; idx<3; idx++) {
             // Further Testing with the chip that SMS Power's doc covers (SN76489)
@@ -268,44 +294,44 @@ void CODE_IN_IWRAM snupdateaudio() {
             // So right now, I believe there are two main versions, differing largely by the behaviour of count 0x001:
             // Original (high frequency): TMS9919, SN94624, SN76494?
             // New (flat line): SN76489, SN76489A, SN76496
-			nCounter[idx]-=nClocksPerSample;
-			while (nCounter[idx] <= 0) {    
-                // I did a test with division, and it was worse!
-				nCounter[idx]+=(nRegister[idx]?nRegister[idx]:0x400);
-				nOutput[idx]*=-1;
-			}
+
 			// A little check to eliminate high frequency tones
 			// If the frequency is greater than 1/2 the sample rate,
 			// then mute it (have to use the nOutput)
 			// Noises can't get higher than audible frequencies (even with high user defined rates),
 			// so we don't need to worry about them.
-			if ((nRegister[idx] != 0) && (nRegister[idx] <= nClocksPerSample)) {    //(111860/(AudioSampleRate/2)))) {
+			// This will also be the zero check since we don't allow it anymore
+			if (nRegister[idx] <= nClocksPerSample) {    //(111860/(AudioSampleRate/2)))) {
                 // not supporting DAC in this player, so just mute this one
 				// The reason is that the high frequency ends up
 				// creating artifacts with the lower frequency output rate, and you don't
 				// get an inaudible tone but awful noise
 				nOutput[idx]=0;
-			} else if (nOutput[idx] == 0) {
-                // undo a previous mute
-                nOutput[idx] = 1;
+			} else {
+                if (nOutput[idx] == 0) {
+                    // undo a previous mute
+                    nOutput[idx] = 1;
+                }
+
+                nCounter[idx]-=nClocksPerSample;
+                if (nCounter[idx] <= 0) {    
+                    nCounter[idx]+=nRegister[idx];
+                    nOutput[idx]*=-1;
+                }
             }
 		}
 
 		// noise channel 
 		nCounter[3]-=nClocksPerSample;
-		while (nCounter[3] <= 0) {
-			switch (nRegister[3]&0x03) {
-				case 0: nCounter[3]+=0x10; break;
-				case 1: nCounter[3]+=0x20; break;
-				case 2: nCounter[3]+=0x40; break;
-				// even when the count is zero, the noise shift still counts
-				// down, so counting down from 0 is the same as wrapping up to 0x400
-				// same is with the tone above :)
-				case 3: nCounter[3]+=(nRegister[2]?nRegister[2]:0x400); break;		// is never zero!
-			}
+		if (nCounter[3] <= 0) {
+            nCounter[3] += noiseCnt;
 			nNoisePos*=-1;
 			// Shift register is only kicked when the 
 			// Noise output sign goes from negative to positive
+			// NOTE: this if (and the similar one up there in tones) should be 
+			// a WHILE for correct reproduction. But due to performance issues,
+			// it's not. This means really low user-defined noises will not
+			// sound correct.
 			if (nNoisePos > 0) {
 				int in=0;
 				if (nRegister[3]&0x4) {

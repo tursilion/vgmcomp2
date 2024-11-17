@@ -12,7 +12,12 @@
 
 // call this to set up the initial registers
 void gbasninit();
-// call this when the interrupt indicates audio data needed
+
+// call this to start or stop the audio DMA. When starts, you MUST call snupdateaudio() every vertical blank
+void gbastartaudio();
+void gbastopaudio();
+
+// call this every vertical blank to load the audio registers - if you miss it will cause noise
 void snupdateaudio();
 
 // snsim sends SN byte commands to the emulated chip (optional)
