@@ -111,6 +111,7 @@ void setfreq(int chan, int freq) {
 		// limit noise 
 		freq&=0x07;
 		nRegister[3]=freq;
+		nCounter[3] = 0;
 
 		// reset shift register
 		LFSR=0x4000;	//	(15 bit)
