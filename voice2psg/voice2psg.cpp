@@ -235,9 +235,7 @@ double *wavread(const  char* name, int newFreq, int &samples) {
     free(tmpBuf);
 
     // one more pass - amplify as loud as possible
-    // we want to over-amplify a little, the clipping doesn't
-    // seem to hurt the result too badly
-    loudest = 1.2/loudest;      // instead of 1.0
+    loudest = 1.0/loudest;      // instead of 1.0
 
     if (debug2) {
         printf("Input volume scale: %lf\n", loudest);
@@ -429,7 +427,7 @@ int main(int argc, char *argv[]) {
     int samplepos = 0;
     int noisefreq = 0;
     int noisevol = 0;
-    int step735 = int(735*songSpeedScale+.5)*2;
+    int step735 = int(735*songSpeedScale+.5)*2; // 1 and 3 are both rather poor - though there is a speed change too
     int clipped = 0;
 
     // set up Gist
@@ -465,7 +463,7 @@ int main(int argc, char *argv[]) {
         // gist.highFrequencyContent() -
         // gist.getMagnitudeSpectrum() - get a full FFT spectrum
         // gist.pitch() - pitch estimation
-        // gist.getMelFrequencySpectrum() - a spectrum better suited to voice recognition
+        // gist.getMelFrequencySpectrum() - a spectrum better suited to voice recognition (different scale, not useful here)
         // gist.getMelFrequencyCepstralCoefficients() - characterises a frame of speech - http://www.practicalcryptography.com/miscellaneous/machine-learning/tutorial-cepstrum-and-lpccs/
 
         // get the maximum spectrum
@@ -512,6 +510,10 @@ int main(int argc, char *argv[]) {
             // find the first one we're louder than, and insert into the sorted list
             for (int chan = 0; chan < channels; ++chan) {
                 if (x[idx] > max[chan]) {
+#if 1
+                    int result = idx;
+                    int minstepcnt = 0;
+#else
                     // if we are going to take this one, then we want to check the
                     // minstep steps around it, and take the loudest of those, then skip
                     // over. We assume are at the first step of a peak, so it gets louder
@@ -527,6 +529,7 @@ int main(int argc, char *argv[]) {
                             }
                         }
                     }
+#endif
 
                     // shift down to make room
                     for (int ch = channels-1; ch > chan; --ch) {
@@ -561,8 +564,9 @@ int main(int argc, char *argv[]) {
                     outVol[idx][rows] = 0;
                 }
             } else {
-//                noisevol = int(gist.rootMeanSquare()*255);
-//                noisefreq = int(111860.8 / gist.pitch() + 0.5);
+                // I tried moving this down with the tones, and that was worse on voice
+                //noisevol = int(gist.rootMeanSquare()*255);
+                //noisefreq = int(111860.8 / gist.pitch() + 0.5);
             }
         } else {
             for (int idx=0; idx<channels; ++idx) {

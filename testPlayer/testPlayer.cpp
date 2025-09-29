@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <time.h>
+#include <conio.h>
 #include "sound.h"
 
 extern LPDIRECTSOUNDBUFFER soundbuf;		// sound chip audio buffer
@@ -1222,6 +1223,11 @@ int main(int argc, char *argv[])
     // now play out the song, at delay ms per frame
     // cnt better be the same on each channel ;)
     for (int row = 0 ; row < cnt; ++row) {
+        if (_kbhit()) {
+            if (_getch() == 27) {
+                break;
+            }
+        }
         // to heck with correct timing...
         // works oddly well on Win10...
         Sleep(delay);
