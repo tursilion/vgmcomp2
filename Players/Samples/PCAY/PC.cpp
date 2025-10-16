@@ -105,6 +105,14 @@ int main(int argc, char *argv[]) {
     fread(buf, 1, sizeof(buf), fp);
     fclose(fp);
 
+#ifdef _WIN32
+    // ask Windows for more resolution. It's weird that the sleep
+    // "just worked" for a year, though...
+    if (timeBeginPeriod(1) == TIMERR_NOCANDO) {
+        printf("Can't change timer interval, if slow, try setting an artificially faster HZ rate (like 70 or 80)\n");
+    }
+#endif
+
 #ifdef USE_SN_PSG
     // set up audio (sound emulation)
     sound_init(22050);
