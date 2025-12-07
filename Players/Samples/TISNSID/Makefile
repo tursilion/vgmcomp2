@@ -1,8 +1,6 @@
 # Paths to TMS9900 compilation tools 
 # ( Set in environment to override paths )
-TMS9900_DIR?=/home/tursilion/newtms9900-gcc/newgcc9900/bin
-ELF2EA5_DIR?=/home/tursilion/gcc9900/bin
-EA5_SPLIT_DIR?=/home/tursilion/gcc9900/bin
+TMS9900_DIR?=/home/tursi/newtms9900-gcc/newgcc9900/bin
 CLASSIC99_DSK1?=/mnt/d/classic99/DSK1/
 LIBTI99?=/mnt/d/work/libti99ALL/
 
@@ -16,7 +14,7 @@ NAME=snsidplay
 # Path to elf2cart conversion utility
 ELF2CART=~/gcc9900/bin/elf2cart
 ELF2EA5=~/gcc9900/bin/elf2ea5
-EA5PLIT=~/gcc9900/bin/ea5split
+EA5PLIT=echo dont need: gcc9900/bin/ea5split
 
 # Flags used during linking
 #
@@ -51,14 +49,9 @@ all: tisnsidplay
 # Recipe to compile the executable
 tisnsidplay: $(PREREQUISITES)
 	$(LD) $(OBJECT_LIST_EA5) $(OBJECT_LIST) $(LIBS) $(LIBPATH) $(LDFLAGS_EA5) -o $(NAME).ea5.elf > ea5.map
-	$(ELF2EA5) $(NAME).ea5.elf $(NAME).ea5.bin
+	$(ELF2EA5) $(NAME).ea5.elf $(NAME)
 	$(EA5PLIT) $(NAME).ea5.bin
 	$(CP) SNSIDPLA* /mnt/d/classic99/dsk1/
-
-split:
-	$(EA5PLIT) $(NAME).ea5.bin
-	$(ELF2CART) $(NAME).c.elf $(NAME).c.bin
-	$(CP) SNSIDPLAY* /mnt/d/classic99/dsk1/
 
 # Recipe to clean all compiled objects
 .phony clean:

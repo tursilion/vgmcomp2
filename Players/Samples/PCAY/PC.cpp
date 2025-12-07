@@ -105,17 +105,14 @@ int main(int argc, char *argv[]) {
     fread(buf, 1, sizeof(buf), fp);
     fclose(fp);
 
-#ifdef _WIN32
-    // ask Windows for more resolution. It's weird that the sleep
-    // "just worked" for a year, though...
+    // ask Windows for more resolution.
     if (timeBeginPeriod(1) == TIMERR_NOCANDO) {
         printf("Can't change timer interval, if slow, try setting an artificially faster HZ rate (like 70 or 80)\n");
     }
-#endif
 
 #ifdef USE_SN_PSG
     // set up audio (sound emulation)
-    sound_init(22050);
+    sound_init(44100);
     
     // mute channels (your program startup does this)
     writeSound(0x9f);   
@@ -126,12 +123,12 @@ int main(int argc, char *argv[]) {
 #ifdef USE_AY_PSG
     // set up audio (sound emulation)
     memset(&regs, 0xff, sizeof(regs));
-    sound_init(22050);
+    sound_init(44100);
     ayemu_init(&psg);
 
     ayemu_set_chip_type(&psg, AYEMU_AY, NULL);
     ayemu_set_stereo(&psg, AYEMU_MONO, NULL);
-    ayemu_set_sound_format (&psg, 22050, 1, 16);
+    ayemu_set_sound_format (&psg, 44100, 1, 16);
     ayemu_reset(&psg);
 
     // mute channels (your program startup does this)
@@ -151,8 +148,8 @@ int main(int argc, char *argv[]) {
     // the player. As this is just an example, we are just going
     // to hard code two tone channels and one noise channel. However,
     // the song data is not restricted to that.
-    sound_init(22050);
-    psg.set_sampling_parameters(985248, reSID::SAMPLE_FAST, 22050);
+    sound_init(44100);
+    psg.set_sampling_parameters(985248, reSID::SAMPLE_FAST, 44100);
     psg.reset();
 
     psg.write(0,1);

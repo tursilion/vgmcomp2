@@ -320,6 +320,22 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "retunenoise", "retunenoise\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "splitter", "splitter\splitter.vcxproj", "{82D06D07-C6F5-492A-B012-B24A2B6BADD1}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libgbavgm2", "libgbavgm2", "{23B4952B-3A3F-4B24-80B6-5F582DD35955}"
+	ProjectSection(SolutionItems) = preProject
+		Players\libgbavgm2\CPlayerCommon.c = Players\libgbavgm2\CPlayerCommon.c
+		Players\libgbavgm2\GBAPlayerSFX.c = Players\libgbavgm2\GBAPlayerSFX.c
+		Players\libgbavgm2\GBAPlayerSN.c = Players\libgbavgm2\GBAPlayerSN.c
+		Players\libgbavgm2\GBASfxPlay.h = Players\libgbavgm2\GBASfxPlay.h
+		Players\libgbavgm2\GBASNPlay.h = Players\libgbavgm2\GBASNPlay.h
+		Players\libgbavgm2\gbasnplaytest.c = Players\libgbavgm2\gbasnplaytest.c
+		Players\libgbavgm2\intwrap.asm = Players\libgbavgm2\intwrap.asm
+		Players\libgbavgm2\Makefile = Players\libgbavgm2\Makefile
+		Players\libgbavgm2\outfile1.c = Players\libgbavgm2\outfile1.c
+		Players\libgbavgm2\readme.txt = Players\libgbavgm2\readme.txt
+		Players\libgbavgm2\sil_nes.c = Players\libgbavgm2\sil_nes.c
+		Players\libgbavgm2\tursigb.h = Players\libgbavgm2\tursigb.h
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -785,6 +801,7 @@ Global
 		{D8027363-83DB-4042-80EB-9407CD094B99} = {C61D286B-17D5-4238-AB62-DF4DF9865169}
 		{FA9D454C-2331-4795-B320-7BA21641624C} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
 		{82D06D07-C6F5-492A-B012-B24A2B6BADD1} = {9CC5C3AC-84E2-4803-9CEF-BF627BB2C8E1}
+		{23B4952B-3A3F-4B24-80B6-5F582DD35955} = {17620A3A-947D-4A8C-8D6F-8418F127E2AB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DA2FB664-5954-49B8-843B-5144D183E3DC}

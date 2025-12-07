@@ -51,7 +51,7 @@ int main() {
         sprite(idx, '1'+idx, COLOR_DKBLUE+idx, 21*8, idx*64+16);
     }
     // reterminate the sprite list - sprite leaves the VDP address in the right place
-    VDPWD = 0xd0;
+    VDPWD(0xd0);
 
     // start the song
     StartSong((unsigned char*)mysong, 0);
@@ -70,9 +70,9 @@ int main() {
             int row = songNote[idx];
             // print note and volume data
             faster_hexprint2(row);
-            VDPWD = ' ';
+            VDPWD(' ');
             faster_hexprint(songVol[idx]);
-            VDPWD = ' ';
+            VDPWD(' ');
         }
 
         // do a simple little viz
@@ -109,15 +109,15 @@ int main() {
         // requires CPlayerCommonHandEdit.asm to be built with these counters
         VDP_SET_ADDRESS_WRITE(gImage);
         faster_hexprint2(cntInline);
-        VDPWD=' ';
+        VDPWD(' ');
         faster_hexprint2(cntRle);
-        VDPWD=' ';
+        VDPWD(' ');
         faster_hexprint2(cntRle16);
-        VDPWD=' ';
+        VDPWD(' ');
         faster_hexprint2(cntRle24);
-        VDPWD=' ';
+        VDPWD(' ');
         faster_hexprint2(cntRle32);
-        VDPWD=' ';
+        VDPWD(' ');
         faster_hexprint2(cntBack);
 #endif
 

@@ -120,26 +120,26 @@ int main() {
 		VDP_SET_ADDRESS(gImage);
 		faster_hexprint(songNote[0]&0xff);	// song channel 1 tone
 		faster_hexprint(songNote[0]>>8);
-		VDPWD=' ';
+        VDPWD(' ');
 		faster_hexprint(songVol[0]);		// song channel 1 volume
-		VDPWD=' ';
+        VDPWD(' ');
 
 		faster_hexprint(songNote[1]&0xff);	// song channel 2 tone
 		faster_hexprint(songNote[1]>>8);
-		VDPWD=' ';
+        VDPWD(' ');
 		faster_hexprint(songVol[1]);		// song channel 2 volume
-		VDPWD=' ';
+        VDPWD(' ');
 
 		faster_hexprint(songNote[2]&0xff);	// song channel 3 tone
 		faster_hexprint(songNote[2]>>8);
-		VDPWD=' ';
+        VDPWD(' ');
 		faster_hexprint(songVol[2]);		// song channel 3 volume
-		VDPWD=' ';
+        VDPWD(' ');
 
 		faster_hexprint(songNote[3]>>8);	// song noise channel
-		VDPWD=' ';
+        VDPWD(' ');
 		faster_hexprint(songVol[3]);     	// song noise volume
-		VDPWD=' ';
+        VDPWD(' ');
 
 		faster_hexprint(songNote[3]&0xff);	// song playing status
 		faster_hexprint(sfxActive>>8);	    // sfx playing status

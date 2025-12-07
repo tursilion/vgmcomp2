@@ -1,8 +1,8 @@
 # Paths to TMS9900 compilation tools 
 # ( Set in environment to override paths )
-TMS9900_DIR?=/home/tursilion/newtms9900-gcc/newgcc9900/bin
-ELF2EA5_DIR?=/home/tursilion/gcc9900/bin
-EA5_SPLIT_DIR?=/home/tursilion/gcc9900/bin
+TMS9900_DIR?=/home/tursi/newtms9900-gcc/newgcc9900/bin
+ELF2EA5_DIR?=/home/tursi/gcc9900/bin
+EA5_SPLIT_DIR?=/home/tursi/gcc9900/bin
 CLASSIC99_DSK1?=/mnt/d/classic99/DSK1/
 LIBTI99?=/mnt/d/work/libti99ALL/
 

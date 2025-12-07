@@ -44,7 +44,7 @@ int main() {
         sprite(idx, '1'+idx, COLOR_DKBLUE+idx, 21*8, idx*40+16);
     }
     // reterminate the sprite list - sprite leaves the VDP address in the right place
-    VDPWD = 0xd0;
+    VDPWD(0xd0);
 
     // start the song
     // ab_sid has two tone channels and one noise, so set that up
@@ -76,9 +76,9 @@ int main() {
             faster_hexprint3(row);
             row = songVol[idx]&0xf;
             if (row > 9) {
-				VDPWD = row+'0'+7;
+				VDPWD(row+'0'+7);
 			} else {
-				VDPWD = row+'0';
+				VDPWD(row+'0');
 			}
         }
         // then SID
@@ -88,9 +88,9 @@ int main() {
             faster_hexprint2(row);
             row = (sidVol[idx]>>4)&0xf;
             if (row > 9) {
-				VDPWD = row+'0'+7;
+				VDPWD(row+'0'+7);
 			} else {
-				VDPWD = row+'0';
+				VDPWD(row+'0');
 			}
         }
 #endif

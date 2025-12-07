@@ -1,5 +1,4 @@
-This links together the GBA playback code into a single linkable library. Link with <<tbd>>
-
+This links together the GBA playback code into a single linkable library. Link with gbavgm2
 There are two players involved. The SN player will standalone, but the SFX player will also bring in SN. All players will share the common decompression code.
 
 This player runs an emulation of the SN sound chip at 11khz on DirectSound A, using Timer 1 for frequency and Timer 2 for refill.
@@ -9,8 +8,8 @@ BASIC: getting it setup
 -----------------------
 
 FROM C:
- - tested with <<TBD>>
- - link with <<TBD>> (-l<<TBD>>)
+ - tested with gcc 12.1.0 (devkitARM release 58)
+ - link with gbavgm2 (-lgbavgm2)
  - include GBASNPlay.h to play back music (on the GB channels)
  - include GBASfxPlay.h to play back sound effects
     - this implies you are also playing music - if you are ONLY playing sound effects, just use GBASNPlay.h
@@ -228,9 +227,9 @@ SN player timing (C code)
 
 GBA Statistics:
 
-          CPlayer           Optimized C
-ROM size: <<<TBD>>> bytes   <<<TBD>>> bytes
-RAM usage:<<<TBD>>> bytes   <<<TBD>>> bytes
+          CPlayer
+ROM size: <<<TBD>>> bytes
+RAM usage:<<<TBD>>> bytes
 
 <TODO: Measure performance>
 Optimized C: Min:  2550   Max: 18510   Avg: 6806  cycles

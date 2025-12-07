@@ -29,7 +29,7 @@ int main() {
         sprite(idx, '1'+idx, COLOR_DKBLUE+idx, 21*8, idx*64+16);
     }
     // reterminate the sprite list - sprite leaves the VDP address in the right place
-    VDPWD = 0xd0;
+    VDPWD(0xd0);
 
     // start the song
     // ab_sid has two tone channels and one noise, so set that up
@@ -52,9 +52,9 @@ int main() {
             int row = sidNote[idx];
             // print note and volume data
             faster_hexprint2(row);
-            VDPWD = ' ';
+            VDPWD(' ');
             faster_hexprint(sidVol[idx]);
-            VDPWD = ' ';
+            VDPWD(' ');
         }
 
         // do a simple little viz
