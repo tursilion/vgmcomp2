@@ -1799,6 +1799,10 @@ int main(int argc, char *argv[])
                     return 1;
                 }
             } else if (0 == strcmp(argv[idx], "-minrun")) {
+                if (songs[0].chipType == TYPE_NONE) {
+                    printf("Pass -sn, -ay or -sid as first argument.\n");
+                    return 1;
+                }
                 ++idx;
                 if (idx>=argc) {
                     printf("Not enough arguments for minrun!\n");
@@ -1822,6 +1826,10 @@ int main(int argc, char *argv[])
                     return 1;
                 }
             } else if (0 == strcmp(argv[idx], "-forcechan")) {
+                if (songs[0].chipType == TYPE_NONE) {
+                    printf("Pass -sn, -ay or -sid as first argument.\n");
+                    return 1;
+                }
                 int chan;
                 ++idx;
                 if (idx>=argc) {
@@ -2032,7 +2040,7 @@ int main(int argc, char *argv[])
                 songs[idx].skipStreams[voc+4] = true;
                 printf("- Skipping streams %d and %d due to no audio\n", voc, voc+4);
             }
-            if ((songs[idx].forceStreams[voc])&&(songs[idx].skipStreams[voc])) {
+            if (songs[idx].forceStreams[voc]) {
                 songs[idx].skipStreams[voc] = false;
                 songs[idx].skipStreams[voc+4] = false;
                 printf("- Forcing streams %d and %d due to forcechan\n", voc, voc+4);
