@@ -1,12 +1,12 @@
-20260222
+20260723
 
-** TI-99/4A **
+\*\* TI-99/4A \*\*
 This code is intended to be used with the version 1.30 patches to GCC 4.4.0 as described in this thread on AtariAge:
 https://forums.atariage.com/topic/164295-gcc-for-the-ti/page/45/#comments
 And found at this repository:
 https://github.com/mburkley/tms9900-gcc
 
-** ColecoVision **
+\*\* ColecoVision \*\*
 This code is tested with SDCC dated 20230715
 
 This is a tool suite for converting and editting music for the SN76489 and compatible sound chips. It does NOT include a tracker, but rather seeks to be able to adapt music from other trackers for use.
@@ -22,6 +22,8 @@ Full source code for all tools is provided. Where not prevented by GPL, all othe
 You can also view the [Documentation](https://github.com/tursilion/vgmcomp2/raw/main/dist/VGMComp2.pdf)
 
 Here are some example videos:
-- NES source: [https://lbry.tv/@tursilion:1/2020-05-31-03-45-19:9](https://lbry.tv/@tursilion:1/2020-05-31-03-45-19:9)
-- MOD source: [https://lbry.tv/@tursilion:1/2020-07-21-02-06-47:e](https://lbry.tv/@tursilion:1/2020-07-21-02-06-47:e)
-- Genesis Source: [https://lbry.tv/@tursilion:1/VgmComp2---Sega-Genesis-to-SN-Example:f](https://lbry.tv/@tursilion:1/VgmComp2---Sega-Genesis-to-SN-Example:f)
+
+* NES source: [https://lbry.tv/@tursilion:1/2020-05-31-03-45-19:9](https://lbry.tv/@tursilion:1/2020-05-31-03-45-19:9)
+* MOD source: [https://lbry.tv/@tursilion:1/2020-07-21-02-06-47:e](https://lbry.tv/@tursilion:1/2020-07-21-02-06-47:e)
+* Genesis Source: [https://lbry.tv/@tursilion:1/VgmComp2---Sega-Genesis-to-SN-Example:f](https://lbry.tv/@tursilion:1/VgmComp2---Sega-Genesis-to-SN-Example:f)
+
