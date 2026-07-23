@@ -1,11 +1,10 @@
-// bass2noise.cpp : Defines the entry point for the console application.
-// Moves bass of a lower pitch than the SN supports to periodic noise.
-// This has no analog on the SID and the AY both has better bass and
-// does not support periodic noise, so there are no flags for those chips.
+// noise2bass.cpp : Defines the entry point for the console application.
+// Moves periodic noise out of the noise channel and onto a new tone channel.
+// This only has meaning when the input was an SN VGM file. Every noise channel
+// will thus generate a new tone channel, unless it has no periodic noise.
 //
 // This one does the entire song because multiple channels need to be
-// dealt with. A new noise channel is always written, to allow you to
-// use other tools to decide how to merge it, if necessary.
+// dealt with. 
 
 #include "stdafx.h"
 #include <stdio.h>
@@ -21,26 +20,26 @@ int VGMVOL[MAXCHANNELS][MAXTICKS];
 bool isNoise[MAXCHANNELS];
 int oldIdx[MAXCHANNELS];                    // so we write back with the same index
 bool verbose = true;
-bool nomute = false;                        // when true, don't mute un-movable basslines
+bool mute = false;
 
 #define TONEMASK 0xfff                      // note portion only, we have to be careful with noise flags
 #define NOISEFLAGS 0xF0000
 #define NOISE_TRIGGER  0x10000
 #define NOISE_PERIODIC 0x20000
 
-#define RENAME ".bass2noise.old"
+#define RENAME ".noise2bass.old"
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Bass to SN Noise conversion Tool - v20260723\n\n");
+	printf("VGMComp2 SN Noise to bass conversion Tool - v20260723\n\n");
 
     if (argc < 2) {
-        printf("bass2noise [-q] [-nomute] <song>\n");
-        printf("Converts tones lower in frequency than supported on the SN chip\n");
-        printf("into periodic noise. A /new/ noise channel is written to support this.\n");
+        printf("noise2bass [-q] [-mute] <song>\n");
+        printf("Converts periodic noise back to tone channels.\n");
+        printf("A /new/ tone channel is written to support this for each noise channel.\n");
+        printf("(Unless there is no periodic noise found on that noise channel.\n");
+        printf("This is intended for converting SN tunes to other chips.\n");
         printf("-q - quiet verbose output\n");
-        printf("-nomute - in case of multiple basslines, the loudest one will be moved.\n");
-        printf("          Quieter ones are /muted/ unless you pass this line.\n");
         printf("song - pass in the entire name of ONE channel, the entire song will be found and updated.\n");
         printf("Original files are renamed to " RENAME "\n");
         return 1;
@@ -51,9 +50,9 @@ int main(int argc, char *argv[])
     while ((arg < argc) && (argv[arg][0] == '-')) {
         if (strcmp(argv[arg], "-q") == 0) {
             verbose = false;
-        } else if (strcmp(argv[arg], "-nomute") == 0) {
-            nomute = true;
-            printf("Will not mute or move quieter bass noise if there is a conflict.\n");
+        } else if (strcmp(argv[arg], "-mute") == 0) {
+            mute = true;
+            printf("Will mute out of range noise instead of clipping.\n");
         } else {
             printf("Unrecognized option '%s'\n", argv[arg]);
             return -1;
@@ -98,20 +97,20 @@ int main(int argc, char *argv[])
     // try to load the song
     int chancnt = 0;
     int row = 0;
-    int highestIdx = -1;    // will contain the index for the new noise channel
-    int clips = 0;          // should always be 0, unless a file was hand editted
+    int highestIdx = -1;    // will contain the index for the new tone channel(s)
+    int clips = 0;
     for (int idx=0; idx<200; ++idx) {
         char testFile[1024];
 
         // try 100 ton files, then 100 noi files ;)
         if (idx < 100) {
+            // Technically, there's no reason to process tone channels.
+            // But we need to ensure we don't stomp on them, so we'll
+            // go ahead and pull them in...
             sprintf(testFile, szFilename, "ton", idx, hz);
             isNoise[chancnt] = false;
             oldIdx[chancnt] = idx;
         } else {
-            // Technically, there's no reason to process noise channels.
-            // But we need to ensure we don't stomp on them, so we'll
-            // go ahead and pull them in...
             sprintf(testFile, szFilename, "noi", idx-100, hz);
             isNoise[chancnt] = true;
             oldIdx[chancnt] = idx-100;
@@ -211,76 +210,71 @@ int main(int argc, char *argv[])
         }
     }
 
-    // create the new noise channel, all muted of course
-    for (int idx=0; idx<row; ++idx) {
-        VGMDAT[chancnt][idx] = 1;   // highest freq
-        VGMVOL[chancnt][idx] = 0;   // mute
-    }
-    isNoise[chancnt] = true;
-    oldIdx[chancnt] = highestIdx;
-    ++chancnt;
+    // for the rare case where we have multiple noise channels, we'll loop
+    int lastNoiseChannel = -1;
+    int firstNew = chancnt;
+    for (int noise = 0; noise < chancnt; ++noise) {
+        if (!isNoise[noise]) continue;
 
-    // now run through the song, moving bass to the new noise channel
-    // in case of conflict, take the loudest, then either mute the
-    // other one or leave it, per command line.
-    int moved = 0;
-    int muted = 0;      // or left behind if nomute is set
-    for (int idx=0; idx<row; ++idx) {
-        // find the loudest bass on this row
-        int loudestChan = -1;
-        int loudestVol = 0;
-        int loudestCnt = 0;
-        for (int ch = 0; ch<chancnt-1; ++ch) {
-            if ((VGMDAT[ch][idx] > 0x3ff) && (VGMVOL[ch][idx] > loudestVol)) {
-                loudestChan = ch;
-                loudestVol = VGMVOL[ch][idx];
-                ++loudestCnt;
-            }
+        if (verbose) printf("Processing noise on channel %d to tone channel %d\n", noise, chancnt);
+
+        // create the new tone channel, all muted of course
+        for (int idx=0; idx<row; ++idx) {
+            VGMDAT[chancnt][idx] = 1;   // highest freq
+            VGMVOL[chancnt][idx] = 0;   // mute
         }
-        if (loudestChan > -1) {
-            // we have one, so first we go ahead and move it
-            // we are assuming a TI SN with a 15 bit shift register,
-            // so we divide the frequency by 15 before writing it
-            // Since the input is limited to 0xfff, this can NEVER exceed 0x3ff.
-            VGMDAT[chancnt-1][idx] = int(VGMDAT[loudestChan][idx]/15.0+0.5) | NOISE_PERIODIC;
-            VGMVOL[chancnt-1][idx] = VGMVOL[loudestChan][idx];
+        isNoise[chancnt] = false;
+        oldIdx[chancnt] = highestIdx;
+        ++chancnt;
 
-            // check if it's a new trigger
-            if ((idx == 0) || ((VGMDAT[chancnt-1][idx]&TONEMASK) != (VGMDAT[chancnt-1][idx-1]&TONEMASK))) {
-                VGMDAT[chancnt-1][idx] |= NOISE_TRIGGER;
-            }
-            
-            // now zero the one we moved
-            VGMDAT[loudestChan][idx] = 1;
-            VGMVOL[loudestChan][idx] = 0;
-
-            // and count it
-            ++moved;
-        }
-        // count how many other channels there were...
-        muted += loudestCnt-1;
-        if ((!nomute) && (loudestCnt > 1)) {
-            // there was conflict, so mute any remaining basses
-            for (int ch = 0; ch<chancnt-1; ++ch) {
-                if (VGMDAT[ch][idx] > 0x3ff) {
-                    VGMDAT[ch][idx] = 1;
-                    VGMVOL[ch][idx] = 0;
+        // now run through the song, moving periodic noise to the new bass channel
+        // No chance of conflict since it's 1:1 (the user can later resolve conflicts
+        // merging it to tone channel 2, which usually will have room).
+        int moved = 0;
+        clips = 0;
+        for (int idx=0; idx<row; ++idx) {
+            // we know exactly which channel we are dealing with 'noise'
+            if (VGMDAT[noise][idx] & NOISE_PERIODIC) {
+                // we have one, so first we go ahead and move it
+                // we are assuming a TI SN with a 15 bit shift register,
+                // so we multiply the frequency by 15 before writing it.
+                // This /CAN/ exceed our maximum of 0xfff, so we will clip by default with
+                // the option to mute instead at the command line (cause at that point
+                // it's not really a tone anymore...)
+                int val = (VGMDAT[noise][idx]&(~NOISEFLAGS)) * 15;
+                if (val > 0xfff) {
+                    ++clips;
+                    if (!mute) {
+                        // then move it anyway, but clipped
+                        val = 0xfff;
+                    } else {
+                        val = 1;    // highest frequency
+                    }
                 }
+                VGMDAT[chancnt-1][idx] = val;
+                if (val <= 1) {
+                    VGMVOL[chancnt-1][idx] = 0;
+                } else {
+                    VGMVOL[chancnt-1][idx] = VGMVOL[noise][idx];
+                }
+
+                // now zero the one we moved
+                VGMDAT[noise][idx] = 1;
+                VGMVOL[noise][idx] = 0;
+
+                // and count it
+                ++moved;
             }
         }
-    }
 
-    if (verbose) printf("\n");
-    if ((verbose)&&(clips>0)) printf("%d notes clipped\n", clips);
-    if ((verbose)&&(moved>0)) printf("%d/%d notes moved (non-lossy)\n", moved, chancnt*row);
-    if ((verbose)&&(muted>0)) {
-        if (nomute) {
-            printf("WARNING:: %d bass notes remain - run again or process with another tool.\n", muted);
-        } else {
-            printf("%d/%d notes muted (lossy).\n", muted, chancnt*row);
+        if (verbose) printf("\n");
+        if ((verbose)&&(clips>0)) printf("%d notes clipped\n", clips);
+        if ((verbose)&&(moved>0)) printf("%d/%d notes moved (non-lossy)\n", moved, chancnt*row);
+        if ((verbose)&&(clips>0)) {
+            printf("%d/%d notes clipped or muted (lossy).\n", clips, chancnt*row);
         }
+        if (verbose) printf("\n");
     }
-    if (verbose) printf("\n");
 
     for (int idx=0; idx<chancnt; ++idx) {
         // now we just have to spit the data back out to new files
@@ -298,7 +292,7 @@ int main(int argc, char *argv[])
             printf("Failed to open output file '%s', err %d\n", testFile, errno);
             return 1;
         }
-        if (idx == oldIdx[chancnt-1]) {
+        if (idx >= firstNew) {
             printf("Writing NEW: %s\n", testFile);
         } else {
             printf("Writing: %s\n", testFile);

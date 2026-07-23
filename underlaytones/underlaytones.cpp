@@ -30,11 +30,11 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Underlay Tool - v20240414\n\n");
+	printf("VGMComp2 Underlay Tool - v20260723\n\n");
 
     if (argc < 3) {
         printf("underlaytones <chan1> <chan2>\n");
-        printf("Merges chan2 into chan1, but chan1 always gets priority.\n");
+        printf("Merges chan1 into chan2, but chan2 always gets priority.\n");
         printf("Original files are renamed to " RENAME "\n");
         return 1;
     }
@@ -93,8 +93,8 @@ int main(int argc, char *argv[])
         if (NULL != fp[idx]) {
             fclose(fp[idx]);
             fp[idx] = NULL;
-            // since we were successful, also rename the source file we plan to overwrite
-            if (idx == 0) {
+            // since we were successful, also rename both source files we plan to overwrite
+            {
                 char buf[1024];
                 sprintf(buf, "%s" RENAME, szFilename[idx]);
                 if (rename(szFilename[idx], buf)) {
@@ -107,19 +107,19 @@ int main(int argc, char *argv[])
 
     printf("Imported %d rows\n", row);
 
-    // merge the second channel into the first one, then output that
-    // to the output file. First channel /always/ gets priority.
+    // merge the first channel into the second one, then output that
+    // to the output file. Second channel /always/ gets priority.
     int movedNotes = 0;
     int lostNotes = 0;
 
     for (int idx = 0; idx<row; ++idx) {
-        if (!muted(1,idx)) {
-            if (muted(0,idx)) {
+        if (!muted(0,idx)) {
+            if (muted(1,idx)) {
                 // go ahead and move it
                 ++movedNotes;
                 // copy channel 2 to channel 1
-                VGMVOL[0][idx] = VGMVOL[1][idx];
-                VGMDAT[0][idx] = VGMDAT[1][idx];
+                VGMVOL[1][idx] = VGMVOL[0][idx];
+                VGMDAT[1][idx] = VGMDAT[0][idx];
             } else {
                 // can't move it, it's lost
                 ++lostNotes;
@@ -131,15 +131,15 @@ int main(int argc, char *argv[])
     printf("%d tones lost    (lossy)\n", lostNotes);
 
     // now we just have to spit the data back out to a new file
-    FILE *fout = fopen(szFilename[0], "w");
+    FILE *fout = fopen(szFilename[1], "w");
     if (NULL == fout) {
-        printf("Failed to open output file '%s', err %d\n", szFilename[0], errno);
+        printf("Failed to open output file '%s', err %d\n", szFilename[1], errno);
         return 1;
     }
-    printf("Writing: %s\n", szFilename[0]);
+    printf("Writing: %s\n", szFilename[1]);
 
     for (int idx=0; idx<row; ++idx) {
-        fprintf(fout, "0x%08X,0x%02X\n", VGMDAT[0][idx], VGMVOL[0][idx]);
+        fprintf(fout, "0x%08X,0x%02X\n", VGMDAT[1][idx], VGMVOL[1][idx]);
     }
     fclose(fout);
 

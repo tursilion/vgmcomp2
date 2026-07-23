@@ -268,7 +268,10 @@ int main(int argc, char *argv[]) {
                 break;
             }
         }
-        if (!data) continue;
+        if (!data) {
+            if (verbose) printf("-Skipping channel %d - no data\n", idx);
+            continue;
+        }
 
         char buf[128];
         if (idx < NOISESTART) {
