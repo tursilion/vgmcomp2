@@ -1,5 +1,5 @@
 // despeckle.cpp : Defines the entry point for the console application.
-// Removes any single-tick notes from a channel
+// Removes any single-tick notes from a channel and paints over any single-tick mutes
 
 #include "stdafx.h"
 #include <stdio.h>
@@ -27,11 +27,12 @@ bool muted(int ch, int row) {
 
 int main(int argc, char *argv[])
 {
-	printf("VGMComp2 Despeckle Tool - v20201006\n\n");
+	printf("VGMComp2 Despeckle Tool - v20260723\n\n");
 
     if (argc < 2) {
         printf("despeckle <channel input>\n");
         printf("Mutes any single-tick sound in the passed-in channel.\n");
+        printf("Single tick mutes with the same data on either side are also filled in.\n");
         printf("Original file is renamed to " RENAME "\n");
         return 1;
     }
@@ -118,18 +119,35 @@ int main(int argc, char *argv[])
 
     // now walk through it, and if the previous and next volumes are muted, mute this one
     int cleared = 0;
+    int filled = 0;
     for (int idx = 0; idx<row; ++idx) {
-        int prevMute = false, nextMute = false;
+        int prevMute = false, nextMute = false, thisMute = false;
 
         if ((idx == 0) || (muted(0, idx-1))) prevMute = true;
         if ((idx == row-1) || (muted(0, idx+1))) nextMute = true;
-        if ((prevMute)&&(nextMute)&&(!muted(0,idx))) {
+        if (muted(0, idx)) thisMute = true;
+
+        // check for single tick note
+        if ((prevMute)&&(nextMute)&&(!thisMute)) {
             ++cleared;
             VGMDAT[0][idx] = 1;
             VGMVOL[0][idx] = 0;
         }
+
+        // check for single tick mute (values on either side must be the same)
+        if ((!prevMute) && (!nextMute) && (thisMute)) {
+            // only if the notes are the same on both sides
+            if ((idx != 0) && (idx != row-1)) {
+                if ((VGMDAT[0][idx-1] == VGMDAT[0][idx+1]) && (VGMVOL[0][idx-1] == VGMVOL[0][idx+1])) {
+                    ++filled;
+                    VGMDAT[0][idx] = VGMDAT[0][idx-1];
+                    VGMVOL[0][idx] = VGMVOL[0][idx-1];
+                }
+            }
+        }
     }
     printf("%d single-tick notes muted (lossy)\n", cleared);
+    printf("%d single-tick muted filled (lossy)\n", filled);
 
     // now we just have to spit the data back out to a new file
     FILE *fout = fopen(szFilename[0], "w");

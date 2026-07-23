@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
         printf("noise2bass [-q] [-mute] <song>\n");
         printf("Converts periodic noise back to tone channels.\n");
         printf("A /new/ tone channel is written to support this for each noise channel.\n");
-        printf("(Unless there is no periodic noise found on that noise channel.\n");
+        printf("(Unless there is no periodic noise found on that noise channel.)\n");
         printf("This is intended for converting SN tunes to other chips.\n");
         printf("-q - quiet verbose output\n");
         printf("song - pass in the entire name of ONE channel, the entire song will be found and updated.\n");

@@ -23,8 +23,8 @@ int main(int argc, char *argv[])
 	printf("VGMComp2 Song Volume Fading Tool - v20260611\n\n");
 
     if (argc < 2) {
-        printf("fadevolume [-q] [-lines <n>] <channel>\n");
-        printf("Maximizes the volume of a channel.\n");
+        printf("fadevolume [-v] [-lines <n>] <channel>\n");
+        printf("Fades out the end of a song.\n");
         printf("-v - verbose output\n");
         printf("-lines <n> - sets the number of lines to fade out over (default 30)\n");
         printf("song - pass in the name of one channel.\n");
