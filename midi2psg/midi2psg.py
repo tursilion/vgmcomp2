@@ -1,384 +1,323 @@
 #!/usr/bin/env python3
 """
-MIDI to 60 FPS frequency/volume CSV converter.
+midi2psg - convert a MIDI file to vgmcomp2 PSG channel files (60hz).
 
-Extracts pitch and velocity data from MIDI files and outputs
-at 60 frames per second resolution with tick counts and 0-255 volume.
-Each channel outputs to a separate file.
+Each MIDI part (a track/channel pair) becomes one or more tone files (one per
+polyphony slot), and each drum part (MIDI channel 10) becomes one noise file.
+
+usage: python midi2psg.py [options] <input.mid> [speed_scale] [decay_scale]
+  speed_scale   song speed multiplier (default 1.0, 0.5=half speed, 2.0=double speed)
+  decay_scale   envelope decay rate multiplier (default 1.0, 0.5=slower, 2.0=faster)
+options:
+  -poly <n>       maximum notes per part (default 3)
+  -partpoly <track> <n>  maximum notes for one track's parts (repeatable) - 1 makes a part
+                  monophonic, with each new note cutting off the previous one
+  -bendrange <n>  pitch bend range in semitones (default 2)
+  -q              quiet
+
+Original script was written by Claude.ai; reworked to:
+  - use one global tempo map for every track (tempo changes live in track 0)
+  - split parts by MIDI channel within each track (type 0 files work), detect drums by
+    MIDI channel 10 (not by output position)
+  - shape each note with an envelope from its GM instrument family (plucked/struck
+    instruments decay, sustained ones hold until note off), plus a short release
+  - apply channel volume (CC7), expression (CC11) and pitch bend
+  - map GM drum notes to SN noise rates (16/32/64) with per-drum decay, and set the
+    retrigger flag on each hit
+  - keep each note in the same output slot for its whole life, so chords don't make
+    notes jump between files
 """
 
-# TODO: Add command-line option to set polyphony (right now it is hard coded to 3 channels per note)
-# TODO: add command-line option to arpeggio (2) polyphony channels for chords
-
-import mido
 import math
 import sys
-import os
-from typing import List, Tuple, Dict, Set
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-# Configuration for volume decay per frame
-VOLUME_DECAY_PER_FRAME = 2.5  # Configurable decay amount
+try:
+    import mido
+except ImportError:
+    print("Error: 'mido' library not found. Install with: pip install mido")
+    sys.exit(1)
+
+FPS = 60
+SN_CLOCK = 111860.9
+
+GM_NAMES = ("AcPiano BrPiano ElGrand Honky EP1 EP2 Harpsi Clav Celesta Glock MusicBox Vibes "
+            "Marimba Xylo TubBells Dulcimer DrawOrg PercOrg RockOrg ChurchOrg ReedOrg Accord "
+            "Harmonica TangoAcc NylonGtr SteelGtr JazzGtr CleanGtr MutedGtr OverdrGtr DistGtr "
+            "GtrHarm AcBass FingBass PickBass Fretless Slap1 Slap2 SynBass1 SynBass2 Violin Viola "
+            "Cello Contrab TremStr PizzStr Harp Timpani Strings1 Strings2 SynStr1 SynStr2 ChoirAah "
+            "VoiceOoh SynVoice OrchHit Trumpet Trombone Tuba MutedTpt FrHorn Brass SynBrass1 "
+            "SynBrass2 SopSax AltoSax TenorSax BariSax Oboe EngHorn Bassoon Clarinet Piccolo Flute "
+            "Recorder PanFlute Bottle Shaku Whistle Ocarina SqLead SawLead CalliopeLd ChiffLd "
+            "CharangLd VoiceLd FifthsLd BassLead Pad1 Pad2 Pad3 Pad4 Pad5 Pad6 Pad7 Pad8 FX1 FX2 "
+            "FX3 FX4 FX5 FX6 FX7 FX8 Sitar Banjo Shamisen Koto Kalimba Bagpipe Fiddle Shanai "
+            "TinkleBell Agogo SteelDrum Woodblock Taiko MeloTom SynDrum RevCymbal GtrFret Breath "
+            "Seashore Bird Phone Heli Applause Gunshot").split()
+
+def envelope_for_program(prog):
+    """(decay time constant in seconds or None for sustained, release seconds)"""
+    if prog < 8:    return (1.2, 0.10)   # pianos
+    if prog < 16:   return (0.6, 0.10)   # chromatic percussion (mallets, bells)
+    if prog < 24:   return (None, 0.08)  # organs
+    if prog < 32:   return (1.0, 0.08)   # guitars
+    if prog < 40:   return (1.5, 0.06)   # basses
+    if prog in (45, 46): return (0.5, 0.08)  # pizzicato, harp
+    if prog == 47:  return (0.8, 0.10)   # timpani
+    if prog < 56:   return (None, 0.15)  # strings, ensembles, choirs (orch hit decays a bit anyway)
+    if prog < 80:   return (None, 0.08)  # brass, reeds, pipes
+    if prog < 88:   return (None, 0.06)  # synth leads
+    if prog < 96:   return (None, 0.25)  # synth pads
+    if prog < 104:  return (None, 0.20)  # synth effects
+    if prog < 109:  return (0.7, 0.08)   # sitar, banjo, shamisen, koto, kalimba
+    if prog < 112:  return (None, 0.08)  # bagpipe, fiddle, shanai
+    if prog < 120:  return (0.3, 0.05)   # percussive
+    return (0.5, 0.10)                   # sound effects
+
+# GM drum note -> (SN noise rate, decay seconds)
+def drum_for_note(n):
+    if n in (35, 36):              return (64, 0.10)   # kicks
+    if n in (38, 40):              return (32, 0.14)   # snares
+    if n in (37, 39):              return (32, 0.08)   # side stick, clap
+    if n in (42, 44):              return (16, 0.05)   # closed / pedal hat
+    if n == 46:                    return (16, 0.25)   # open hat
+    if n in (49, 52, 55, 57):      return (16, 0.80)   # crashes, china, splash
+    if n in (51, 53, 59):          return (16, 0.35)   # rides
+    if n in (41, 43, 45):          return (64, 0.18)   # low toms
+    if n in (47, 48, 50):          return (32, 0.16)   # high toms
+    if n in (54, 56, 69, 70, 82):  return (16, 0.06)   # tambourine, cowbell, cabasa, maracas, shaker
+    return (32, 0.10)
 
 @dataclass
 class Note:
-    """Represents a musical note with timing and pitch information."""
-    start_time: float  # in seconds
-    duration: float    # in seconds
-    frequency: float   # in Hz
-    velocity: int      # MIDI velocity (0-127)
-    channel: int       # MIDI channel
+    start: float
+    end: float
+    note: int
+    vel: int
+    prog: int
 
 @dataclass
-class ActiveNote:
-    """Represents an active note with decay tracking."""
-    note: Note
-    current_volume: float  # Current volume level (0-255) - float for gradual decay
-    frames_active: int     # Number of frames this note has been active
+class Part:
+    track: int
+    channel: int
+    notes: list = field(default_factory=list)
+    cc7: list = field(default_factory=lambda: [(0.0, 100)])
+    cc11: list = field(default_factory=lambda: [(0.0, 127)])
+    bend: list = field(default_factory=lambda: [(0.0, 0)])
+    progs: set = field(default_factory=set)
 
-def midi_to_frequency(midi_note: int) -> float:
-    """
-    Convert MIDI note number to frequency in Hz.
-    A4 (440 Hz) is MIDI note 69.
-    """
-    return 440.0 * (2.0 ** ((midi_note - 69) / 12.0))
+def value_at(timeline, t):
+    """timeline is a sorted list of (time, value) - return the value in effect at t"""
+    lo, hi = 0, len(timeline) - 1
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if timeline[mid][0] <= t: lo = mid
+        else: hi = mid - 1
+    return timeline[lo][1]
 
-def frequency_to_tick_count(frequency: float) -> int:
-    """
-    Convert frequency in Hz to tick counts using formula: 111860.9/Hz
-    
-    Args:
-        frequency: Frequency in Hz
-        
-    Returns:
-        Tick count value as integer
-    """
-    if frequency <= 0:
-        return 0
-    return int(round(111860.9 / frequency))
+def parse_midi(path, speed_scale):
+    mid = mido.MidiFile(path)
+    # global tempo map from all tracks: list of (abs tick, tempo)
+    tempo_events = sorted((tick, msg.tempo) for tick, msg in
+                          ((t, m) for track in mid.tracks for t, m in abs_ticks(track))
+                          if msg.type == 'set_tempo')
+    segs = []   # (start tick, start seconds, tempo)
+    tick0, sec0, tempo = 0, 0.0, 500000
+    for tick, tmp in tempo_events:
+        sec0 += mido.tick2second(tick - tick0, mid.ticks_per_beat, tempo)
+        tick0, tempo = tick, tmp
+        segs.append((tick0, sec0, tempo))
+    if not segs or segs[0][0] != 0:
+        segs.insert(0, (0, 0.0, 500000))
+    def t2s(tick):
+        lo = 0
+        for i, s in enumerate(segs):
+            if s[0] <= tick: lo = i
+            else: break
+        st, ss, tp = segs[lo]
+        return (ss + mido.tick2second(tick - st, mid.ticks_per_beat, tp)) / speed_scale
 
-def velocity_to_255_range(velocity: int) -> float:
-    """
-    Convert MIDI velocity (0-127) to 0-255 range.
-    0 = mute, 255 = maximum volume
-    
-    Args:
-        velocity: MIDI velocity value
-        
-    Returns:
-        Volume in 0-255 range as float
-    """
-    return (velocity / 127.0) * 255.0
-
-def is_drum_channel(channel: int) -> bool:
-    """
-    Determine if a MIDI channel is typically used for drums.
-    Channel 9 (0-indexed) is the standard drum channel in MIDI.
-    """
-    return channel == 9
-
-def get_channel_type(channel: int) -> str:
-    """
-    Get the channel type identifier for filename.
-    """
-    return "noi" if is_drum_channel(channel) else "ton"
-
-def parse_midi(file_path: str, speed_scale: float = 1.0) -> Tuple[Dict[int, List[Note]], float, Set[int]]:
-    """
-    Parse MIDI file and extract note information by track (treating tracks as channels).
-    
-    Args:
-        file_path: Path to MIDI file
-        speed_scale: Speed multiplier (1.0 = normal, 0.5 = half speed, 2.0 = double speed)
-        
-    Returns:
-        Tuple of (notes_by_channel, total_duration_seconds, active_channels)
-    """
-    mid = mido.MidiFile(file_path)
-    
-    print(f"MIDI file info: {len(mid.tracks)} tracks, ticks_per_beat: {mid.ticks_per_beat}")
-    
-    # Track active notes per track (treating tracks as channels)
-    notes_by_channel = {}  # track_id -> List[Note]
-    active_channels = set()
-    
-    # Track tempo changes globally
-    current_tempo = 500000  # Default tempo (120 BPM)
-    
-    # Process all tracks
-    for track_idx, track in enumerate(mid.tracks):
-        print(f"Processing track {track_idx}: {len(track)} messages")
-        track_time = 0.0
-        track_active_notes = {}  # pitch -> (start_time, velocity)
-        track_has_notes = False
-        
-        for msg in track:
-            # Convert ticks to seconds using current tempo and apply speed scaling
-            track_time += mido.tick2second(msg.time, mid.ticks_per_beat, current_tempo) / speed_scale
-            
-            if msg.type == 'set_tempo':
-                # Update current tempo
-                current_tempo = msg.tempo
+    parts = {}
+    for ti, track in enumerate(mid.tracks):
+        prog = {}
+        on = {}
+        for tick, msg in abs_ticks(track):
+            if not hasattr(msg, 'channel'):
                 continue
-            
+            ch = msg.channel
+            key = (ti, ch)
+            t = t2s(tick)
+            if msg.type == 'program_change':
+                prog[ch] = msg.program
+                continue
+            p = parts.setdefault(key, Part(ti, ch))
+            if msg.type == 'control_change' and msg.control == 7:
+                p.cc7.append((t, msg.value))
+            elif msg.type == 'control_change' and msg.control == 11:
+                p.cc11.append((t, msg.value))
+            elif msg.type == 'pitchwheel':
+                p.bend.append((t, msg.pitch))
             elif msg.type == 'note_on' and msg.velocity > 0:
-                # Note starts
-                track_has_notes = True
-                track_active_notes[msg.note] = (track_time, msg.velocity)
-            
+                if (ch, msg.note) in on:   # retrigger without note off - close the old one
+                    s, v, pr = on.pop((ch, msg.note))
+                    p.notes.append(Note(s, t, msg.note, v, pr))
+                on[(ch, msg.note)] = (t, msg.velocity, prog.get(ch, 0))
+                p.progs.add(prog.get(ch, 0))
             elif msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0):
-                # Note ends
-                if msg.note in track_active_notes:
-                    start_time, velocity = track_active_notes[msg.note]
-                    duration = track_time - start_time
-                    
-                    # Convert MIDI note to frequency
-                    frequency = midi_to_frequency(msg.note)
-                    
-                    # Create note object (using track_idx as channel)
-                    note = Note(
-                        start_time=start_time,
-                        duration=duration,
-                        frequency=frequency,
-                        velocity=velocity,
-                        channel=track_idx  # Use track index as channel
-                    )
-                    
-                    # Add to track's note list
-                    if track_idx not in notes_by_channel:
-                        notes_by_channel[track_idx] = []
-                    notes_by_channel[track_idx].append(note)
-                    
-                    # Remove from active notes
-                    del track_active_notes[msg.note]
-        
-        if track_has_notes:
-            active_channels.add(track_idx)
-            print(f"  Track {track_idx}: {len(notes_by_channel.get(track_idx, []))} notes")
-        else:
-            print(f"  Track {track_idx}: no notes (likely tempo/control track)")
-        
-        # Handle any remaining active notes in this track
-        all_notes = []
-        for channel_notes in notes_by_channel.values():
-            all_notes.extend(channel_notes)
-        max_time = max((note.start_time + note.duration for note in all_notes), default=track_time)
-        
-        for pitch, (start_time, velocity) in track_active_notes.items():
-            duration = max_time - start_time
-            frequency = midi_to_frequency(pitch)
-            
-            note = Note(
-                start_time=start_time,
-                duration=duration,
-                frequency=frequency,
-                velocity=velocity,
-                channel=track_idx
-            )
-            
-            if track_idx not in notes_by_channel:
-                notes_by_channel[track_idx] = []
-            notes_by_channel[track_idx].append(note)
-    
-    # Sort notes by start time for each track
-    for track_idx in notes_by_channel:
-        notes_by_channel[track_idx].sort(key=lambda n: n.start_time)
-    
-    # Calculate total duration
-    all_notes = []
-    for channel_notes in notes_by_channel.values():
-        all_notes.extend(channel_notes)
-    total_duration = max((note.start_time + note.duration for note in all_notes), default=0.0)
-    
-    return notes_by_channel, total_duration, active_channels
+                if (ch, msg.note) in on:
+                    s, v, pr = on.pop((ch, msg.note))
+                    p.notes.append(Note(s, t, msg.note, v, pr))
+        end = t2s(max((tk for tk, _ in abs_ticks(track)), default=0))
+        for (ch, n), (s, v, pr) in on.items():
+            parts[(ti, ch)].notes.append(Note(s, end, n, v, pr))
+    parts = {k: p for k, p in parts.items() if p.notes}
+    for p in parts.values():
+        p.notes.sort(key=lambda n: n.start)
+        for tl in (p.cc7, p.cc11, p.bend):
+            tl.sort(key=lambda x: x[0])
+    return parts
 
-def generate_channel_outputs(notes: List[Note], total_duration: float, base_filename: str, track_idx: int, output_channel: int, file_index: int, decay_scale: float = 1.0):
-    """
-    Generate 60 FPS CSV output for a single track, split into 3 separate note files.
-    
-    Args:
-        notes: List of Note objects for this track
-        total_duration: Total song duration in seconds
-        base_filename: Base filename without extension
-        track_idx: Original track index
-        output_channel: Renumbered output channel (starting from 0)
-        file_index: Sequential file index for naming (passed by reference)
-        decay_scale: Decay rate multiplier (1.0 = normal, 0.5 = slower decay, 2.0 = faster decay)
-        
-    Returns:
-        Updated file_index value
-    """
-    fps = 60
-    frame_duration = 1.0 / fps
-    total_frames = int(math.ceil(total_duration * fps))
-    
-    # Track active notes across frames for volume decay
-    active_notes_tracker = []  # List of ActiveNote objects
-    
-    # Prepare data for all 3 note slots
-    note_data = [[] for _ in range(3)]  # 3 lists for 3 note slots
-    
-    for frame in range(total_frames):
-        frame_time = frame * frame_duration
-        
-        # Update existing active notes - apply decay and remove expired notes
-        updated_active_notes = []
-        for active_note in active_notes_tracker:
-            note_end_time = active_note.note.start_time + active_note.note.duration
-            
-            # Check if note is still active
-            if frame_time < note_end_time:
-                # Apply volume decay - decrease volume over time with scaling
-                active_note.frames_active += 1
-                decay_amount = active_note.frames_active * VOLUME_DECAY_PER_FRAME * decay_scale
-                active_note.current_volume = max(0.0, velocity_to_255_range(active_note.note.velocity) - decay_amount)
-                
-                # Only keep if not completely muted
-                if active_note.current_volume > 0.0:
-                    updated_active_notes.append(active_note)
-        
-        active_notes_tracker = updated_active_notes
-        
-        # Add newly started notes
-        for note in notes:
-            # Check if note starts at this frame (within frame tolerance)
-            if (note.start_time <= frame_time < note.start_time + frame_duration and
-                frame_time < note.start_time + note.duration):
-                
-                # Check if this note is already being tracked
-                already_tracked = False
-                for active_note in active_notes_tracker:
-                    if (active_note.note.frequency == note.frequency and 
-                        abs(active_note.note.start_time - note.start_time) < frame_duration):
-                        already_tracked = True
-                        break
-                
-                if not already_tracked:
-                    active_note = ActiveNote(
-                        note=note,
-                        current_volume=velocity_to_255_range(note.velocity),
-                        frames_active=0
-                    )
-                    active_notes_tracker.append(active_note)
-        
-        # Get top 3 notes by frequency for this frame
-        if active_notes_tracker:
-            # Sort by frequency (highest first) and take top 3
-            active_notes_tracker.sort(key=lambda an: an.note.frequency, reverse=True)
-            top_notes = active_notes_tracker[:3]
-        else:
-            top_notes = []
-        
-        # Store data for each of the 3 note slots
-        for slot in range(3):
-            if slot < len(top_notes):
-                active_note = top_notes[slot]
-                tick_count = frequency_to_tick_count(active_note.note.frequency)
-                volume_int = int(active_note.current_volume)
-                note_data[slot].append((tick_count, volume_int))
+def abs_ticks(track):
+    t = 0
+    for msg in track:
+        t += msg.time
+        yield t, msg
+
+def render_tone_part(p, frames, poly, decay_scale, bendrange):
+    slots = [[(0, 0)] * frames for _ in range(poly)]
+    owner = [None] * poly            # (note, release_end_time) per slot
+    stolen = 0
+    pending = list(p.notes)
+    for f in range(frames):
+        t = f / FPS
+        # start notes beginning in this frame
+        while pending and pending[0].start < t + 1 / FPS:
+            n = pending.pop(0)
+            if n.end <= n.start:
+                continue
+            free = [i for i in range(poly) if owner[i] is None]
+            released = [i for i in range(poly) if owner[i] is not None and owner[i].end <= n.start]
+            if released:
+                # a new note cuts off a release tail (as a real instrument would) - this
+                # keeps monophonic lines in one slot instead of spreading them out
+                owner[min(released, key=lambda i: owner[i].end)] = n
+            elif free:
+                owner[free[0]] = n
             else:
-                # No note for this slot
-                note_data[slot].append((0, 0))
-    
-    # Write files for each note slot that has non-zero data
-    channel_type = get_channel_type(output_channel)
-    files_created = 0
-    
-    for slot in range(3):
-        # Check if this slot has any non-zero data
-        has_data = any(tick != 0 or vol != 0 for tick, vol in note_data[slot])
-        
-        if has_data:
-            # Create filename with sequential index
-            note_filename = f"{base_filename}_{channel_type}{file_index:02d}.60hz"
-            
-            with open(note_filename, 'w') as f:
-                for tick_count, volume_int in note_data[slot]:
-                    f.write(f"{tick_count},{volume_int}\n")
-            
-            print(f"  Note slot {slot}: {note_filename}")
-            files_created += 1
-            file_index += 1
-    
-    return file_index
+                # more notes held than slots - steal the slot with the oldest note
+                i = min(range(poly), key=lambda i: owner[i].start)
+                owner[i] = n
+                stolen += 1
+        for i in range(poly):
+            n = owner[i]
+            if n is None:
+                continue
+            tau, rel = envelope_for_program(n.prog)
+            age = max(0.0, t - n.start)
+            level = n.vel / 127.0 * 255.0
+            level *= value_at(p.cc7, t) / 127.0 * value_at(p.cc11, t) / 127.0
+            if tau is not None:
+                level *= math.exp(-age * decay_scale / tau)
+            else:
+                level *= math.exp(-age * decay_scale * 0.05)   # very slow sag on sustained notes
+            if t >= n.end:
+                level *= math.exp(-(t - n.end) / rel)
+                if t - n.end > rel * 4:
+                    owner[i] = None
+                    continue
+            vol = int(level + 0.5)
+            if vol <= 0:
+                if t >= n.end:
+                    owner[i] = None
+                continue
+            semis = n.note - 69 + value_at(p.bend, t) / 8192.0 * bendrange
+            freq = 440.0 * 2 ** (semis / 12.0)
+            slots[i][f] = (int(round(SN_CLOCK / freq)), min(255, vol))
+    return [s for s in slots if any(v for _, v in s)], stolen
+
+def render_drum_part(p, frames, decay_scale):
+    out = [(0, 0)] * frames
+    hits = []   # (start time, rate, decay, level)
+    pending = list(p.notes)
+    for f in range(frames):
+        t = f / FPS
+        newhit = False
+        while pending and pending[0].start < t + 1 / FPS:
+            n = pending.pop(0)
+            rate, dec = drum_for_note(n.note)
+            level = n.vel / 127.0 * 255.0 * value_at(p.cc7, n.start) / 127.0 * value_at(p.cc11, n.start) / 127.0
+            hits.append((n.start, rate, dec, level))
+            newhit = True
+        best = None
+        alive = []
+        for h in hits:
+            v = h[3] * math.exp(-max(0.0, t - h[0]) * decay_scale / h[2])
+            if v >= 1:
+                alive.append(h)
+                if best is None or v > best[1]:
+                    best = (h, v)
+        hits = alive
+        if best:
+            h, v = best
+            flags = 0x10000 if (newhit and h[0] >= t - 1 / FPS) else 0
+            out[f] = (flags | h[1], min(255, int(v + 0.5)))
+    return out
 
 def main():
-    """Main function to process command line arguments and run conversion."""
-    if len(sys.argv) < 2 or len(sys.argv) > 4:
-        print("Usage: python midi_converter.py <input.mid> [speed_scale] [decay_scale]")
-        print("  speed_scale: Song speed multiplier (default 1.0, 0.5=half speed, 2.0=double speed)")
-        print("  decay_scale: Volume decay rate multiplier (default 1.0, 0.5=slower decay, 2.0=faster decay)")
-        print(f"Current default volume decay per frame: {VOLUME_DECAY_PER_FRAME}")
-        print("Note: Requires 'mido' library - install with: pip install mido")
+    args = sys.argv[1:]
+    poly, bendrange, quiet = 3, 2.0, False
+    partpoly = {}
+    pos = []
+    while args:
+        a = args.pop(0)
+        if a == '-poly': poly = int(args.pop(0))
+        elif a == '-partpoly':
+            t = int(args.pop(0)); partpoly[t] = int(args.pop(0))
+        elif a == '-bendrange': bendrange = float(args.pop(0))
+        elif a == '-q': quiet = True
+        else: pos.append(a)
+    if not 1 <= len(pos) <= 3:
+        print(__doc__)
         sys.exit(1)
-    
-    input_file = sys.argv[1]
-    
-    # Parse optional scaling parameters
-    speed_scale = 1.0
-    decay_scale = 1.0
-    
-    if len(sys.argv) >= 3:
-        try:
-            speed_scale = float(sys.argv[2])
-            if speed_scale <= 0:
-                print("Error: speed_scale must be positive")
-                sys.exit(1)
-        except ValueError:
-            print("Error: speed_scale must be a valid number")
-            sys.exit(1)
-    
-    if len(sys.argv) >= 4:
-        try:
-            decay_scale = float(sys.argv[3])
-            if decay_scale < 0:
-                print("Error: decay_scale must be non-negative")
-                sys.exit(1)
-        except ValueError:
-            print("Error: decay_scale must be a valid number")
-            sys.exit(1)
-    
-    try:
-        print(f"Parsing MIDI file: {input_file}")
-        print(f"Speed scale: {speed_scale}x")
-        print(f"Decay scale: {decay_scale}x")
-        notes_by_channel, duration, active_channels = parse_midi(input_file, speed_scale)
-        
-        total_notes = sum(len(notes) for notes in notes_by_channel.values())
-        print(f"Found {total_notes} notes across {len(active_channels)} channels")
-        print(f"Total duration: {duration:.2f} seconds")
-        print(f"Active channels: {sorted(active_channels)}")
-        print(f"Effective volume decay per frame: {VOLUME_DECAY_PER_FRAME * decay_scale}")
-        
-        # Generate output for each active channel with sequential file indexing
-        output_channel = 0
-        file_index = 0  # Sequential index for all files
-        total_files_created = 0
-        
-        for channel in sorted(active_channels):
-            channel_notes = notes_by_channel.get(channel, [])
-            #base_filename = os.path.splitext(input_file)[0]
-            base_filename = input_file   # don't remove extension in this case
-            
-            print(f"Generating track {channel} -> channel {output_channel} ({get_channel_type(output_channel)}):")
-            print(f"  {len(channel_notes)} notes")
-            
-            files_created_before = file_index
-            file_index = generate_channel_outputs(channel_notes, duration, base_filename, channel, output_channel, file_index, decay_scale)
-            files_created = file_index - files_created_before
-            total_files_created += files_created
-            output_channel += 1
-        
-        print(f"Total files created: {total_files_created}")
-        
-        print("Conversion complete.")
-        
-    except ImportError:
-        print("Error: 'mido' library not found. Install with: pip install mido")
+    infile = pos[0]
+    speed_scale = float(pos[1]) if len(pos) > 1 else 1.0
+    decay_scale = float(pos[2]) if len(pos) > 2 else 1.0
+    if speed_scale <= 0 or decay_scale < 0:
+        print("Error: speed_scale must be positive and decay_scale non-negative")
         sys.exit(1)
-    except Exception as e:
-        print(f"Error: {e}")
-        sys.exit(1)
+
+    parts = parse_midi(infile, speed_scale)
+    length = max(n.end for p in parts.values() for n in p.notes) + 1.0
+    frames = int(math.ceil(length * FPS))
+    print(f"Parsing MIDI file: {infile} - {len(parts)} parts, {length:.1f} seconds, {frames} rows")
+
+    idx = 0
+    for key in sorted(parts):
+        p = parts[key]
+        progs = ','.join(GM_NAMES[x] for x in sorted(p.progs))
+        if p.channel == 9:
+            data = render_drum_part(p, frames, decay_scale)
+            fn = f"{infile}_noi{idx:02d}.60hz"
+            write_file(fn, data)
+            print(f"track {p.track} ch {p.channel + 1:2d} drums     {len(p.notes):5d} notes -> {fn}")
+            idx += 1
+        else:
+            slots, stolen = render_tone_part(p, frames, partpoly.get(p.track, poly), decay_scale, bendrange)
+            names = []
+            for s in slots:
+                fn = f"{infile}_ton{idx:02d}.60hz"
+                write_file(fn, s)
+                names.append(fn)
+                idx += 1
+            msg = f"track {p.track} ch {p.channel + 1:2d} {progs:9s} {len(p.notes):5d} notes -> {', '.join(names)}"
+            if stolen and partpoly.get(p.track, poly) > 1:
+                msg += f" ({stolen} notes stole a slot - more than {partpoly.get(p.track, poly)} at once)"
+            print(msg)
+    print("Conversion complete.")
+
+def write_file(fn, data):
+    with open(fn, 'w') as f:
+        for tick, vol in data:
+            f.write(f"0x{tick:08X},0x{vol:02X}\n")
 
 if __name__ == "__main__":
     main()

@@ -366,3 +366,16 @@ players/libcolecovgm2/*.asm
 # coleco/TI stuff
 *.lk
 *.sav
+
+# test folders
+claude/12thwar/*
+claude/AXELF2*
+claude/build_axelf2*
+claude/aziedrev/*
+claude/ddragon/*
+claude/fliphous/*
+claude/gotham/*
+claude/heman/*
+claude/kkslider/*
+claude/silius/*
+claude/voicetest/*

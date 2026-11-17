@@ -622,6 +622,7 @@ void CSoundFile::SetCurrentPos(UINT nPos)
             Chn[i].nAvgCnt = Chn[i].nAvgVol = 0;
             Chn[i].nLastVol = 0;
             Chn[i].nLastDiff = 0;
+            Chn[i].nDCAcc = 0;
 			Chn[i].nVolume = 256;
 			if (i < MAX_BASECHANNELS)
 			{

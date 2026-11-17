@@ -406,6 +406,7 @@ typedef struct _MODCHANNEL
     DWORD nAvgCnt;
     int nLastVol;
     int nLastDiff;
+    int nDCAcc;     // running DC offset estimate (scaled by 2^11) for the volume detector
 	// Information not used in the mixer
 	signed char * pSample;
 	LONG nNewRightVol, nNewLeftVol;

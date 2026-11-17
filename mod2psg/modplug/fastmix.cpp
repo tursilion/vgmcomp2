@@ -524,6 +524,13 @@ void updateAvg(MODCHANNEL *pChn, int ivl, int ivr) {
     // I think that verifies my math and many MODs will just need to be amplified.
     // We keep the extra resolution here to help with quiet notes
     n >>= 11;
+    // remove any DC offset - many 8-bit samples are stored off-centre. The detector below
+    // only records a peak once the trough has gone below zero, so a sample sitting above
+    // centre never registered at all, and one sitting below centre read far too low.
+    // One-pole high pass at the 44.1kHz mix rate, time constant ~46ms (below bass notes).
+    int dc = pChn->nDCAcc >> 11;
+    pChn->nDCAcc += n - dc;
+    n -= dc;
     // now try to calculate peak to peak
     // track to the lowest value
     if (n < pChn->nLastVol) {
